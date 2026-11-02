@@ -1,0 +1,120 @@
+name: Windows — testy i budowa VidSum.exe
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # tylko do tworzenia Release przy tagu v*
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pobierz ffmpeg (BtbN, kompilacja LGPL)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = Invoke-RestMethod -Headers @{Authorization = "Bearer $env:GH_TOKEN"} `
+            "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/latest"
+          $asset = $rel.assets | Where-Object { $_.name -match '^ffmpeg-n\d+\.\d+-latest-win64-lgpl-\d+\.\d+\.zip$' } |
+            Sort-Object name -Descending | Select-Object -First 1
+          if (-not $asset) { throw "Nie znaleziono paczki ffmpeg" }
+          Write-Host "ffmpeg: $($asset.name)"
+          Invoke-WebRequest $asset.browser_download_url -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_tmp
+          $bin = Get-ChildItem ffmpeg_tmp -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          New-Item -ItemType Directory -Force ffbin | Out-Null
+          Copy-Item "$($bin.DirectoryName)\ffmpeg.exe", "$($bin.DirectoryName)\ffprobe.exe" ffbin\
+          Copy-Item (Get-ChildItem ffmpeg_tmp -Recurse -Filter LICENSE.txt | Select-Object -First 1).FullName ffbin\FFMPEG-LICENSE.txt
+          "$PWD\ffbin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          $asset.name | Out-File -Encoding utf8 ffbin\FFMPEG-VERSION.txt
+
+      - name: Zależności
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest pyinstaller==6.22.3
+
+      - name: Testy (pytest na Windows)
+        env:
+          PYTHONUTF8: "1"
+        run: python -m pytest -q -rs
+
+      - name: Budowa VidSum.exe (PyInstaller)
+        working-directory: packaging
+        run: pyinstaller vidsum.spec --noconfirm --distpath ..\dist --workpath ..\build
+
+      - name: Dołącz ffmpeg i instrukcję
+        run: |
+          New-Item -ItemType Directory -Force dist\VidSum\bin | Out-Null
+          Copy-Item ffbin\* dist\VidSum\bin\
+          Copy-Item packaging\CZYTAJ_MNIE.txt dist\VidSum\
+          Copy-Item docs\licencje.md, docs\format_json.md dist\VidSum\
+
+      - name: Test dymny gotowego .exe (bez Pythona i ffmpeg w PATH)
+        run: |
+          $exe = "$PWD\dist\VidSum\VidSum.exe"
+          $env:PATH = "C:\Windows\System32;C:\Windows"   # tylko to, co ma każdy Windows
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { throw "--version nie działa" }
+          $out = "$env:RUNNER_TEMP\wyniki ąę"
+          & $exe "tests\data\Filmy testowe ąęś\przepis z mową.mp4" -o $out --whisper tiny --obraz brak --streszczenie brak
+          if ($LASTEXITCODE -ne 0) { throw "analiza nie działa" }
+          $json = Get-ChildItem $out -Recurse -Filter analiza.json | Select-Object -First 1
+          $r = Get-Content $json.FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          Write-Host "Segmenty mowy: $($r.transkrypcja.segmenty.Count); kadry: $($r.kadry.Count); silnik: $($r.ustawienia.whisper)"
+          $r.transkrypcja.segmenty | ForEach-Object { Write-Host ("  {0,6} {1}" -f $_.start, $_.text) }
+          if ($r.kadry.Count -lt 3) { throw "za mało kadrów" }
+          if ($r.transkrypcja.segmenty.Count -lt 1) { throw "brak transkrypcji" }
+          Write-Host "czasy: $($r.czasy | ConvertTo-Json -Compress)"
+
+      - name: Test dymny interfejsu (serwer lokalny)
+        run: |
+          $env:PATH = "C:\Windows\System32;C:\Windows"
+          $p = Start-Process "$PWD\dist\VidSum\VidSum.exe" -ArgumentList "--ui","--port","8765","--bez-przegladarki","--token","ci" -PassThru
+          Start-Sleep 8
+          try {
+            $page = Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing
+            if ($page.Content -notmatch "VidSum") { throw "brak strony" }
+            $st = Invoke-RestMethod "http://127.0.0.1:8765/api/status" -Headers @{"X-Token"="ci"}
+            Write-Host "status: $($st | ConvertTo-Json -Compress)"
+            if (-not $st.ffmpeg) { throw "spakowany ffmpeg niewidoczny" }
+            try { Invoke-WebRequest "http://127.0.0.1:8765/api/status" -UseBasicParsing | Out-Null; throw "brak ochrony tokenem" }
+            catch { if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw } }
+          } finally { Stop-Process $p -Force }
+
+      - name: ZIP + sha256
+        run: |
+          $ver = (& "dist\VidSum\VidSum.exe" --version).Split(" ")[1]
+          $zip = "VidSum-$ver-windows-x64.zip"
+          7z a -tzip -mx=7 $zip .\dist\VidSum | Out-Null
+          $h = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "$h  $zip" | Out-File -Encoding ascii "$zip.sha256"
+          Write-Host "$zip  $([math]::Round((Get-Item $zip).Length/1MB)) MB  sha256 $h"
+          "ZIP=$zip" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VidSum-windows-x64
+          path: |
+            ${{ env.ZIP }}
+            ${{ env.ZIP }}.sha256
+          retention-days: 30
+
+      - name: Release (tylko przy tagu v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME $env:ZIP "$env:ZIP.sha256" --title "VidSum $env:GITHUB_REF_NAME" --notes-file RAPORT_FAZA2.md

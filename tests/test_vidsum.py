@@ -209,6 +209,7 @@ def test_summary_timeout_still_writes_results(tmp_path, monkeypatch):
     assert r["streszczenie"] is None and any("nie odpowiedziała" in g for g in r["luki"])
 
 
+@pytest.mark.skipif(os.name == "nt", reason="atrapa claude jako skrypt POSIX")
 def test_auto_summary_picks_engine(tmp_path, monkeypatch, ollama):
     """auto: jest `claude` i brak klucza API → Claude; brak `claude` → Ollama."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
@@ -234,6 +235,8 @@ def test_no_audio_and_no_vision(tmp_path):
     assert any("Analiza obrazu wyłączona" in g for g in r["luki"])
     assert r["streszczenie"] is None
     assert all(b["slychac"]["zrodlo"] == "brak_danych" for b in r["os_czasu"])
+    assert all(b["end"] - b["start"] >= 0.5 for b in r["os_czasu"])            # bez pustych odcinków
+    assert sum("ścieżki dźwiękowej" in g for g in r["luki"]) == 1               # bez dubli w lukach
 
 
 def _fake_claude(tmp_path: Path) -> Path:

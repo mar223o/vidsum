@@ -76,10 +76,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if opt.transcript_file:
         tr = SidecarEngine(opt.transcript_file).transcribe(language=opt.language)
     elif not info.has_audio:
-        tr = Transcript(None, "brak", [], "Film nie ma ścieżki dźwiękowej.")
+        tr = Transcript(None, "brak", [])
         gaps.append("Brak ścieżki dźwiękowej — wszystko pochodzi tylko z obrazu.")
     else:
-        log(f"  [1/4] transkrypcja (Whisper {opt.whisper_model})…")
+        log(f"  [1/4] transkrypcja (Whisper {opt.whisper_model}; za pierwszym razem pobieranie modelu)…")
         wav = extract_audio(src.path, out / "_audio.wav")
         try:
             tr = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root

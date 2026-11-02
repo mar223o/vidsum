@@ -1,0 +1,27 @@
+VidSum — analiza filmów (mowa + obraz)
+=======================================
+
+START
+  Kliknij dwukrotnie VidSum.exe. Otworzy się czarne okno (to serwer — nie zamykaj go)
+  i strona w przeglądarce. Zamknięcie czarnego okna wyłącza program.
+
+WYMAGANE OSOBNO
+  Ollama + model obrazu (jednorazowo, w PowerShell):
+      winget install Ollama.Ollama
+      ollama pull qwen3-vl:4b-instruct
+
+OPCJONALNIE
+  Claude Code zalogowany kontem Pro — wtedy streszczenia pisze Claude (dużo lepsze).
+  Bez niego: przycisk „Kopiuj prompt dla Claude” i wklej na claude.ai.
+
+PIERWSZE URUCHOMIENIE
+  Program pobierze model mowy Whisper (small ≈ 480 MB) do %LOCALAPPDATA%\VidSum\modele.
+  Wyniki trafiają do Dokumenty\VidSum (zmienisz w Ustawieniach).
+
+WIERSZ POLECEŃ
+  VidSum.exe "C:\ścieżka\film.mp4"
+  VidSum.exe "https://www.youtube.com/watch?v=..."
+  VidSum.exe --help
+
+Windows SmartScreen może ostrzec, że program jest nieznany (nie jest podpisany certyfikatem).
+Kliknij „Więcej informacji” → „Uruchom mimo to”.

@@ -118,7 +118,8 @@ def choose_frames(scores: list[tuple[float, float]], duration: float, plan: Samp
                 last = t
     # 3) pokrycie bazowe: pierwszy kadr na 0.5 s, potem co base_interval
     t = min(0.5, end)
-    while t <= end:
+    last = max(t, duration - 1.0)   # bez kadru w ostatniej sekundzie (pusty odcinek „05:00–05:00”)
+    while t <= last:
         cands.append(FramePick(round(t, 2), ["pokrycie"], 0.0))
         t += plan.base_interval
 

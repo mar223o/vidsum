@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VidSum</title>
+<style>
+:root{
+  --bg:#f6f5f2; --panel:#ffffff; --ink:#1d1d1b; --muted:#6b6a65; --line:#e4e2dc;
+  --accent:#c2410c; --accent-ink:#fff; --ok:#15803d; --bad:#b91c1c; --warn:#a16207;
+  --speech:#1d4ed8; --vision:#7c3aed; --est:#a16207; --none:#6b6a65;
+  --radius:12px; --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141413; --panel:#1f1e1c; --ink:#ecebe6; --muted:#a3a19a; --line:#34322e;
+    --accent:#f97316; --accent-ink:#1a0d04; --ok:#4ade80; --bad:#f87171; --warn:#facc15;
+    --speech:#93b4ff; --vision:#c4a5ff; --est:#facc15; --none:#a3a19a; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:20px;margin:0;letter-spacing:-.01em}
+header h1 span{color:var(--accent)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.chip{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.ok{color:var(--ok);border-color:currentColor}.chip.bad{color:var(--bad);border-color:currentColor}
+.lang button{border:1px solid var(--line);background:none;color:var(--muted);padding:3px 9px;cursor:pointer;font:inherit;font-size:12px}
+.lang button:first-child{border-radius:8px 0 0 8px}.lang button:last-child{border-radius:0 8px 8px 0}
+.lang button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 80px;display:grid;gap:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+#drop{border:2px dashed var(--line);border-radius:var(--radius);padding:34px 16px;text-align:center;cursor:pointer;transition:.15s}
+#drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+#drop b{font-size:17px;display:block}
+#drop small{color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+textarea,input,select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+textarea{flex:1;min-width:220px;min-height:42px;resize:vertical}
+button.primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:8px 16px;font:inherit;font-weight:600;cursor:pointer}
+button.ghost{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+details summary{cursor:pointer;color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:12px}
+label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.job{display:grid;gap:8px}
+.job + .job{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.job-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.job-top .name{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid currentColor}
+.st.trwa{color:var(--warn)}.st.gotowe{color:var(--ok)}.st.blad{color:var(--bad)}.st.w_kolejce{color:var(--muted)}
+pre.log{margin:0;font:12px/1.45 var(--mono);color:var(--muted);background:var(--bg);border-radius:8px;padding:8px 10px;max-height:140px;overflow:auto;white-space:pre-wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+#result h2{margin:0 0 6px;font-size:19px}
+.meta{color:var(--muted);font-size:13px}
+.md h2{font-size:16px;margin:16px 0 6px}.md ul{margin:4px 0;padding-left:20px}.md code{font-family:var(--mono);font-size:13px}
+.gaps{border-left:3px solid var(--warn);padding:6px 12px;margin:14px 0;color:var(--muted);font-size:13px}
+.beat{display:grid;grid-template-columns:200px 1fr;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.beat img{width:100%;border-radius:8px;display:block;background:var(--line)}
+.beat .t{font:600 13px var(--mono)}
+.src{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid currentColor;margin-right:6px;white-space:nowrap}
+.src.mowa{color:var(--speech)}.src.obraz{color:var(--vision)}.src.brak_danych{color:var(--none)}
+.empty{color:var(--muted);font-size:14px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:14px;opacity:0;transition:.2s;pointer-events:none}
+.toast.on{opacity:1}
+@media (max-width:640px){ .beat{grid-template-columns:1fr} header{padding:12px 16px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Vid<span>Sum</span></h1>
+  <div class="chips" id="chips"></div>
+  <div class="lang"><button data-l="pl">PL</button><button data-l="en">EN</button></div>
+</header>
+<main>
+  <section class="card">
+    <div id="drop" tabindex="0" role="button">
+      <b data-i="drop"></b><small data-i="drop_sub"></small>
+      <input type="file" id="pick" accept="video/*,.mp4,.mov,.mkv,.webm" multiple hidden>
+    </div>
+    <div class="row">
+      <textarea id="links" rows="1" data-ph="links_ph"></textarea>
+      <button class="primary" id="go" data-i="analyze"></button>
+    </div>
+    <details style="margin-top:14px"><summary data-i="settings"></summary>
+      <div class="grid">
+        <label><span data-i="s_lang"></span><select id="s_jezyk"><option value="auto">auto</option><option value="pl">polski</option><option value="en">English</option></select></label>
+        <label><span data-i="s_whisper"></span><select id="s_whisper"><option>tiny</option><option>base</option><option>small</option><option>medium</option><option>large-v3</option></select></label>
+        <label><span data-i="s_vis_on"></span><select id="s_obraz"><option value="ollama">Ollama</option><option value="brak" data-i="none"></option></select></label>
+        <label><span data-i="s_vision"></span><input id="s_model_obrazu"></label>
+        <label><span data-i="s_summary"></span><select id="s_streszczenie"><option value="auto">auto</option><option value="claude">Claude (Pro)</option><option value="ollama">Ollama</option><option value="brak" data-i="none"></option></select></label>
+        <label><span data-i="s_frames"></span><input id="s_max_kadrow" type="number" min="3" max="400" data-ph="auto"></label>
+        <label><span data-i="s_cookies"></span><select id="s_ciasteczka_z"><option value="" data-i="none"></option><option>edge</option><option>chrome</option><option>firefox</option></select></label>
+        <label style="grid-column:1/-1"><span data-i="s_out"></span><input id="s_wyniki"></label>
+      </div>
+      <div class="row"><button class="ghost" id="save" data-i="save"></button></div>
+    </details>
+  </section>
+
+  <section class="card"><div id="jobs"><p class="empty" data-i="no_jobs"></p></div></section>
+  <section class="card" id="result" hidden></section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const T = new URLSearchParams(location.search).get("t") || "";
+const I18N = {
+ pl:{drop:"Przeciągnij tu pliki wideo",drop_sub:"albo kliknij, aby wybrać (MP4, MOV, MKV, WEBM) — kilka naraz też",
+   links_ph:"…albo wklej link(i) YouTube / Instagram / TikTok albo ścieżkę C:\\…\\film.mp4 (jeden w linii)",
+   analyze:"Analizuj",settings:"Ustawienia",s_lang:"Język mowy",s_whisper:"Model mowy (Whisper)",s_vis_on:"Analiza obrazu",s_vision:"Model obrazu (Ollama)",
+   s_summary:"Streszczenie",s_frames:"Maks. kadrów",s_cookies:"Ciasteczka z przeglądarki (IG/TikTok)",s_out:"Folder wyników",
+   save:"Zapisz ustawienia",none:"brak",auto:"auto",no_jobs:"Brak analiz. Wrzuć film powyżej.",
+   w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",show:"Pokaż wynik",copy:"Kopiuj prompt dla Claude",
+   claude:"Podsumuj przez Claude",folder:"Otwórz folder",copied:"Skopiowano — wklej na claude.ai",saved:"Zapisano",
+   uploading:"Wysyłanie",summary:"Streszczenie",no_summary:"Brak streszczenia — użyj „Kopiuj prompt” albo „Podsumuj przez Claude”.",
+   gaps:"Ograniczenia analizy",timeline:"Oś czasu",seen:"obraz",heard:"mowa",nodata:"brak danych",
+   claude_wait:"Claude pisze streszczenie…",dur:"długość",chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code"},
+ en:{drop:"Drop video files here",drop_sub:"or click to choose (MP4, MOV, MKV, WEBM) — several at once is fine",
+   links_ph:"…or paste YouTube / Instagram / TikTok link(s) or a path C:\\…\\video.mp4 (one per line)",
+   analyze:"Analyze",settings:"Settings",s_lang:"Speech language",s_whisper:"Speech model (Whisper)",s_vis_on:"Image analysis",s_vision:"Vision model (Ollama)",
+   s_summary:"Summary",s_frames:"Max frames",s_cookies:"Browser cookies (IG/TikTok)",s_out:"Results folder",
+   save:"Save settings",none:"none",auto:"auto",no_jobs:"No analyses yet. Drop a video above.",
+   w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",show:"Show result",copy:"Copy prompt for Claude",
+   claude:"Summarize with Claude",folder:"Open folder",copied:"Copied — paste into claude.ai",saved:"Saved",
+   uploading:"Uploading",summary:"Summary",no_summary:"No summary — use “Copy prompt” or “Summarize with Claude”.",
+   gaps:"Analysis limits",timeline:"Timeline",seen:"vision",heard:"speech",nodata:"no data",
+   claude_wait:"Claude is writing the summary…",dur:"length",chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code"}
+};
+let L = "pl", settings = {}, jobs = [], shown = null, uploads = {};
+const $ = s => document.querySelector(s);
+const t = k => (I18N[L] && I18N[L][k]) || k;
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = (p, o = {}) => fetch(p, {...o, headers:{"X-Token":T, ...(o.headers||{})}}).then(async r => {
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.status); return j; });
+function toast(msg){ const el=$("#toast"); el.textContent=msg; el.classList.add("on"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("on"),2200); }
+function fmt(s){ s=Math.round(s); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
+  return (h? h+":"+String(m).padStart(2,"0") : String(m).padStart(2,"0"))+":"+String(x).padStart(2,"0"); }
+
+function applyLang(){
+  document.documentElement.lang = L;
+  document.querySelectorAll("[data-i]").forEach(e => e.textContent = t(e.dataset.i));
+  document.querySelectorAll("[data-ph]").forEach(e => e.placeholder = t(e.dataset.ph));
+  document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.l === L));
+  renderJobs(); if (shown) showResult(shown);
+}
+document.querySelectorAll(".lang button").forEach(b => b.onclick = () => {
+  L = b.dataset.l; applyLang(); api("/api/ustawienia", {method:"POST", body:JSON.stringify({jezyk_ui:L})}).catch(()=>{}); });
+
+async function loadStatus(){
+  try{ const s = await api("/api/status");
+    $("#chips").innerHTML = [["chip_ff",s.ffmpeg,""],["chip_ol",s.ollama,s.ollama_info],["chip_cl",s.claude,s.claude_info]]
+      .map(([k,ok,info]) => `<span class="chip ${ok?"ok":"bad"}" title="${esc(info)}">${ok?"✓":"✕"} ${t(k)}</span>`).join("")
+      + `<span class="chip">v${esc(s.wersja)}</span>`;
+  }catch(e){ $("#chips").innerHTML = `<span class="chip bad">${esc(e.message)}</span>`; }
+}
+async function loadSettings(){
+  settings = await api("/api/ustawienia"); L = settings.jezyk_ui || "pl";
+  for (const k of ["jezyk","whisper","obraz","model_obrazu","streszczenie","max_kadrow","ciasteczka_z","wyniki"]) {
+    const el = $("#s_"+k); if (el) el.value = settings[k] ?? ""; }
+  applyLang();
+}
+$("#save").onclick = async () => {
+  const b = {}; for (const k of ["jezyk","whisper","obraz","model_obrazu","streszczenie","max_kadrow","ciasteczka_z","wyniki"]) {
+    const v = $("#s_"+k).value; b[k] = k==="max_kadrow" ? (v? Number(v): null) : v; }
+  settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify(b)}); toast(t("saved")); loadStatus();
+};
+
+function upload(file){
+  const key = Math.random().toString(36).slice(2); uploads[key] = {name:file.name, pct:0}; renderJobs();
+  const x = new XMLHttpRequest(); x.open("POST", "/api/wyslij");
+  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+  x.upload.onprogress = e => { if (e.lengthComputable){ uploads[key].pct = Math.round(100*e.loaded/e.total); renderJobs(); } };
+  x.onloadend = () => { delete uploads[key]; poll(); };
+  x.send(file);
+}
+const drop = $("#drop");
+drop.onclick = () => $("#pick").click();
+drop.onkeydown = e => { if (e.key==="Enter"||e.key===" ") $("#pick").click(); };
+$("#pick").onchange = e => { [...e.target.files].forEach(upload); e.target.value = ""; };
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => [...e.dataTransfer.files].forEach(upload));
+$("#go").onclick = async () => {
+  const lines = $("#links").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  for (const z of lines) { try { await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z})}); } catch(e){ toast(e.message); } }
+  $("#links").value = ""; poll();
+};
+
+function renderJobs(){
+  const up = Object.values(uploads).map(u => `<div class="job"><div class="job-top"><span class="name">${esc(u.name)}</span>
+    <span class="st w_kolejce">${t("uploading")} ${u.pct}%</span></div></div>`).join("");
+  const js = jobs.map(j => `<div class="job"><div class="job-top"><span class="name" title="${esc(j.label)}">${esc(j.label)}</span>
+      <span class="st ${j.status}">${t(j.status)}</span></div>
+      ${j.status!=="gotowe" ? `<pre class="log">${esc(j.log.slice(-6).join("\n")||"…")}</pre>` : ""}
+      ${j.status==="gotowe" ? `<div class="actions">
+        <button class="ghost" data-a="show" data-j="${j.id}">${t("show")}</button>
+        <button class="ghost" data-a="copy" data-j="${j.id}">${t("copy")}</button>
+        <button class="ghost" data-a="claude" data-j="${j.id}">${t("claude")}</button>
+        <button class="ghost" data-a="folder" data-j="${j.id}">${t("folder")}</button></div>` : ""}
+    </div>`).join("");
+  $("#jobs").innerHTML = (up + js) || `<p class="empty">${t("no_jobs")}</p>`;
+}
+$("#jobs").onclick = async e => {
+  const b = e.target.closest("button[data-a]"); if (!b) return; const id = b.dataset.j;
+  try {
+    if (b.dataset.a==="show") showResult(id);
+    if (b.dataset.a==="folder") await api(`/api/zadania/${id}/otworz`, {method:"POST"});
+    if (b.dataset.a==="copy") { const r = await fetch(`/api/zadania/${id}/plik/prompt_dla_claude.md?t=${T}`);
+      await navigator.clipboard.writeText(await r.text()); toast(t("copied")); }
+    if (b.dataset.a==="claude") { b.disabled = true; toast(t("claude_wait"));
+      const r = await api(`/api/zadania/${id}/claude`, {method:"POST"}); b.disabled = false; showResult(id, r.markdown); }
+  } catch(err){ b.disabled = false; toast(err.message); }
+};
+
+function md(s){
+  const lines = esc(s).split("\n"); let out = "", inList = false;
+  const inline = x => x.replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+  for (const l of lines){
+    const h = l.match(/^#{1,3}\s+(.*)/), li = l.match(/^\s*[-*]\s+(.*)/);
+    if (li){ if(!inList){out+="<ul>";inList=true;} out+=`<li>${inline(li[1])}</li>`; continue; }
+    if (inList){ out+="</ul>"; inList=false; }
+    if (h) out += `<h2>${inline(h[1])}</h2>`; else if (l.trim()) out += `<p>${inline(l)}</p>`;
+  }
+  return out + (inList? "</ul>" : "");
+}
+async function showResult(id, claudeMd){
+  shown = id; const box = $("#result"); box.hidden = false;
+  const r = await api(`/api/zadania/${id}/plik/analiza.json`);
+  let summary = claudeMd || (r.streszczenie && r.streszczenie.markdown);
+  if (!summary) { try { const s = await fetch(`/api/zadania/${id}/plik/streszczenie_claude.md?t=${T}`); if (s.ok) summary = await s.text(); } catch {} }
+  const z = r.zrodlo, f = rel => `/api/zadania/${id}/plik/${encodeURI(rel)}?t=${T}`;
+  const beats = r.os_czasu.map(b => {
+    const w = b.widac, seen = w.zrodlo==="obraz"
+      ? esc(w.scena) + [["czynnosci"],["obiekty"],["tekst_na_ekranie"]].map(([k]) => (w[k]||[]).length? ` — ${esc(w[k].join(", "))}`:"").join("") + (w.cialo? ` — ${esc(w.cialo)}`:"")
+      : t("nodata");
+    return `<div class="beat"><img loading="lazy" src="${f(b.kadr)}" alt="">
+      <div><div class="t">${fmt(b.start)}–${fmt(b.end)}</div>
+      <p><span class="src ${w.zrodlo}">${t("seen")}</span>${seen}</p>
+      <p><span class="src ${b.slychac.zrodlo}">${t("heard")}</span>${esc(b.slychac.tekst) || t("nodata")}</p></div></div>`; }).join("");
+  box.innerHTML = `<h2>${esc(z.tytul || z.plik)}</h2>
+    <div class="meta">${t("dur")} ${fmt(z.dlugosc_s)} · ${esc(r.ustawienia.whisper)} · ${esc(r.ustawienia.obraz)} · ${esc(r.ustawienia.streszczenie)}</div>
+    <div class="md">${summary ? md(summary) : `<p class="empty">${t("no_summary")}</p>`}</div>
+    ${r.luki.length ? `<div class="gaps"><b>${t("gaps")}:</b><br>${r.luki.map(esc).join("<br>")}</div>` : ""}
+    <h2 style="font-size:16px;margin-top:18px">${t("timeline")}</h2>${beats}`;
+  box.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+async function poll(){ try { jobs = await api("/api/zadania"); renderJobs(); } catch {} }
+loadSettings().then(() => { loadStatus(); poll(); });
+setInterval(poll, 1500); setInterval(loadStatus, 15000);
+</script>
+</body>
+</html>

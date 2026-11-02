@@ -9,12 +9,31 @@ from . import __version__
 from .pipeline import Options, analyze
 
 
+def _models_dir() -> str:
+    from .gui import app_dir
+    return str(app_dir() / "modele")
+
+
 def main(argv: list[str] | None = None) -> int:
     for s in (sys.stdout, sys.stderr):  # polskie znaki w konsoli Windows
         try:
             s.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
         except Exception:
             pass
+    args = sys.argv[1:] if argv is None else argv
+    # Bez argumentów (dwuklik na VidSum.exe) albo z --ui: interfejs w przeglądarce
+    if not args or args[0] == "--ui":
+        ui = argparse.ArgumentParser(prog="vidsum --ui")
+        ui.add_argument("--ui", action="store_true")
+        ui.add_argument("--port", type=int, default=0)
+        ui.add_argument("--bez-przegladarki", action="store_true")
+        ui.add_argument("--token", default=None)
+        ui.add_argument("-o", "--wyniki", default=None)
+        u = ui.parse_args(args)
+        from .gui import serve
+        serve(u.port, not u.bez_przegladarki, u.token, Path(u.wyniki) if u.wyniki else None)
+        return 0
+    argv = args
     ap = argparse.ArgumentParser(prog="vidsum", description="Analiza filmu: mowa + obraz -> streszczenie ze źródłami.")
     ap.add_argument("wejscie", nargs="+", help="plik(i) MP4 albo link(i) (YouTube/Instagram/TikTok)")
     ap.add_argument("-o", "--wyniki", default="vidsum_wyniki", help="folder na wyniki")
@@ -37,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
 
     opt = Options(out_root=Path(a.wyniki), language=None if a.jezyk == "auto" else a.jezyk,
-                  whisper_model=a.whisper, whisper_device=a.whisper_urzadzenie, whisper_root=a.whisper_folder,
+                  whisper_model=a.whisper, whisper_device=a.whisper_urzadzenie, whisper_root=a.whisper_folder or _models_dir(),
                   transcript_file=Path(a.napisy) if a.napisy else None, vision=a.obraz,
                   vision_model=a.model_obrazu, summary=a.streszczenie, summary_model=a.model_streszczenia,
                   ollama_host=a.ollama, max_frames=a.max_kadrow, cookies_from_browser=a.ciasteczka_z,
