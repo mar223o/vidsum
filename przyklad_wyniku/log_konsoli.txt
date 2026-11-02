@@ -1,0 +1,16 @@
+▶ tests/data/Filmy testowe ąęś/przepis z mową.mp4
+  wyniki: przepis z mową_20261102-005449
+  długość 00:32, 640x360, audio: tak
+  [1/4] transkrypcja (Whisper small)…
+        4 segmentów, język: pl
+  [2/4] wykrywanie zmian scen i wybór kadrów…
+        5 kadrów (pokrycie bazowe co 10.67 s, limit 5)
+  [3/4] opis kadrów (qwen3-vl:4b-instruct)…
+        1/5 00:07 Zielony ekran z białym napisem i pomarańczowym kwadratem w centrum.
+        2/5 00:08 Jednolity niebieski ekran z białym tekstem instrukcyjnym.
+        3/5 00:16 Czerwony ekran z białym napisem i żółtym kwadratem.
+        4/5 00:25 Czerwony ekran z białym napisem i żółtym kwadratem.
+        5/5 00:26 Czarny ekran z białym tekstem w centrum.
+  [4/4] streszczenie (ollama)…
+        ! Ollama nie odpowiedziała w 600 s (TimeoutError).
+  ✔ gotowe w 1056.1 s

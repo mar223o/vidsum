@@ -1,0 +1,292 @@
+{
+  "schema": "vidsum.analysis/1",
+  "narzedzie": {
+    "nazwa": "VidSum",
+    "wersja": "0.1.0"
+  },
+  "utworzono": "2026-11-02T01:12:25+01:00",
+  "zrodlo": {
+    "rodzaj": "plik",
+    "wejscie": "tests/data/Filmy testowe ąęś/przepis z mową.mp4",
+    "url": null,
+    "tytul": null,
+    "autor": null,
+    "plik": "przepis z mową.mp4",
+    "sha256": "163b923f28837630d1542e8532bde8ca96b0d496007097bfa07d1058a290f2cb",
+    "dlugosc_s": 32.0,
+    "szerokosc": 640,
+    "wysokosc": 360,
+    "audio": true
+  },
+  "ustawienia": {
+    "whisper": "faster-whisper:small:cpu",
+    "jezyk": "auto",
+    "obraz": "ollama:qwen3-vl:4b-instruct",
+    "streszczenie": "ollama:qwen3-vl:4b-instruct",
+    "limit_kadrow": 5,
+    "pokrycie_co_s": 10.67
+  },
+  "transkrypcja": {
+    "jezyk": "pl",
+    "segmenty": [
+      {
+        "start": 0.14,
+        "end": 3.4,
+        "text": "Najpierw krujmy jedną cebulę w drobną kostkę."
+      },
+      {
+        "start": 8.35,
+        "end": 10.77,
+        "text": "Teraz wywamy 200 ml mleka."
+      },
+      {
+        "start": 16.52,
+        "end": 19.02,
+        "text": "Mieszamy przez 5 minut na małym obniu."
+      },
+      {
+        "start": 26.39,
+        "end": 27.77,
+        "text": "Gotowe, smacznego!"
+      }
+    ]
+  },
+  "kadry": [
+    {
+      "t": 7.0,
+      "file": "kadry/kadr_001_00-07.jpg",
+      "reasons": [
+        "aktywnosc"
+      ],
+      "score": 0.084,
+      "vision": {
+        "scena": "Zielony ekran z białym napisem i pomarańczowym kwadratem w centrum.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Krok 1 - Pokroj cebule"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 8.5,
+      "file": "kadry/kadr_002_00-08.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.418,
+      "vision": {
+        "scena": "Jednolity niebieski ekran z białym tekstem instrukcyjnym.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Krok 2 - Wlej 200 ml mleka"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 16.5,
+      "file": "kadry/kadr_003_00-16.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.255,
+      "vision": {
+        "scena": "Czerwony ekran z białym napisem i żółtym kwadratem.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Krok 3 - Mieszaj 5 minut"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 25.0,
+      "file": "kadry/kadr_004_00-25.jpg",
+      "reasons": [
+        "aktywnosc"
+      ],
+      "score": 0.076,
+      "vision": {
+        "scena": "Czerwony ekran z białym napisem i żółtym kwadratem.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Krok 3 - Mieszaj 5 minut"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 26.5,
+      "file": "kadry/kadr_005_00-26.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.38,
+      "vision": {
+        "scena": "Czarny ekran z białym tekstem w centrum.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Gotowe! Smacznego"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    }
+  ],
+  "os_czasu": [
+    {
+      "start": 0.0,
+      "end": 8.0,
+      "kadr": "kadry/kadr_001_00-07.jpg",
+      "powod_kadru": [
+        "aktywnosc"
+      ],
+      "widac": {
+        "scena": "Zielony ekran z białym napisem i pomarańczowym kwadratem w centrum.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Krok 1 - Pokroj cebule"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Najpierw krujmy jedną cebulę w drobną kostkę.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": null
+    },
+    {
+      "start": 8.0,
+      "end": 16.0,
+      "kadr": "kadry/kadr_002_00-08.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "widac": {
+        "scena": "Jednolity niebieski ekran z białym tekstem instrukcyjnym.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Krok 2 - Wlej 200 ml mleka"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Teraz wywamy 200 ml mleka.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [],
+        "zniknely": []
+      }
+    },
+    {
+      "start": 16.0,
+      "end": 25.0,
+      "kadr": "kadry/kadr_003_00-16.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "widac": {
+        "scena": "Czerwony ekran z białym napisem i żółtym kwadratem.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Krok 3 - Mieszaj 5 minut"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Mieszamy przez 5 minut na małym obniu.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [],
+        "zniknely": []
+      }
+    },
+    {
+      "start": 25.0,
+      "end": 26.0,
+      "kadr": "kadry/kadr_004_00-25.jpg",
+      "powod_kadru": [
+        "aktywnosc"
+      ],
+      "widac": {
+        "scena": "Czerwony ekran z białym napisem i żółtym kwadratem.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Krok 3 - Mieszaj 5 minut"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "",
+        "zrodlo": "brak_danych"
+      },
+      "zmiana": {
+        "nowe": [],
+        "zniknely": []
+      }
+    },
+    {
+      "start": 26.0,
+      "end": 32.0,
+      "kadr": "kadry/kadr_005_00-26.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "widac": {
+        "scena": "Czarny ekran z białym tekstem w centrum.",
+        "czynnosci": [],
+        "obiekty": [],
+        "tekst_na_ekranie": [
+          "Gotowe! Smacznego"
+        ],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Gotowe, smacznego!",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [],
+        "zniknely": []
+      }
+    }
+  ],
+  "streszczenie": null,
+  "luki": [
+    "Kadry co najwyżej co 8 s — krótkie czynności między kadrami mogły zostać pominięte.",
+    "Streszczenie nie powstało: Ollama nie odpowiedziała w 600 s (TimeoutError)."
+  ],
+  "czasy": {
+    "transkrypcja_s": 6.7,
+    "kadry_s": 0.6,
+    "obraz_s": 448.6,
+    "streszczenie_s": 600.1,
+    "razem_s": 1056.1
+  }
+}
