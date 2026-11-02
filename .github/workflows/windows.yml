@@ -1,4 +1,4 @@
-name: Windows — testy i budowa VidSum.exe
+name: Windows — testy i budowa VidSum
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     defaults:
       run:
         shell: pwsh
@@ -45,72 +45,144 @@ jobs:
       - name: Zależności
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest pyinstaller==6.22.3
+          pip install -r requirements.txt pytest
+
+      - name: PyInstaller z własnym modułem startowym (kompilacja ze źródeł)
+        # Gotowy moduł startowy z PyPI jest identyczny w tysiącach programów (także szkodliwych),
+        # dlatego antywirusy często go flagują. Kompilacja ze źródeł daje unikalny plik.
+        env:
+          PYINSTALLER_COMPILE_BOOTLOADER: "1"
+        run: pip install --no-binary pyinstaller pyinstaller==6.22.3
 
       - name: Testy (pytest na Windows)
         env:
           PYTHONUTF8: "1"
         run: python -m pytest -q -rs
 
-      - name: Budowa VidSum.exe (PyInstaller)
+      # ---------------- wariant A: VidSum.exe (PyInstaller) ----------------
+      - name: "A: budowa VidSum.exe"
         working-directory: packaging
         run: pyinstaller vidsum.spec --noconfirm --distpath ..\dist --workpath ..\build
 
-      - name: Dołącz ffmpeg i instrukcję
+      - name: "A: ffmpeg i instrukcja"
         run: |
           New-Item -ItemType Directory -Force dist\VidSum\bin | Out-Null
           Copy-Item ffbin\* dist\VidSum\bin\
           Copy-Item packaging\CZYTAJ_MNIE.txt dist\VidSum\
           Copy-Item docs\licencje.md, docs\format_json.md dist\VidSum\
 
-      - name: Test dymny gotowego .exe (bez Pythona i ffmpeg w PATH)
+      # ---------------- wariant B: oficjalny Python z python.org (podpisany) ----------------
+      - name: "B: paczka z podpisanym Pythonem (bez PyInstallera)"
         run: |
-          $exe = "$PWD\dist\VidSum\VidSum.exe"
-          $env:PATH = "C:\Windows\System32;C:\Windows"   # tylko to, co ma każdy Windows
-          & $exe --version
-          if ($LASTEXITCODE -ne 0) { throw "--version nie działa" }
-          $out = "$env:RUNNER_TEMP\wyniki ąę"
-          & $exe "tests\data\Filmy testowe ąęś\przepis z mową.mp4" -o $out --whisper tiny --obraz brak --streszczenie brak
-          if ($LASTEXITCODE -ne 0) { throw "analiza nie działa" }
-          $json = Get-ChildItem $out -Recurse -Filter analiza.json | Select-Object -First 1
-          $r = Get-Content $json.FullName -Raw -Encoding utf8 | ConvertFrom-Json
-          Write-Host "Segmenty mowy: $($r.transkrypcja.segmenty.Count); kadry: $($r.kadry.Count); silnik: $($r.ustawienia.whisper)"
-          $r.transkrypcja.segmenty | ForEach-Object { Write-Host ("  {0,6} {1}" -f $_.start, $_.text) }
-          if ($r.kadry.Count -lt 3) { throw "za mało kadrów" }
-          if ($r.transkrypcja.segmenty.Count -lt 1) { throw "brak transkrypcji" }
-          Write-Host "czasy: $($r.czasy | ConvertTo-Json -Compress)"
+          $v = python -c "import platform; print(platform.python_version())"
+          $P = "portable\VidSum"
+          New-Item -ItemType Directory -Force $P | Out-Null
+          Invoke-WebRequest "https://www.python.org/ftp/python/$v/python-$v-embed-amd64.zip" -OutFile embed.zip
+          Expand-Archive embed.zip -DestinationPath "$P\python"
+          $pth = Get-ChildItem "$P\python" -Filter "python*._pth" | Select-Object -First 1
+          $zipname = (Get-ChildItem "$P\python" -Filter "python3*.zip" | Select-Object -First 1).Name
+          # ścieżki: biblioteka standardowa, folder programu (..) i site-packages
+          Set-Content $pth.FullName "$zipname`r`n.`r`n..`r`nLib\site-packages`r`nimport site" -Encoding ascii
+          pip install --no-compile --target "$P\python\Lib\site-packages" -r requirements.txt
+          Copy-Item -Recurse vidsum "$P\vidsum"
+          Get-ChildItem "$P\vidsum" -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
+          New-Item -ItemType Directory -Force "$P\bin" | Out-Null
+          Copy-Item ffbin\* "$P\bin\"
+          Copy-Item packaging\VidSum.cmd, packaging\CZYTAJ_MNIE.txt, docs\licencje.md, docs\format_json.md $P
+          $sig = Get-AuthenticodeSignature "$P\python\python.exe"
+          Write-Host "Podpis python.exe: $($sig.Status) — $($sig.SignerCertificate.Subject)"
 
-      - name: Test dymny interfejsu (serwer lokalny)
+      # ---------------- testy dymne obu wariantów ----------------
+      - name: Test dymny (bez Pythona i ffmpeg w PATH)
+        run: |
+          $env:PATH = "C:\Windows\System32;C:\Windows"   # tylko to, co ma każdy Windows
+          $runs = @(
+            @{ name = "A (exe)"; cmd = "$PWD\dist\VidSum\VidSum.exe" },
+            @{ name = "B (python.org)"; cmd = "$PWD\portable\VidSum\VidSum.cmd" }
+          )
+          foreach ($r in $runs) {
+            Write-Host "=== $($r.name) ==="
+            & $r.cmd --version
+            if ($LASTEXITCODE -ne 0) { throw "$($r.name): --version nie działa" }
+            $out = "$env:RUNNER_TEMP\wyniki ąę $($r.name.Substring(0,1))"
+            & $r.cmd "tests\data\Filmy testowe ąęś\przepis z mową.mp4" -o $out --whisper tiny --obraz brak --streszczenie brak
+            if ($LASTEXITCODE -ne 0) { throw "$($r.name): analiza nie działa" }
+            $json = Get-ChildItem $out -Recurse -Filter analiza.json | Select-Object -First 1
+            $j = Get-Content $json.FullName -Raw -Encoding utf8 | ConvertFrom-Json
+            Write-Host "Segmenty mowy: $($j.transkrypcja.segmenty.Count); kadry: $($j.kadry.Count); silnik: $($j.ustawienia.whisper)"
+            $j.transkrypcja.segmenty | ForEach-Object { Write-Host ("  {0,6} {1}" -f $_.start, $_.text) }
+            if ($j.kadry.Count -lt 3 -or $j.transkrypcja.segmenty.Count -lt 1) { throw "$($r.name): zły wynik" }
+          }
+
+      - name: Test dymny interfejsu (oba warianty)
         run: |
           $env:PATH = "C:\Windows\System32;C:\Windows"
-          $p = Start-Process "$PWD\dist\VidSum\VidSum.exe" -ArgumentList "--ui","--port","8765","--bez-przegladarki","--token","ci" -PassThru
-          Start-Sleep 8
-          try {
-            $page = Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing
-            if ($page.Content -notmatch "VidSum") { throw "brak strony" }
-            $st = Invoke-RestMethod "http://127.0.0.1:8765/api/status" -Headers @{"X-Token"="ci"}
-            Write-Host "status: $($st | ConvertTo-Json -Compress)"
-            if (-not $st.ffmpeg) { throw "spakowany ffmpeg niewidoczny" }
-            try { Invoke-WebRequest "http://127.0.0.1:8765/api/status" -UseBasicParsing | Out-Null; throw "brak ochrony tokenem" }
-            catch { if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw } }
-          } finally { Stop-Process $p -Force }
+          $runs = @(
+            @{ name = "A"; file = "$PWD\dist\VidSum\VidSum.exe"; port = 8765 },
+            @{ name = "B"; file = "$PWD\portable\VidSum\VidSum.cmd"; port = 8766 }
+          )
+          foreach ($r in $runs) {
+            $p = Start-Process $r.file -ArgumentList "--ui","--port","$($r.port)","--bez-przegladarki","--token","ci" -PassThru
+            Start-Sleep 10
+            try {
+              $page = Invoke-WebRequest "http://127.0.0.1:$($r.port)/" -UseBasicParsing
+              if ($page.Content -notmatch "VidSum") { throw "brak strony" }
+              $st = Invoke-RestMethod "http://127.0.0.1:$($r.port)/api/status" -Headers @{"X-Token"="ci"}
+              Write-Host "$($r.name) status: $($st | ConvertTo-Json -Compress)"
+              if (-not $st.ffmpeg) { throw "ffmpeg niewidoczny" }
+              try { Invoke-WebRequest "http://127.0.0.1:$($r.port)/api/status" -UseBasicParsing | Out-Null; throw "brak ochrony tokenem" }
+              catch { if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw } }
+            } finally {
+              Stop-Process $p -Force -ErrorAction SilentlyContinue
+              Get-Process python, VidSum -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            }
+          }
 
-      - name: ZIP + sha256
+      - name: ZIP + sha256 (oba warianty)
         run: |
           $ver = (& "dist\VidSum\VidSum.exe" --version).Split(" ")[1]
-          $zip = "VidSum-$ver-windows-x64.zip"
-          7z a -tzip -mx=7 $zip .\dist\VidSum | Out-Null
-          $h = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-          "$h  $zip" | Out-File -Encoding ascii "$zip.sha256"
-          Write-Host "$zip  $([math]::Round((Get-Item $zip).Length/1MB)) MB  sha256 $h"
-          "ZIP=$zip" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          $a = "VidSum-$ver-windows-x64.zip"
+          $b = "VidSum-$ver-windows-x64-python.zip"
+          7z a -tzip -mx=7 $a .\dist\VidSum | Out-Null
+          7z a -tzip -mx=7 $b .\portable\VidSum | Out-Null
+          foreach ($z in @($a, $b)) {
+            $h = (Get-FileHash $z -Algorithm SHA256).Hash.ToLower()
+            "$h  $z" | Out-File -Encoding ascii "$z.sha256"
+            Write-Host "$z  $([math]::Round((Get-Item $z).Length/1MB)) MB  sha256 $h"
+          }
+          "ZIP_A=$a" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "ZIP_B=$b" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Skan Windows Defender (oba warianty)
+        continue-on-error: true
+        run: |
+          Update-MpSignature -ErrorAction SilentlyContinue
+          $s = Get-MpComputerStatus
+          Write-Host "Defender: sygnatury $($s.AntivirusSignatureVersion) z $($s.AntivirusSignatureLastUpdated); silnik $($s.AMEngineVersion)"
+          $mp = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
+          $bad = 0
+          foreach ($p in @("$PWD\dist\VidSum", "$PWD\portable\VidSum", "$PWD\$env:ZIP_A", "$PWD\$env:ZIP_B")) {
+            & $mp -Scan -ScanType 3 -File $p -DisableRemediation | Out-Host
+            Write-Host "Skan $p → kod $LASTEXITCODE (0 = brak zagrożeń, 2 = wykryto)"
+            if ($LASTEXITCODE -ne 0) { $bad++ }
+          }
+          Get-MpThreatDetection -ErrorAction SilentlyContinue | Format-List | Out-Host
+          if ($bad) { throw "Defender coś wykrył" }
 
       - uses: actions/upload-artifact@v4
         with:
-          name: VidSum-windows-x64
+          name: VidSum-windows-x64-exe
           path: |
-            ${{ env.ZIP }}
-            ${{ env.ZIP }}.sha256
+            ${{ env.ZIP_A }}
+            ${{ env.ZIP_A }}.sha256
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VidSum-windows-x64-python
+          path: |
+            ${{ env.ZIP_B }}
+            ${{ env.ZIP_B }}.sha256
           retention-days: 30
 
       - name: Release (tylko przy tagu v*)
@@ -118,9 +190,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $files = @($env:ZIP_A, "$env:ZIP_A.sha256", $env:ZIP_B, "$env:ZIP_B.sha256")
           gh release view $env:GITHUB_REF_NAME 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:GITHUB_REF_NAME $env:ZIP "$env:ZIP.sha256" --clobber
-          } else {
-            gh release create $env:GITHUB_REF_NAME $env:ZIP "$env:ZIP.sha256" --title "VidSum $env:GITHUB_REF_NAME" --notes-file RAPORT_FAZA2.md
-          }
+          if ($LASTEXITCODE -eq 0) { gh release upload $env:GITHUB_REF_NAME @files --clobber }
+          else { gh release create $env:GITHUB_REF_NAME @files --title "VidSum $env:GITHUB_REF_NAME" --notes-file RAPORT_FAZA2.md }
