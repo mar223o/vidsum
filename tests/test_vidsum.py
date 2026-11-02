@@ -109,7 +109,7 @@ def test_choose_frames_rules():
 
 def test_plan_long_video():
     p = plan_for(40 * 60)
-    assert p.max_frames == 150 and 10 <= p.base_interval <= 30
+    assert p.max_frames == 100 and 10 <= p.base_interval <= 30
 
 
 def test_beats_merge_and_sources():
@@ -180,7 +180,7 @@ def test_vision_failure_does_not_abort(tmp_path, ollama):
     assert rc == 0
     r = json.loads((_only_dir(tmp_path) / "analiza.json").read_text(encoding="utf-8"))
     vis = [k["vision"] for k in r["kadry"]]
-    assert vis[1] is None and vis[0] and vis[2] and vis[3]
+    assert len(vis) >= 3 and vis[1] is None and all(v for i, v in enumerate(vis) if i != 1)
     assert r["os_czasu"][1]["widac"] == {"zrodlo": "brak_danych"}
     assert any("Nie udało się opisać kadrów" in g for g in r["luki"])
 
@@ -301,3 +301,70 @@ def test_vision_cleanup_foreign_script_and_new_key():
     assert v["napisy_na_przedmiotach"] == ["Do not hammer"] and v["tekst_na_ekranie"] == []
     assert v["pewnosc"] == "srednia"
     assert _clean_vision({"scena": "ok", "pewnosc": "wysoka"})["pewnosc"] == "wysoka"
+
+
+def test_parse_vtt_youtube_rolling_captions():
+    from vidsum.transcribe import parse_vtt
+    raw = ("WEBVTT\nKind: captions\nLanguage: en\n\n"
+           "00:00:00.160 --> 00:00:02.310 align:start position:0%\n \n"
+           "today<00:00:00.640><c> we</c><c> make</c><c> fries</c>\n\n"
+           "00:00:02.310 --> 00:00:02.320 align:start position:0%\ntoday we make fries\n \n\n"
+           "00:00:02.320 --> 00:00:05.000 align:start position:0%\ntoday we make fries\n"
+           "cut<00:00:02.800><c> the</c><c> potatoes</c>\n\n"
+           "7\n01:00:02.000 --> 01:00:04.500\nZażółć gęślą jaźń\n")
+    segs = [(s.start, s.end, s.text) for s in parse_vtt(raw)]
+    assert segs == [(0.16, 2.31, "today we make fries"), (2.32, 5.0, "cut the potatoes"),
+                    (3602.0, 3604.5, "Zażółć gęślą jaźń")]
+
+
+def test_pick_subtitles_prefers_author_and_original(tmp_path):
+    from vidsum.fetch import pick_subtitles
+    files = {}
+    for lang in ("pl", "en", "en-orig"):
+        f = tmp_path / f"x.{lang}.vtt"
+        f.write_text("WEBVTT\n", encoding="utf-8")
+        files[lang] = {"filepath": str(f)}
+    # napisy od autora po polsku wygrywają
+    p, kind = pick_subtitles({"requested_subtitles": files, "subtitles": {"pl": []}, "language": "en"})
+    assert p.name == "x.pl.vtt" and kind == "autor"
+    # tylko automatyczne: bierzemy oryginał (en-orig), NIE maszynowe tłumaczenie na pl
+    p, kind = pick_subtitles({"requested_subtitles": files, "subtitles": {}, "language": "en"})
+    assert p.name == "x.en-orig.vtt" and kind == "automatyczne"
+    only_pl = {"pl": files["pl"]}
+    assert pick_subtitles({"requested_subtitles": only_pl, "subtitles": {}, "language": "en"}) == (None, None)
+    assert pick_subtitles({}) == (None, None)
+
+
+def test_speech_runs_in_parallel_with_vision(tmp_path, ollama, monkeypatch):
+    """Whisper na CPU liczy się w tle, gdy model obrazu opisuje kadry — czas całości < suma etapów."""
+    import time as _t
+    import vidsum.pipeline as pl
+    from vidsum.transcribe import Segment, Transcript
+
+    class SlowWhisper:
+        def __init__(self, *a, **k):
+            pass
+
+        def resolve_device(self):
+            return "cpu", None
+
+        def transcribe(self, wav, language=None):
+            _t.sleep(2.0)
+            return Transcript("pl", "atrapa", [Segment(1, 2, "mowa z atrapy")])
+
+    orig_describe = __import__("vidsum.llm", fromlist=["Ollama"]).Ollama.describe_frame
+
+    def slow_describe(self, image, t_label):
+        _t.sleep(0.5)
+        return orig_describe(self, image, t_label)
+
+    monkeypatch.setattr(pl, "WhisperEngine", SlowWhisper)
+    monkeypatch.setattr(pl.Ollama, "describe_frame", slow_describe)
+    rc = main([str(FILM), "-o", str(tmp_path), "--ollama", ollama, "--model-obrazu", "fake-vl",
+               "--max-kadrow", "4", "--streszczenie", "brak"])
+    assert rc == 0
+    r = json.loads((_only_dir(tmp_path) / "analiza.json").read_text(encoding="utf-8"))
+    c = r["czasy"]
+    assert r["transkrypcja"]["segmenty"][0]["text"] == "mowa z atrapy"
+    assert c["transkrypcja_s"] >= 2.0 and c["obraz_s"] >= 1.0
+    assert c["razem_s"] < c["transkrypcja_s"] + c["obraz_s"]      # nakładały się w czasie

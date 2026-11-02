@@ -85,8 +85,9 @@ class SamplingPlan:
 def plan_for(duration: float, max_frames: int | None = None) -> SamplingPlan:
     """Dobiera gęstość kadrów do długości: krótki przepis gęsto, 40 min rzadziej."""
     if max_frames is None:
-        max_frames = 40 if duration <= 120 else 80 if duration <= 600 else 150
-    base = max(2.0, min(30.0, duration / max(1, max_frames * 0.6)))
+        # mniej kadrów = szybciej; większość treści i tak niesie mowa, kadry ją uzupełniają
+        max_frames = 20 if duration <= 120 else 45 if duration <= 600 else 100
+    base = max(3.0, min(30.0, duration / max(1, max_frames * 0.7)))
     return SamplingPlan(base_interval=round(base, 2), max_frames=max_frames)
 
 
@@ -141,7 +142,8 @@ def choose_frames(scores: list[tuple[float, float]], duration: float, plan: Samp
     # limit: najpierw odrzucamy "pokrycie", potem "aktywność" — z zachowaniem rozkładu w czasie
     for drop in ("pokrycie", "aktywnosc"):
         while len(merged) > plan.max_frames:
-            pool = [i for i, m in enumerate(merged) if m.reasons == [drop]]
+            # kadr z początku filmu zostaje zawsze — inaczej pierwszy odcinek pokazywałby obraz z dalszej części
+            pool = [i for i, m in enumerate(merged) if m.reasons == [drop] and i > 0]
             if not pool:
                 break
             # usuń kadr z najmniejszą przerwą do sąsiadów (najmniej informacji)
@@ -159,3 +161,20 @@ def extract_frame(path: Path, t: float, out: Path, width: int = 768) -> Path:
     run([find_tool("ffmpeg"), "-y", "-v", "error", "-ss", f"{t:.3f}", "-i", str(path),
          "-frames:v", "1", "-vf", f"scale='min({width},iw)':-2", "-q:v", "3", str(out)])
     return out
+
+
+def frame_signature(path: Path) -> int:
+    """64-bitowy „odcisk” kadru (dHash 9×8 w skali szarości) — do wykrywania prawie identycznych kadrów."""
+    raw = run([find_tool("ffmpeg"), "-v", "error", "-i", str(path), "-vf", "scale=9:8,format=gray",
+               "-f", "rawvideo", "-"]).stdout
+    if len(raw) < 72:
+        return 0
+    bits = 0
+    for row in range(8):
+        for col in range(8):
+            bits = (bits << 1) | (raw[row * 9 + col] > raw[row * 9 + col + 1])
+    return bits
+
+
+def hamming(a: int, b: int) -> int:
+    return bin(a ^ b).count("1")

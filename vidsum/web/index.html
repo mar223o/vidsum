@@ -52,13 +52,13 @@ pre.log{margin:0;font:12px/1.45 var(--mono);color:var(--muted);background:var(--
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 #result h2{margin:0 0 6px;font-size:19px}
 .meta{color:var(--muted);font-size:13px}
-.md h2{font-size:16px;margin:16px 0 6px}.md ul{margin:4px 0;padding-left:20px}.md code{font-family:var(--mono);font-size:13px}
+.md h2{font-size:17px;margin:20px 0 6px;padding-top:12px;border-top:1px solid var(--line)}.md h2:first-child{border-top:0;padding-top:0}.md h3{font-size:14px;margin:12px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.md ol{margin:4px 0;padding-left:22px}.md li{margin:3px 0}.md ul{margin:4px 0;padding-left:20px}.md code{font-family:var(--mono);font-size:13px}
 .gaps{border-left:3px solid var(--warn);padding:6px 12px;margin:14px 0;color:var(--muted);font-size:13px}
 .beat{display:grid;grid-template-columns:200px 1fr;gap:14px;padding:12px 0;border-top:1px solid var(--line)}
 .beat img{width:100%;border-radius:8px;display:block;background:var(--line)}
 .beat .t{font:600 13px var(--mono)}
 .src{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid currentColor;margin-right:6px;white-space:nowrap}
-.src.mowa{color:var(--speech)}.src.obraz{color:var(--vision)}.src.brak_danych{color:var(--none)}
+.src.szacunek{color:var(--est)}.src.mowa{color:var(--speech)}.src.obraz{color:var(--vision)}.src.brak_danych{color:var(--none)}
 .empty{color:var(--muted);font-size:14px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:14px;opacity:0;transition:.2s;pointer-events:none}
 .toast.on{opacity:1}
@@ -212,15 +212,22 @@ $("#jobs").onclick = async e => {
 };
 
 function md(s){
-  const lines = esc(s).split("\n"); let out = "", inList = false;
-  const inline = x => x.replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+  const lines = esc(s).split("\n"); let out = "", list = null;
+  const inline = x => x.replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>")
+    .replace(/\[(mowa\+obraz|mowa|obraz|szacunek)\]/g, (m, k) => `<span class="src ${k==="mowa+obraz"?"mowa":k==="szacunek"?"szacunek":k}">${k}</span>`);
+  const close = () => { if (list){ out += `</${list}>`; list = null; } };
   for (const l of lines){
-    const h = l.match(/^#{1,3}\s+(.*)/), li = l.match(/^\s*[-*]\s+(.*)/);
-    if (li){ if(!inList){out+="<ul>";inList=true;} out+=`<li>${inline(li[1])}</li>`; continue; }
-    if (inList){ out+="</ul>"; inList=false; }
-    if (h) out += `<h2>${inline(h[1])}</h2>`; else if (l.trim()) out += `<p>${inline(l)}</p>`;
+    const h2 = l.match(/^##\s+(.*)/), h3 = l.match(/^###\s+(.*)/), h1 = l.match(/^#\s+(.*)/);
+    const ul = l.match(/^\s*[-*]\s+(.*)/), ol = l.match(/^\s*\d+[.)]\s+(.*)/);
+    if (ul || ol){ const k = ul ? "ul" : "ol"; if (list !== k){ close(); out += `<${k}>`; list = k; }
+      out += `<li>${inline((ul||ol)[1])}</li>`; continue; }
+    close();
+    if (h3) out += `<h3>${inline(h3[1])}</h3>`;
+    else if (h2) out += `<h2>${inline(h2[1])}</h2>`;
+    else if (h1) out += `<h2>${inline(h1[1])}</h2>`;
+    else if (l.trim()) out += `<p>${inline(l)}</p>`;
   }
-  return out + (inList? "</ul>" : "");
+  close(); return out;
 }
 async function showResult(id, claudeMd){
   shown = id; const box = $("#result"); box.hidden = false;

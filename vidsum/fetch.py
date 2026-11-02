@@ -18,6 +18,8 @@ class Source:
     title: str | None = None
     uploader: str | None = None
     webpage_url: str | None = None
+    subtitles: Path | None = None      # napisy z serwisu (od autora albo automatyczne)
+    subtitles_kind: str | None = None  # "autor" | "automatyczne"
 
 
 def is_url(s: str) -> bool:
@@ -33,7 +35,7 @@ def resolve(inp: str, workdir: Path, cookies_from_browser: str | None = None) ->
     return download(inp, workdir, cookies_from_browser)
 
 
-def download(url: str, workdir: Path, cookies_from_browser: str | None = None) -> Source:
+def download(url: str, workdir: Path, cookies_from_browser: str | None = None, subtitles: bool = True) -> Source:
     import yt_dlp  # import leniwy — nie potrzebny przy plikach lokalnych
 
     workdir.mkdir(parents=True, exist_ok=True)
@@ -48,16 +50,48 @@ def download(url: str, workdir: Path, cookies_from_browser: str | None = None) -
         "no_warnings": True,
         "ffmpeg_location": str(Path(find_tool("ffmpeg")).parent),
     }
+    if subtitles:
+        # napisy z serwisu = transkrypcja bez Whispera (najszybciej); tylko oryginalny język, nie tłumaczenia
+        opts.update({"writesubtitles": True, "writeautomaticsub": True, "subtitlesformat": "vtt",
+                     "subtitleslangs": ["pl", "en", "pl-orig", "en-orig"]})
     if cookies_from_browser:
         # Instagram/TikTok często wymagają zalogowania: np. "chrome", "edge", "firefox"
         opts["cookiesfrombrowser"] = (cookies_from_browser,)
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        if info.get("_type") == "playlist" and info.get("entries"):
-            info = info["entries"][0]
-        files = [Path(d["filepath"]) for d in info.get("requested_downloads", []) if d.get("filepath")]
-        path = files[0] if files else Path(ydl.prepare_filename(info))
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            if info.get("_type") == "playlist" and info.get("entries"):
+                info = info["entries"][0]
+            files = [Path(d["filepath"]) for d in info.get("requested_downloads", []) if d.get("filepath")]
+            path = files[0] if files else Path(ydl.prepare_filename(info))
+    except Exception as e:
+        if subtitles and "subtitle" in str(e).lower():   # np. HTTP 429 przy napisach — pobierz bez nich
+            return download(url, workdir, cookies_from_browser, subtitles=False)
+        raise
     if not path.is_file():
         raise RuntimeError("yt-dlp nie zwrócił pobranego pliku.")
+    sub, kind = pick_subtitles(info)
     return Source("link", url, path.resolve(), info.get("title"), info.get("uploader"),
-                  info.get("webpage_url") or url)
+                  info.get("webpage_url") or url, sub, kind)
+
+
+def pick_subtitles(info: dict) -> tuple[Path | None, str | None]:
+    """Wybór napisów: od autora > automatyczne w języku oryginału (-orig) > automatyczne w języku filmu.
+
+    Automatyczne „pl” dla filmu po angielsku to maszynowe tłumaczenie — tych nie bierzemy.
+    """
+    req = info.get("requested_subtitles") or {}
+    have = {lang: Path(d["filepath"]) for lang, d in req.items() if d.get("filepath") and Path(d["filepath"]).is_file()}
+    if not have:
+        return None, None
+    manual = set((info.get("subtitles") or {}).keys())
+    orig_lang = (info.get("language") or "").split("-")[0]
+    for lang in ("pl", "en"):
+        if lang in have and lang in manual:
+            return have[lang], "autor"
+    for lang, p in have.items():
+        if lang.endswith("-orig"):
+            return p, "automatyczne"
+    if orig_lang and orig_lang in have:
+        return have[orig_lang], "automatyczne"
+    return None, None

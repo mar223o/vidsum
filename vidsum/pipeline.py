@@ -5,6 +5,7 @@ import datetime as dt
 import hashlib
 import json
 import re
+import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -14,7 +15,8 @@ from . import __version__
 from .analysis import FrameInfo, build_beats, build_summary_prompt, ts
 from .fetch import resolve
 from .llm import ClaudeCode, LLMError, Ollama
-from .media import choose_frames, extract_audio, extract_frame, plan_for, probe, scene_scores
+from .media import (choose_frames, extract_audio, extract_frame, frame_signature, hamming, plan_for, probe,
+                    scene_scores)
 from .transcribe import SidecarEngine, Transcript, WhisperEngine
 
 SCHEMA = "vidsum.analysis/1"
@@ -36,6 +38,7 @@ class Options:
     max_frames: int | None = None
     cookies_from_browser: str | None = None
     allow_api_key: bool = False
+    prefer_subtitles: bool = True              # napisy z YouTube zamiast Whispera, jeśli są
     extra: dict = field(default_factory=dict)
 
 
@@ -71,27 +74,44 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     gaps: list[str] = []
     timings: dict[str, float] = {}
 
-    # 1) MOWA
-    t = time.time()
+    # 1) MOWA — napisy z serwisu (najszybciej), gotowy plik albo Whisper.
+    #    Whisper na CPU działa RÓWNOLEGLE z opisem kadrów na GPU (to największy zysk czasu).
+    t_speech = time.time()
+    tr_box: dict = {}
+    speech_thread = None
     if opt.transcript_file:
-        tr = SidecarEngine(opt.transcript_file).transcribe(language=opt.language)
+        tr_box["tr"] = SidecarEngine(opt.transcript_file).transcribe(language=opt.language)
     elif not info.has_audio:
-        tr = Transcript(None, "brak", [])
+        tr_box["tr"] = Transcript(None, "brak", [])
         gaps.append("Brak ścieżki dźwiękowej — wszystko pochodzi tylko z obrazu.")
+    elif src.subtitles and opt.prefer_subtitles:
+        tr = SidecarEngine(src.subtitles).transcribe(language=opt.language)
+        tr.engine = f"napisy serwisu ({src.subtitles_kind})"
+        sfx = src.subtitles.suffixes            # np. pobrane_ID.en-orig.vtt → "en"
+        if not tr.language and len(sfx) > 1:
+            tr.language = sfx[-2].strip(".").split("-")[0]
+        tr_box["tr"] = tr
+        log(f"  [1/4] mowa z napisów serwisu ({src.subtitles_kind}) — bez Whispera")
     else:
-        log(f"  [1/4] transkrypcja (Whisper {opt.whisper_model}; za pierwszym razem pobieranie modelu)…")
         wav = extract_audio(src.path, out / "_audio.wav")
-        try:
-            tr = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root
-                               ).transcribe(wav, opt.language)
-        finally:
-            wav.unlink(missing_ok=True)
-    if info.has_audio and not tr.segments:
-        gaps.append("Nie rozpoznano mowy — film może mieć muzykę lub inne dźwięki, ale nikt nie mówi "
-                    "(albo mowa jest niewyraźna / w innym języku).")
-    tech_notes = [tr.note] if tr.note else []   # sprawy techniczne (np. Whisper na CPU) — nie luki w analizie
-    timings["transkrypcja_s"] = round(time.time() - t, 1)
-    log(f"        {len(tr.segments)} segmentów, język: {tr.language}")
+        engine = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root)
+        device, _ = engine.resolve_device()
+        log(f"  [1/4] transkrypcja (Whisper {opt.whisper_model}, {device}; za pierwszym razem pobieranie modelu)…")
+
+        def run_whisper() -> None:
+            try:
+                tr_box["tr"] = engine.transcribe(wav, opt.language)
+            except Exception as e:   # błąd mowy nie może zatrzymać analizy obrazu
+                tr_box["err"] = e
+            finally:
+                wav.unlink(missing_ok=True)
+                tr_box["s"] = round(time.time() - t_speech, 1)
+
+        if device == "cpu" and opt.vision == "ollama":
+            speech_thread = threading.Thread(target=run_whisper, daemon=True)
+            speech_thread.start()
+        else:                       # Whisper na GPU: po kolei, bo 8 GB VRAM nie zmieści obu modeli
+            run_whisper()
 
     # 2) KADRY
     t = time.time()
@@ -100,14 +120,23 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     sample_fps = 2.0 if info.duration <= 600 else 1.0
     picks = choose_frames(scene_scores(src.path, sample_fps), info.duration, plan)
     frames: list[FrameInfo] = []
-    for i, p in enumerate(picks, 1):
-        fn = f"kadr_{i:03d}_{ts(p.t).replace(':', '-')}.jpg"
-        extract_frame(src.path, p.t, out / "kadry" / fn)
+    prev_sig = None
+    dropped = 0
+    for p in picks:
+        fn = f"kadr_{len(frames) + 1:03d}_{ts(p.t).replace(':', '-')}.jpg"
+        path = extract_frame(src.path, p.t, out / "kadry" / fn, width=512)
+        sig = frame_signature(path)
+        # prawie identyczny jak poprzedni kadr (statyczne ujęcie) — bez opisu, oszczędza czas modelu
+        if prev_sig is not None and "zmiana_sceny" not in p.reasons and hamming(sig, prev_sig) <= 5:
+            path.unlink(missing_ok=True)
+            dropped += 1
+            continue
+        prev_sig = sig
         frames.append(FrameInfo(round(p.t, 2), f"kadry/{fn}", p.reasons, round(p.score, 3), None))
     max_gap = max([b.t - a.t for a, b in zip(frames, frames[1:])] + [info.duration - frames[-1].t if frames else info.duration])
     gaps.append(f"Kadry co najwyżej co {max_gap:.0f} s — krótkie czynności między kadrami mogły zostać pominięte.")
     timings["kadry_s"] = round(time.time() - t, 1)
-    log(f"        {len(frames)} kadrów (pokrycie bazowe co {plan.base_interval} s, limit {plan.max_frames})")
+    log(f"        {len(frames)} kadrów (pominięto {dropped} powtarzających się; limit {plan.max_frames})")
 
     # 3) OBRAZ
     t = time.time()
@@ -135,6 +164,19 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         gaps.append("Analiza obrazu wyłączona — kadry zapisane, ale bez opisów.")
     timings["obraz_s"] = round(time.time() - t, 1)
 
+    if speech_thread:
+        log("        czekam na transkrypcję…")
+        speech_thread.join()
+    if "err" in tr_box:
+        raise tr_box["err"]
+    tr = tr_box["tr"]
+    timings["transkrypcja_s"] = tr_box.get("s", round(time.time() - t_speech, 1))
+    if info.has_audio and not tr.segments:
+        gaps.append("Nie rozpoznano mowy — film może mieć muzykę lub inne dźwięki, ale nikt nie mówi "
+                    "(albo mowa jest niewyraźna / w innym języku).")
+    tech_notes = [tr.note] if tr.note else []   # sprawy techniczne (np. Whisper na CPU) — nie luki w analizie
+    log(f"        mowa: {len(tr.segments)} segmentów, język: {tr.language} ({tr.engine})")
+
     beats = build_beats(frames, tr.segments, info.duration)
     meta = {"tytuł": src.title, "autor": src.uploader, "długość": ts(info.duration),
             "język mowy": tr.language}
@@ -144,22 +186,23 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     # 4) STRESZCZENIE
     t = time.time()
     summary_md, summary_engine = None, None
-    if opt.summary == "auto":
+    summary_mode = opt.summary
+    if summary_mode == "auto":
         # Claude (subskrypcja Pro) daje dużo lepsze streszczenia niż mały model lokalny;
         # bierzemy go, jeśli jest zainstalowany i nie grozi płatnym API.
         try:
             ClaudeCode(allow_api_key=opt.allow_api_key).check()
-            opt.summary = "claude"
+            summary_mode = "claude"
         except LLMError:
-            opt.summary = "ollama"
-    if opt.summary != "brak":
-        log(f"  [4/4] streszczenie ({opt.summary})…")
+            summary_mode = "ollama"
+    if summary_mode != "brak":
+        log(f"  [4/4] streszczenie ({summary_mode})…")
         if vision_engine:
             # zwolnij model obrazu: streszczenie ładuje model z innym kontekstem,
             # a dwie kopie naraz nie mieszczą się w 8 GB
             vision_engine.unload()
         try:
-            if opt.summary == "claude":
+            if summary_mode == "claude":
                 eng = ClaudeCode(allow_api_key=opt.allow_api_key)
                 summary_engine = "claude-code"
             else:
