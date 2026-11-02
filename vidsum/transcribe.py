@@ -48,7 +48,7 @@ class WhisperEngine:
             if device != "cuda" or self.device == "cuda":
                 raise
             t = self._run(WhisperModel, wav, language, "cpu", "int8")
-            t.note = f"GPU niedostępne ({type(e).__name__}: {str(e)[:120]}) — użyto CPU."
+            t.note = f"Whisper na CPU — brak bibliotek CUDA ({type(e).__name__}). Model obrazu w Ollamie nadal używa GPU."
             return t
 
     def _run(self, WhisperModel, wav: Path, language, device: str, compute: str) -> Transcript:

@@ -87,9 +87,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         finally:
             wav.unlink(missing_ok=True)
     if info.has_audio and not tr.segments:
-        gaps.append("Nie rozpoznano mowy (cisza, sama muzyka albo inny język).")
-    if tr.note and tr.note not in " ".join(gaps):
-        gaps.append(tr.note)
+        gaps.append("Nie rozpoznano mowy — film może mieć muzykę lub inne dźwięki, ale nikt nie mówi "
+                    "(albo mowa jest niewyraźna / w innym języku).")
+    tech_notes = [tr.note] if tr.note else []   # sprawy techniczne (np. Whisper na CPU) — nie luki w analizie
     timings["transkrypcja_s"] = round(time.time() - t, 1)
     log(f"        {len(tr.segments)} segmentów, język: {tr.language}")
 
@@ -185,7 +185,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto",
                        "obraz": f"ollama:{opt.vision_model}" if vision_engine else "brak",
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,
-                       "pokrycie_co_s": plan.base_interval},
+                       "pokrycie_co_s": plan.base_interval, "uwagi_techniczne": tech_notes},
         "transkrypcja": {"jezyk": tr.language, "segmenty": [asdict(s) for s in tr.segments]},
         "kadry": [asdict(f) for f in frames],
         "os_czasu": beats,
@@ -224,9 +224,10 @@ def _report_md(r: dict) -> str:
         w = b["widac"]
         seen = w.get("scena") or "brak danych"
         extra = []
-        for k in ("czynnosci", "obiekty", "tekst_na_ekranie"):
+        for k, lab in (("czynnosci", "czynności"), ("obiekty", "obiekty"), ("tekst_na_ekranie", "napisy w filmie"),
+                       ("napisy_na_przedmiotach", "napisy na przedmiotach")):
             if w.get(k):
-                extra.append(f"{k.replace('_', ' ')}: {', '.join(w[k])}")
+                extra.append(f"{lab}: {', '.join(w[k])}")
         if w.get("cialo"):
             extra.append(f"ciało: {w['cialo']}")
         L.append(f"### {ts(b['start'])}–{ts(b['end'])}")

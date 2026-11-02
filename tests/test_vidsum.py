@@ -289,3 +289,15 @@ def test_bad_input_does_not_stop_batch(tmp_path, capsys):
                "--obraz", "brak", "--streszczenie", "brak"])
     assert rc == 1
     assert "1/2 OK" in capsys.readouterr().out
+
+
+def test_vision_cleanup_foreign_script_and_new_key():
+    """Regresja z prawdziwego filmu: model wtrącał chińskie znaki („metalowy滤网”)."""
+    from vidsum.llm import _clean_vision
+    v = _clean_vision({"scena": "Widoczny jest metalowy滤网 z frytkami", "obiekty": ["metalowy滤网", "nóż"],
+                       "napisy_na_przedmiotach": "Do not hammer", "pewnosc": "wysoka"})
+    assert v["scena"] == "Widoczny jest metalowy [?] z frytkami"
+    assert v["obiekty"] == ["metalowy [?]", "nóż"]
+    assert v["napisy_na_przedmiotach"] == ["Do not hammer"] and v["tekst_na_ekranie"] == []
+    assert v["pewnosc"] == "srednia"
+    assert _clean_vision({"scena": "ok", "pewnosc": "wysoka"})["pewnosc"] == "wysoka"

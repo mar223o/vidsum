@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import shutil
 import urllib.error
 import urllib.request
@@ -12,16 +13,25 @@ from pathlib import Path
 from .tools import run
 
 VISION_PROMPT = """Opisz WYŁĄCZNIE to, co widać na tym jednym kadrze z filmu (czas {t}). Nie zgaduj treści filmu.
-Odpowiedz po polsku, jako JSON z kluczami:
+Pisz tylko po polsku, wyłącznie alfabetem łacińskim (bez znaków chińskich ani innych pism).
+Odpowiedz jako JSON z kluczami:
 "scena": krótki opis (1 zdanie),
-"czynnosci": lista czynności widocznych w kadrze, szczególnie rąk (np. krojenie, mieszanie, wlewanie, podnoszenie ciężaru),
+"czynnosci": lista czynności widocznych w kadrze, szczególnie rąk (np. krojenie, obieranie, mieszanie, wlewanie, smażenie, podnoszenie ciężaru),
 "obiekty": lista widocznych składników, narzędzi, sprzętu,
-"tekst_na_ekranie": lista napisów przepisanych dokładnie tak, jak są (pusta lista, jeśli brak),
+"tekst_na_ekranie": TYLKO napisy dodane do filmu przez autora (podpisy, nazwy kroków, ilości) — przepisane dokładnie,
+"napisy_na_przedmiotach": napisy wydrukowane na sprzęcie, opakowaniach, etykietach (osobno, nie mieszaj z poprzednim),
 "cialo": ustawienie ciała / pozycja / zakres ruchu, jeśli widać osobę ćwiczącą (inaczej pusty string),
 "pewnosc": "wysoka" | "srednia" | "niska".
+Zasady: nazwij przedmiot konkretnie tylko, gdy jest wyraźnie widoczny (nóż to nie nożyce, ziemniak to nie ciasto);
+gdy nie masz pewności, użyj nazwy ogólnej (np. „narzędzie kuchenne”, „produkt”) i ustaw "pewnosc" na "niska".
 Jeśli czegoś nie da się rozpoznać, zostaw pustą listę zamiast zgadywać."""
 
-VISION_KEYS = {"scena": "", "czynnosci": [], "obiekty": [], "tekst_na_ekranie": [], "cialo": "", "pewnosc": "niska"}
+VISION_KEYS = {"scena": "", "czynnosci": [], "obiekty": [], "tekst_na_ekranie": [], "napisy_na_przedmiotach": [],
+               "cialo": "", "pewnosc": "niska"}
+
+# pisma, które mały model czasem „wtrąca” do polskiego tekstu (np. „metalowy滤网”)
+_FOREIGN = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]+")
+_LOWER = {"wysoka": "srednia", "srednia": "niska", "niska": "niska"}
 
 
 class LLMError(RuntimeError):
@@ -29,18 +39,30 @@ class LLMError(RuntimeError):
 
 
 def _clean_vision(d: dict) -> dict:
-    out = {}
+    out: dict = {}
+    foreign = False
+
+    def fix(x: str) -> str:
+        nonlocal foreign
+        y = _FOREIGN.sub(" [?] ", x)
+        if y != x:
+            foreign = True
+        return re.sub(r"\s{2,}", " ", y).strip()
+
     for k, default in VISION_KEYS.items():
         v = d.get(k, default)
         if isinstance(default, list):
             if isinstance(v, str):
                 v = [v] if v.strip() else []
-            v = [str(x).strip() for x in (v or []) if str(x).strip()]
+            v = [fix(str(x)) for x in (v or []) if str(x).strip()]
+            v = [x for x in v if x]
         else:
-            v = "" if v is None else str(v).strip()
+            v = "" if v is None else fix(str(v))
         out[k] = v
     if out["pewnosc"] not in ("wysoka", "srednia", "niska"):
         out["pewnosc"] = "niska"
+    if foreign:   # model „zgubił” język — mniej mu ufamy
+        out["pewnosc"] = _LOWER[out["pewnosc"]]
     return out
 
 

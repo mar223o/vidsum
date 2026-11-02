@@ -18,7 +18,7 @@ Wszystkie czasy są w sekundach (liczby), od początku filmu.
 | `narzedzie` | `{nazwa, wersja}` | |
 | `utworzono` | string ISO 8601 | z lokalną strefą czasową |
 | `zrodlo` | obiekt | `rodzaj` (`plik`/`link`), `wejscie`, `url`, `tytul`, `autor`, `plik`, `sha256`, `dlugosc_s`, `szerokosc`, `wysokosc`, `audio` |
-| `ustawienia` | obiekt | użyte silniki: `whisper`, `jezyk`, `obraz`, `streszczenie`, `limit_kadrow`, `pokrycie_co_s` |
+| `ustawienia` | obiekt | użyte silniki: `whisper`, `jezyk`, `obraz`, `streszczenie`, `limit_kadrow`, `pokrycie_co_s`, `uwagi_techniczne` (lista, od 0.2.2) |
 | `transkrypcja` | `{jezyk, segmenty: [{start, end, text}]}` | |
 | `kadry` | lista | `{t, file, reasons, score, vision}` — `reasons` ⊂ `zmiana_sceny`, `aktywnosc`, `pokrycie`; `vision` = obiekt poniżej albo `null` |
 | `os_czasu` | lista beatów | patrz niżej |
@@ -27,7 +27,8 @@ Wszystkie czasy są w sekundach (liczby), od początku filmu.
 | `czasy` | obiekt | czasy etapów w sekundach |
 
 ## `vision` (opis jednego kadru)
-`scena` (string), `czynnosci` (lista), `obiekty` (lista), `tekst_na_ekranie` (lista), `cialo` (string), `pewnosc` (`wysoka`/`srednia`/`niska`).
+`scena` (string), `czynnosci` (lista), `obiekty` (lista), `tekst_na_ekranie` (lista — tylko napisy dodane do filmu), `napisy_na_przedmiotach` (lista — etykiety, opakowania, sprzęt; od 0.2.2), `cialo` (string), `pewnosc` (`wysoka`/`srednia`/`niska`).
+Znaki spoza alfabetu łacińskiego wtrącone przez model są zastępowane `[?]`, a `pewnosc` obniżana o jeden poziom.
 Puste listy / pusty string = model nic takiego nie rozpoznał.
 
 ## Beat (`os_czasu[]`)

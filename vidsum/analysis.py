@@ -65,7 +65,8 @@ def beats_as_text(beats: list[dict]) -> str:
         if w.get("zrodlo") == SRC_VISION:
             parts = [w.get("scena", "")]
             for key, lab in (("czynnosci", "czynności"), ("obiekty", "obiekty"),
-                             ("tekst_na_ekranie", "napisy"), ("cialo", "ciało")):
+                             ("tekst_na_ekranie", "napisy w filmie"),
+                             ("napisy_na_przedmiotach", "napisy na przedmiotach"), ("cialo", "ciało")):
                 val = w.get(key)
                 if val:
                     parts.append(f"{lab}: {', '.join(val) if isinstance(val, list) else val}")

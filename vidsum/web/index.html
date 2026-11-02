@@ -230,7 +230,7 @@ async function showResult(id, claudeMd){
   const z = r.zrodlo, f = rel => `/api/zadania/${id}/plik/${encodeURI(rel)}?t=${T}`;
   const beats = r.os_czasu.map(b => {
     const w = b.widac, seen = w.zrodlo==="obraz"
-      ? esc(w.scena) + [["czynnosci"],["obiekty"],["tekst_na_ekranie"]].map(([k]) => (w[k]||[]).length? ` — ${esc(w[k].join(", "))}`:"").join("") + (w.cialo? ` — ${esc(w.cialo)}`:"")
+      ? esc(w.scena) + [["czynnosci"],["obiekty"],["tekst_na_ekranie"],["napisy_na_przedmiotach"]].map(([k]) => (w[k]||[]).length? ` — ${esc(w[k].join(", "))}`:"").join("") + (w.cialo? ` — ${esc(w.cialo)}`:"")
       : t("nodata");
     return `<div class="beat"><img loading="lazy" src="${f(b.kadr)}" alt="">
       <div><div class="t">${fmt(b.start)}–${fmt(b.end)}</div>
