@@ -91,7 +91,8 @@ pre.log{margin:0;font:12px/1.45 var(--mono);color:var(--muted);background:var(--
     <details style="margin-top:14px"><summary data-i="settings"></summary>
       <div class="grid">
         <label><span data-i="s_lang"></span><select id="s_jezyk"><option value="auto">auto</option><option value="pl">polski</option><option value="en">English</option></select></label>
-        <label><span data-i="s_whisper"></span><select id="s_whisper"><option>tiny</option><option>base</option><option>small</option><option>medium</option><option>large-v3</option></select></label>
+        <label><span data-i="s_whisper"></span><select id="s_whisper"><option value="large-v3-turbo">large-v3-turbo (dokładny)</option><option value="small">small (szybki)</option><option value="medium">medium</option><option value="large-v3">large-v3 (najwolniejszy)</option></select></label>
+        <label><span data-i="s_ocr"></span><select id="s_ocr"><option value="true">✓</option><option value="false" data-i="none"></option></select></label>
         <label><span data-i="s_vis_on"></span><select id="s_obraz"><option value="ollama">Ollama</option><option value="brak" data-i="none"></option></select></label>
         <label><span data-i="s_vision"></span><input id="s_model_obrazu"></label>
         <label><span data-i="s_summary"></span><select id="s_streszczenie"><option value="auto">auto</option><option value="claude">Claude (Pro)</option><option value="ollama">Ollama</option><option value="brak" data-i="none"></option></select></label>
@@ -113,7 +114,7 @@ const T = new URLSearchParams(location.search).get("t") || "";
 const I18N = {
  pl:{drop:"Przeciągnij tu pliki wideo",drop_sub:"albo kliknij, aby wybrać (MP4, MOV, MKV, WEBM) — kilka naraz też",
    links_ph:"…albo wklej link(i) YouTube / Instagram / TikTok albo ścieżkę C:\\…\\film.mp4 (jeden w linii)",
-   analyze:"Analizuj",settings:"Ustawienia",s_lang:"Język mowy",s_whisper:"Model mowy (Whisper)",s_vis_on:"Analiza obrazu",s_vision:"Model obrazu (Ollama)",
+   analyze:"Analizuj",settings:"Ustawienia",s_lang:"Język mowy",s_whisper:"Model mowy (Whisper)",s_vis_on:"Analiza obrazu",s_ocr:"Napisy na ekranie (OCR)",s_vision:"Model obrazu (Ollama)",
    s_summary:"Streszczenie",s_frames:"Maks. kadrów",s_cookies:"Ciasteczka z przeglądarki (IG/TikTok)",s_out:"Folder wyników",
    save:"Zapisz ustawienia",none:"brak",auto:"auto",no_jobs:"Brak analiz. Wrzuć film powyżej.",
    w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",show:"Pokaż wynik",copy:"Kopiuj prompt dla Claude",
@@ -122,10 +123,10 @@ const I18N = {
    gaps:"Ograniczenia analizy",timeline:"Oś czasu",seen:"obraz",heard:"mowa",nodata:"brak danych",
    claude_wait:"Claude pisze streszczenie…",dur:"długość",chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",
    took:"Czas analizy",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",stage_0:"pobieranie / start",
-   t_pobieranie_s:"pobieranie",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",t_streszczenie_s:"streszczenie",parallel:"mowa liczona równolegle z opisem obrazu"},
+   t_pobieranie_s:"pobieranie",t_ocr_s:"napisy (OCR)",stage_0x:"",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",t_streszczenie_s:"streszczenie",parallel:"mowa liczona równolegle z opisem obrazu"},
  en:{drop:"Drop video files here",drop_sub:"or click to choose (MP4, MOV, MKV, WEBM) — several at once is fine",
    links_ph:"…or paste YouTube / Instagram / TikTok link(s) or a path C:\\…\\video.mp4 (one per line)",
-   analyze:"Analyze",settings:"Settings",s_lang:"Speech language",s_whisper:"Speech model (Whisper)",s_vis_on:"Image analysis",s_vision:"Vision model (Ollama)",
+   analyze:"Analyze",settings:"Settings",s_lang:"Speech language",s_whisper:"Speech model (Whisper)",s_vis_on:"Image analysis",s_ocr:"On-screen text (OCR)",s_vision:"Vision model (Ollama)",
    s_summary:"Summary",s_frames:"Max frames",s_cookies:"Browser cookies (IG/TikTok)",s_out:"Results folder",
    save:"Save settings",none:"none",auto:"auto",no_jobs:"No analyses yet. Drop a video above.",
    w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",show:"Show result",copy:"Copy prompt for Claude",
@@ -134,7 +135,7 @@ const I18N = {
    gaps:"Analysis limits",timeline:"Timeline",seen:"vision",heard:"speech",nodata:"no data",
    claude_wait:"Claude is writing the summary…",dur:"length",chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",
    took:"Analysis time",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",stage_0:"download / start",
-   t_pobieranie_s:"download",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",t_streszczenie_s:"summary",parallel:"speech ran in parallel with vision"}
+   t_pobieranie_s:"download",t_ocr_s:"on-screen text",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",t_streszczenie_s:"summary",parallel:"speech ran in parallel with vision"}
 };
 let L = "pl", settings = {}, jobs = [], shown = null, uploads = {};
 const $ = s => document.querySelector(s);
@@ -165,13 +166,13 @@ async function loadStatus(){
 }
 async function loadSettings(){
   settings = await api("/api/ustawienia"); L = settings.jezyk_ui || "pl";
-  for (const k of ["jezyk","whisper","obraz","model_obrazu","streszczenie","max_kadrow","ciasteczka_z","wyniki"]) {
-    const el = $("#s_"+k); if (el) el.value = settings[k] ?? ""; }
+  for (const k of ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","max_kadrow","ciasteczka_z","wyniki"]) {
+    const el = $("#s_"+k); if (el) el.value = String(settings[k] ?? ""); }
   applyLang();
 }
 $("#save").onclick = async () => {
-  const b = {}; for (const k of ["jezyk","whisper","obraz","model_obrazu","streszczenie","max_kadrow","ciasteczka_z","wyniki"]) {
-    const v = $("#s_"+k).value; b[k] = k==="max_kadrow" ? (v? Number(v): null) : v; }
+  const b = {}; for (const k of ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","max_kadrow","ciasteczka_z","wyniki"]) {
+    const v = $("#s_"+k).value; b[k] = k==="max_kadrow" ? (v? Number(v): null) : k==="ocr" ? v==="true" : v; }
   settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify(b)}); toast(t("saved")); loadStatus();
 };
 
@@ -244,7 +245,7 @@ function md(s){
 }
 function timing(c){
   if (!c || c.razem_s == null) return "";
-  const keys = ["pobieranie_s","transkrypcja_s","kadry_s","obraz_s","streszczenie_s"].filter(k => c[k] != null && c[k] >= 0.05);
+  const keys = ["pobieranie_s","ocr_s","transkrypcja_s","kadry_s","obraz_s","streszczenie_s"].filter(k => c[k] != null && c[k] >= 0.05);
   const max = Math.max(...keys.map(k => c[k]), 0.1);
   return `<div class="timing"><div class="timing-head">⏱ ${t("took")}: <b>${fmt(c.razem_s)}</b>${c.mowa_rownolegle ? ` <span class="meta">· ${t("parallel")}</span>` : ""}</div>
     ${keys.map(k => `<div class="trow"><span>${t("t_"+k)}</span><span class="tbar"><i style="width:${Math.max(2, 100*c[k]/max)}%"></i></span><span class="tval">${c[k] < 60 ? c[k].toFixed(1)+" s" : fmt(c[k])}</span></div>`).join("")}</div>`;
@@ -262,6 +263,7 @@ async function showResult(id, claudeMd){
     return `<div class="beat"><img loading="lazy" src="${f(b.kadr)}" alt="">
       <div><div class="t">${fmt(b.start)}–${fmt(b.end)}</div>
       <p><span class="src ${w.zrodlo}">${t("seen")}</span>${seen}</p>
+      ${b.napisy ? `<p><span class="src obraz">OCR</span>${esc(b.napisy)}</p>` : ""}
       <p><span class="src ${b.slychac.zrodlo}">${t("heard")}</span>${esc(b.slychac.tekst) || t("nodata")}</p></div></div>`; }).join("");
   box.innerHTML = `<h2>${esc(z.tytul || z.plik)}</h2>
     <div class="meta">${t("dur")} ${fmt(z.dlugosc_s)} · ${esc(r.ustawienia.whisper)} · ${esc(r.ustawienia.obraz)} · ${esc(r.ustawienia.streszczenie)}</div>

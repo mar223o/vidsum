@@ -26,7 +26,7 @@ SCHEMA = "vidsum.analysis/1"
 class Options:
     out_root: Path = Path("vidsum_wyniki")
     language: str | None = None                # None = wykryj; "pl" / "en"
-    whisper_model: str = "small"
+    whisper_model: str = "large-v3-turbo"     # pomiar: PL 5,5% WER (small: 12,3%)
     whisper_device: str = "auto"
     whisper_root: str | None = None
     transcript_file: Path | None = None        # gotowe napisy zamiast Whispera
@@ -39,6 +39,7 @@ class Options:
     cookies_from_browser: str | None = None
     allow_api_key: bool = False
     prefer_subtitles: bool = True              # napisy z YouTube zamiast Whispera, jeśli są
+    ocr: bool = True                           # gęsty OCR napisów na ekranie (+ podpowiedzi słów dla Whispera)
     extra: dict = field(default_factory=dict)
 
 
@@ -75,6 +76,21 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     gaps: list[str] = []
     timings: dict[str, float] = {"pobieranie_s": t_fetch} if src.kind == "link" else {}
 
+    # 0) NAPISY NA EKRANIE (OCR) — przed Whisperem, bo dają mu podpowiedzi słów
+    ocr_lines: list = []
+    pre_notes: list[str] = []
+    if opt.ocr:
+        t = time.time()
+        log("  [0/4] napisy na ekranie (OCR)…")
+        try:
+            from .ocr import ensure_models, read_captions
+            mdir = ensure_models(Path(opt.whisper_root) if opt.whisper_root else out.parent / "_modele", log)
+            ocr_lines = read_captions(src.path, info.duration, mdir, log)
+        except Exception as e:     # OCR to dodatek — jego awaria nie zatrzymuje analizy
+            pre_notes.append(f"OCR napisów niedostępny ({type(e).__name__}: {str(e)[:100]}).")
+            log(f"        ! OCR: {e}")
+        timings["ocr_s"] = round(time.time() - t, 1)
+
     # 1) MOWA — napisy z serwisu (najszybciej), gotowy plik albo Whisper.
     #    Whisper na CPU działa RÓWNOLEGLE z opisem kadrów na GPU (to największy zysk czasu).
     t_speech = time.time()
@@ -96,13 +112,23 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         log(f"  [1/4] mowa z napisów serwisu ({src.subtitles_kind}) — bez Whispera")
     else:
         wav = extract_audio(src.path, out / "_audio.wav")
-        engine = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root)
+        # podpowiedzi słów tylko dla dużych modeli — małym szkodzą (pomiar: small WER 13–52%)
+        small_model = any(x in Path(opt.whisper_model).name.lower() for x in ("tiny", "base", "small"))
+        hot = None
+        if ocr_lines and not small_model:
+            from .ocr import hotwords
+            hot = hotwords(ocr_lines, src.title)
+        engine = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root, hotwords=hot)
+        engine.coverage_hints = [(l.start, l.end) for l in ocr_lines]
         device, _ = engine.resolve_device()
         log(f"  [1/4] transkrypcja (Whisper {opt.whisper_model}, {device}; za pierwszym razem pobieranie modelu)…")
 
         def run_whisper() -> None:
             try:
                 tr_box["tr"] = engine.transcribe(wav, opt.language)
+                if engine.recovered:
+                    tr_box["tr"].note = ((tr_box["tr"].note + " ") if tr_box["tr"].note else "") + \
+                        f"Odzyskano {engine.recovered} zdań pominiętych przez Whispera (drugi przebieg bez podpowiedzi)."
             except Exception as e:   # błąd mowy nie może zatrzymać analizy obrazu
                 tr_box["err"] = e
             finally:
@@ -181,10 +207,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if info.has_audio and not tr.segments:
         gaps.append("Nie rozpoznano mowy — film może mieć muzykę lub inne dźwięki, ale nikt nie mówi "
                     "(albo mowa jest niewyraźna / w innym języku).")
-    tech_notes = [tr.note] if tr.note else []   # sprawy techniczne (np. Whisper na CPU) — nie luki w analizie
+    tech_notes = pre_notes + ([tr.note] if tr.note else [])   # sprawy techniczne (np. Whisper na CPU) — nie luki w analizie
     log(f"        mowa: {len(tr.segments)} segmentów, język: {tr.language} ({tr.engine})")
 
-    beats = build_beats(frames, tr.segments, info.duration)
+    beats = build_beats(frames, tr.segments, info.duration, ocr_lines)
     meta = {"tytuł": src.title, "autor": src.uploader, "długość": ts(info.duration),
             "język mowy": tr.language}
     prompt = build_summary_prompt(beats, meta, gaps)
@@ -239,6 +265,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,
                        "pokrycie_co_s": plan.base_interval, "uwagi_techniczne": tech_notes},
         "transkrypcja": {"jezyk": tr.language, "segmenty": [asdict(s) for s in tr.segments]},
+        "napisy_ekranowe": [asdict(l) for l in ocr_lines],
         "kadry": [asdict(f) for f in frames],
         "os_czasu": beats,
         "streszczenie": {"silnik": summary_engine, "markdown": summary_md} if summary_md else None,
@@ -252,7 +279,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     return out
 
 
-_STAGES = [("pobieranie_s", "pobieranie"), ("transkrypcja_s", "mowa"), ("kadry_s", "kadry"),
+_STAGES = [("pobieranie_s", "pobieranie"), ("ocr_s", "napisy (OCR)"), ("transkrypcja_s", "mowa"), ("kadry_s", "kadry"),
            ("obraz_s", "opis obrazu"), ("streszczenie_s", "streszczenie")]
 
 
@@ -301,6 +328,8 @@ def _report_md(r: dict) -> str:
         L.append(f"### {ts(b['start'])}–{ts(b['end'])}")
         L.append(f"![kadr]({b['kadr']})  ")
         L.append(f"**Obraz** _(z obrazu, pewność: {w.get('pewnosc', '—')})_: {seen}" + (f" — {'; '.join(extra)}" if extra else ""))
+        if b.get("napisy"):
+            L.append(f"**Napisy na ekranie** _(OCR)_: {b['napisy']}  ")
         L.append(f"**Mowa** _(z mowy)_: {b['slychac']['tekst'] or 'brak danych'}")
         L.append("")
     L += ["## Pełna transkrypcja", ""]

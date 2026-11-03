@@ -121,12 +121,16 @@ class App:
         self.settings = self._load_settings()
 
     def _load_settings(self) -> dict:
-        d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "small", "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
+        d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
              "streszczenie": "auto", "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results)}
         try:
-            d.update(json.loads(self.settings_file.read_text(encoding="utf-8")))
+            saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
+            if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":
+                saved["whisper"] = "large-v3-turbo"    # 0.4: dokładniejszy model jako domyślny
+            d.update(saved)
         except Exception:
             pass
+        d["wersja_ustawien"] = 2
         return d
 
     def save_settings(self, new: dict) -> dict:
@@ -139,7 +143,7 @@ class App:
         mk = s.get("max_kadrow")
         return Options(out_root=Path(s.get("wyniki") or self.results),
                        language=None if s.get("jezyk") in (None, "", "auto") else s["jezyk"],
-                       whisper_model=s.get("whisper") or "small",
+                       whisper_model=s.get("whisper") or "large-v3-turbo", ocr=bool(s.get("ocr", True)),
                        whisper_root=str(app_dir() / "modele"),
                        vision=s.get("obraz", "ollama"), vision_model=s.get("model_obrazu") or "qwen3-vl:4b-instruct",
                        summary=s.get("streszczenie") or "auto", max_frames=int(mk) if mk else None,

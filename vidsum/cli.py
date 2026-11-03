@@ -38,11 +38,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("wejscie", nargs="+", help="plik(i) MP4 albo link(i) (YouTube/Instagram/TikTok)")
     ap.add_argument("-o", "--wyniki", default="vidsum_wyniki", help="folder na wyniki")
     ap.add_argument("--jezyk", choices=["auto", "pl", "en"], default="auto")
-    ap.add_argument("--whisper", default="small", help="model Whisper: tiny/base/small/medium/large-v3")
+    ap.add_argument("--whisper", default="large-v3-turbo", help="model Whisper: small / medium / large-v3-turbo / large-v3")
     ap.add_argument("--whisper-urzadzenie", default="auto", choices=["auto", "cuda", "cpu"])
     ap.add_argument("--whisper-folder", default=None, help="gdzie trzymać pobrane modele Whisper")
     ap.add_argument("--napisy", default=None, help="gotowa transkrypcja .srt/.json zamiast Whispera")
     ap.add_argument("--obraz", choices=["ollama", "brak"], default="ollama")
+    ap.add_argument("--bez-ocr", action="store_true", help="bez odczytu napisów z ekranu")
     ap.add_argument("--model-obrazu", default="qwen3-vl:4b-instruct")
     ap.add_argument("--streszczenie", choices=["auto", "ollama", "claude", "brak"], default="auto",
                     help="auto = Claude Code (Pro), jeśli zainstalowany, inaczej Ollama; claude = `claude -p`")
@@ -60,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
                   transcript_file=Path(a.napisy) if a.napisy else None, vision=a.obraz,
                   vision_model=a.model_obrazu, summary=a.streszczenie, summary_model=a.model_streszczenia,
                   ollama_host=a.ollama, max_frames=a.max_kadrow, cookies_from_browser=a.ciasteczka_z,
-                  allow_api_key=a.allow_api_key)
+                  allow_api_key=a.allow_api_key, ocr=not a.bez_ocr)
     failed = 0
     for inp in a.wejscie:
         try:

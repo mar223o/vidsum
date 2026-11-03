@@ -3,7 +3,7 @@
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 datas, binaries, hidden = [("../vidsum/web", "vidsum/web")], [], []
-for pkg in ("faster_whisper", "ctranslate2", "onnxruntime", "tokenizers"):
+for pkg in ("faster_whisper", "ctranslate2", "onnxruntime", "tokenizers", "rapidocr_onnxruntime"):
     d, b, h = collect_all(pkg)
     datas += d; binaries += b; hidden += h
 hidden += collect_submodules("yt_dlp")   # ekstraktory ładowane dynamicznie

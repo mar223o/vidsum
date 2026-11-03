@@ -22,7 +22,7 @@ class FrameInfo:
     vision: dict | None
 
 
-def build_beats(frames: list[FrameInfo], segments: list[Segment], duration: float) -> list[dict]:
+def build_beats(frames: list[FrameInfo], segments: list[Segment], duration: float, ocr_lines=None) -> list[dict]:
     """Jeden beat = odcinek od kadru do następnego kadru.
 
     seen  — to, co rozpoznał model wizyjny na kadrze (źródło: obraz),
@@ -49,8 +49,10 @@ def build_beats(frames: list[FrameInfo], segments: list[Segment], duration: floa
         else:
             changed = None
             seen = {"zrodlo": SRC_NONE}
+        caps = [l.text for l in (ocr_lines or []) if start <= l.start < end]
         beats.append({
             "start": round(start, 2), "end": round(end, 2), "kadr": f.file, "powod_kadru": f.reasons,
+            "napisy": " | ".join(caps),
             "widac": seen,
             "slychac": {"tekst": " ".join(said_own).strip(), "zrodlo": SRC_SPEECH if said else SRC_NONE},
             "zmiana": changed,
@@ -75,14 +77,16 @@ def beats_as_text(beats: list[dict]) -> str:
         else:
             seen = "brak opisu obrazu"
         heard = b["slychac"]["tekst"] or "—"
-        lines.append(f"[{ts(b['start'])}–{ts(b['end'])}] OBRAZ: {seen}\n    MOWA: {heard}")
+        caps = f"\n    NAPISY: {b['napisy']}" if b.get("napisy") else ""
+        lines.append(f"[{ts(b['start'])}–{ts(b['end'])}] OBRAZ: {seen}{caps}\n    MOWA: {heard}")
     return "\n".join(lines)
 
 
 SUMMARY_PROMPT = """Jesteś asystentem, który ogląda film za użytkownika i mówi mu konkretnie, co z niego wynika.
 Dostajesz oś czasu filmu z dwóch niezależnych źródeł:
 - OBRAZ — automatyczne opisy kadrów z małego lokalnego modelu (bywają nieprecyzyjne: myli narzędzia i nazwy),
-- MOWA — automatyczna transkrypcja albo napisy (mogą być literówki; może być po angielsku).
+- MOWA — automatyczna transkrypcja albo napisy (mogą być literówki; może być po angielsku),
+- NAPISY — tekst odczytany z ekranu przez OCR (zwykle dokładny w nazwach, liczbach i ilościach; oznaczaj jako [obraz]).
 
 Najpierw sam rozpoznaj TYP filmu: przepis | trening | poradnik | wykład/rozmowa | inne.
 Potem napisz wynik po polsku, w Markdown, DOKŁADNIE w tym układzie (nagłówki bez zmian):
@@ -116,7 +120,9 @@ Zasady (obowiązkowe):
 2. Niczego nie zmyślaj. Jeśli czegoś nie widać ani nie słychać, pisz „brak danych”.
 3. Mowa jest pewniejsza niż opisy kadrów. Gdy opis kadru przeczy mowie lub zdrowemu rozsądkowi
    (np. „nożyce” przy krojeniu ziemniaków), zaufaj mowie / kontekstowi i zaznacz to krótko.
-4. Bądź zwięzły i konkretny — użytkownik ma od razu wiedzieć, co zrobić.
+4. Gdy MOWA i NAPISY różnią się w nazwie, liczbie lub ilości, zwykle rację mają NAPISY (OCR) — popraw to po cichu
+   w wyniku, a w „Czego nie wiadomo” wymień tylko sprzeczności, których nie da się rozstrzygnąć.
+5. Bądź zwięzły i konkretny — użytkownik ma od razu wiedzieć, co zrobić.
 
 Metadane: {meta}
 Ograniczenia analizy: {gaps}

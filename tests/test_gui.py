@@ -25,7 +25,7 @@ def server(tmp_path, monkeypatch):
     monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")   # Ollama "nieuruchomiona"
     from vidsum.gui import App, make_handler
     app = App(tmp_path / "wyniki", TOKEN)
-    app.save_settings({"obraz": "brak", "streszczenie": "brak"})
+    app.save_settings({"obraz": "brak", "streszczenie": "brak", "ocr": False})
     srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{srv.server_address[1]}", app

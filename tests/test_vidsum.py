@@ -147,7 +147,7 @@ def _only_dir(root: Path) -> Path:
 
 def test_end_to_end_ollama(tmp_path, ollama):
     out_root = tmp_path / "wyniki ąę"
-    rc = main([str(FILM), "-o", str(out_root), "--napisy", str(NAPISY), "--ollama", ollama,
+    rc = main(["--bez-ocr", str(FILM), "-o", str(out_root), "--napisy", str(NAPISY), "--ollama", ollama,
                "--model-obrazu", "fake-vl", "--streszczenie", "ollama"])
     assert rc == 0
     out = _only_dir(out_root)
@@ -176,7 +176,7 @@ def test_end_to_end_ollama(tmp_path, ollama):
 def test_vision_failure_does_not_abort(tmp_path, ollama):
     """Awaria modelu na jednym kadrze (np. brak pamięci): ponowna próba, potem 'brak danych'."""
     FakeOllama.fail_images = {2, 3, 4}   # kadr 2: obie próby padają; kadr 3: druga próba OK
-    rc = main([str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--ollama", ollama,
+    rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--ollama", ollama,
                "--model-obrazu", "fake-vl", "--max-kadrow", "4", "--streszczenie", "ollama"])
     assert rc == 0
     r = json.loads((_only_dir(tmp_path) / "analiza.json").read_text(encoding="utf-8"))
@@ -201,7 +201,7 @@ def test_summary_timeout_still_writes_results(tmp_path, monkeypatch):
     orig = llm.Ollama.__init__
     monkeypatch.setattr(llm.Ollama, "__init__", lambda self, m, h=None, timeout=600: orig(self, m, h, timeout=0.5))
     try:
-        rc = main([str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--obraz", "brak",
+        rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--obraz", "brak",
                    "--streszczenie", "ollama", "--ollama", f"http://127.0.0.1:{srv.server_address[1]}"])
     finally:
         srv.shutdown()
@@ -215,20 +215,20 @@ def test_auto_summary_picks_engine(tmp_path, monkeypatch, ollama):
     """auto: jest `claude` i brak klucza API → Claude; brak `claude` → Ollama."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setenv("PATH", str(_fake_claude(tmp_path)) + os.pathsep + os.environ["PATH"])
-    main([str(FILM), "-o", str(tmp_path / "a"), "--napisy", str(NAPISY), "--obraz", "brak"])
+    main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "a"), "--napisy", str(NAPISY), "--obraz", "brak"])
     r = json.loads((_only_dir(tmp_path / "a") / "analiza.json").read_text(encoding="utf-8"))
     assert r["streszczenie"]["silnik"] == "claude-code"
     monkeypatch.setenv("PATH", str(tmp_path / "pusty"))            # nie ma claude (ani niczego)
     monkeypatch.setenv("VIDSUM_FFMPEG", __import__("shutil").which("ffmpeg", path=os.defpath + ":/usr/local/bin") or "")
     monkeypatch.setenv("VIDSUM_FFPROBE", __import__("shutil").which("ffprobe", path=os.defpath + ":/usr/local/bin") or "")
-    main([str(FILM), "-o", str(tmp_path / "b"), "--napisy", str(NAPISY), "--obraz", "brak",
+    main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "b"), "--napisy", str(NAPISY), "--obraz", "brak",
           "--ollama", ollama, "--model-streszczenia", "fake-vl"])
     r = json.loads((_only_dir(tmp_path / "b") / "analiza.json").read_text(encoding="utf-8"))
     assert r["streszczenie"]["silnik"] == "ollama:fake-vl"
 
 
 def test_no_audio_and_no_vision(tmp_path):
-    rc = main([str(DATA / "bez_audio.mp4"), "-o", str(tmp_path), "--obraz", "brak", "--streszczenie", "brak"])
+    rc = main(["--bez-ocr", str(DATA / "bez_audio.mp4"), "-o", str(tmp_path), "--obraz", "brak", "--streszczenie", "brak"])
     assert rc == 0
     r = json.loads((_only_dir(tmp_path) / "analiza.json").read_text(encoding="utf-8"))
     assert r["zrodlo"]["audio"] is False and r["transkrypcja"]["segmenty"] == []
@@ -254,14 +254,14 @@ def _fake_claude(tmp_path: Path) -> Path:
 def test_claude_summary_and_api_key_guard(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", str(_fake_claude(tmp_path)) + os.pathsep + os.environ["PATH"])
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    rc = main([str(FILM), "-o", str(tmp_path / "a"), "--napisy", str(NAPISY), "--obraz", "brak",
+    rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "a"), "--napisy", str(NAPISY), "--obraz", "brak",
                "--streszczenie", "claude"])
     assert rc == 0
     r = json.loads((_only_dir(tmp_path / "a") / "analiza.json").read_text(encoding="utf-8"))
     assert r["streszczenie"]["silnik"] == "claude-code" and "OK od Claude" in r["streszczenie"]["markdown"]
 
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")       # bezpiecznik: nie płacimy przypadkiem za API
-    rc = main([str(FILM), "-o", str(tmp_path / "b"), "--napisy", str(NAPISY), "--obraz", "brak",
+    rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "b"), "--napisy", str(NAPISY), "--obraz", "brak",
                "--streszczenie", "claude"])
     r = json.loads((_only_dir(tmp_path / "b") / "analiza.json").read_text(encoding="utf-8"))
     assert r["streszczenie"] is None and any("ANTHROPIC_API_KEY" in g for g in r["luki"])
@@ -277,7 +277,7 @@ def test_link_download_via_ytdlp(tmp_path):
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         url = f"http://127.0.0.1:{srv.server_address[1]}/bez_audio.mp4"
-        rc = main([url, "-o", str(tmp_path), "--obraz", "brak", "--streszczenie", "brak"])
+        rc = main(["--bez-ocr", url, "-o", str(tmp_path), "--obraz", "brak", "--streszczenie", "brak"])
     finally:
         srv.shutdown()
     assert rc == 0
@@ -286,7 +286,7 @@ def test_link_download_via_ytdlp(tmp_path):
 
 
 def test_bad_input_does_not_stop_batch(tmp_path, capsys):
-    rc = main(["nie_ma_takiego.mp4", str(DATA / "bez_audio.mp4"), "-o", str(tmp_path),
+    rc = main(["--bez-ocr", "nie_ma_takiego.mp4", str(DATA / "bez_audio.mp4"), "-o", str(tmp_path),
                "--obraz", "brak", "--streszczenie", "brak"])
     assert rc == 1
     assert "1/2 OK" in capsys.readouterr().out
@@ -343,6 +343,9 @@ def test_speech_runs_in_parallel_with_vision(tmp_path, ollama, monkeypatch):
     from vidsum.transcribe import Segment, Transcript
 
     class SlowWhisper:
+        coverage_hints: list = []
+        recovered = 0
+
         def __init__(self, *a, **k):
             pass
 
@@ -361,7 +364,7 @@ def test_speech_runs_in_parallel_with_vision(tmp_path, ollama, monkeypatch):
 
     monkeypatch.setattr(pl, "WhisperEngine", SlowWhisper)
     monkeypatch.setattr(pl.Ollama, "describe_frame", slow_describe)
-    rc = main([str(FILM), "-o", str(tmp_path), "--ollama", ollama, "--model-obrazu", "fake-vl",
+    rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path), "--ollama", ollama, "--model-obrazu", "fake-vl",
                "--max-kadrow", "4", "--streszczenie", "brak"])
     assert rc == 0
     r = json.loads((_only_dir(tmp_path) / "analiza.json").read_text(encoding="utf-8"))
@@ -380,3 +383,47 @@ def test_salvage_truncated_vision_json():
     assert v["scena"] == "Kucharz dodaje coś do dużego garnka."
     assert v["czynnosci"] == ["dodawanie", "mieszanie"] and v["obiekty"] == []
     assert "{" not in v["scena"]
+
+
+def _bench_video(tmp_path: Path) -> Path:
+    """Film z wypalonymi napisami (jak Shorts) — tekst znany: „Maris Piper”, „Maldon sea salt”."""
+    font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    if not Path(font).is_file():
+        pytest.skip("brak czcionki DejaVu")
+    chunks = ["Start with Maris", "Piper potatoes", "sprinkle of Maldon", "sea salt"]
+    draws = []
+    for i, c in enumerate(chunks):
+        f = tmp_path / f"c{i}.txt"
+        f.write_text(c, encoding="utf-8")
+        draws.append(f"drawtext=fontfile={font}:textfile={f}:fontsize=46:fontcolor=white:box=1:boxcolor=black@0.55:"
+                     f"boxborderw=14:x=(w-tw)/2:y=h*0.7:enable='between(t,{i * 1.5},{i * 1.5 + 1.5})'")
+    out = tmp_path / "napisy ąę.mp4"
+    import subprocess
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=0x2d4a22:s=720x1280:r=25:d=6",
+                    "-vf", ",".join(draws), "-c:v", "libx264", "-pix_fmt", "yuv420p", str(out)], check=True)
+    return out
+
+
+def test_ocr_reads_burned_captions_and_builds_hotwords(tmp_path):
+    from vidsum.ocr import ensure_models, hotwords, read_captions
+    v = _bench_video(tmp_path)
+    mdir = ensure_models(tmp_path / "modele")
+    lines = read_captions(v, 6.0, mdir, log=lambda *a: None)
+    texts = [l.text for l in lines]
+    assert texts == ["Start with Maris", "Piper potatoes", "sprinkle of Maldon", "sea salt"], texts
+    assert abs(lines[0].start - 0.0) <= 0.5 and abs(lines[2].start - 3.0) <= 0.6
+    hw = hotwords(lines, "The Perfect French Fry")
+    assert "Maris Piper" in hw and "Maldon sea salt" in hw and hw.startswith("The Perfect French Fry")
+
+
+def test_ocr_in_pipeline_and_timeline(tmp_path):
+    v = _bench_video(tmp_path)
+    rc = main([str(v), "-o", str(tmp_path / "w"), "--obraz", "brak", "--streszczenie", "brak",
+               "--whisper-folder", str(tmp_path / "modele")])
+    assert rc == 0
+    r = json.loads((_only_dir(tmp_path / "w") / "analiza.json").read_text(encoding="utf-8"))
+    assert [n["text"] for n in r["napisy_ekranowe"]][:2] == ["Start with Maris", "Piper potatoes"]
+    assert any("Maldon" in b["napisy"] for b in r["os_czasu"])
+    assert r["czasy"]["ocr_s"] > 0
+    prompt = (_only_dir(tmp_path / "w") / "prompt_dla_claude.md").read_text(encoding="utf-8")
+    assert "NAPISY: " in prompt and "Maris" in prompt
