@@ -112,6 +112,9 @@ jobs:
             Write-Host "Segmenty mowy: $($j.transkrypcja.segmenty.Count); kadry: $($j.kadry.Count); silnik: $($j.ustawienia.whisper)"
             $j.transkrypcja.segmenty | ForEach-Object { Write-Host ("  {0,6} {1}" -f $_.start, $_.text) }
             if ($j.kadry.Count -lt 3 -or $j.transkrypcja.segmenty.Count -lt 1) { throw "$($r.name): zły wynik" }
+            # film testowy ma wypalone napisy „Krok 1…”, „Krok 2…” — OCR MUSI je odczytać (0.4.0: w .exe brakowało PIL)
+            Write-Host "Napisy OCR: $($j.napisy_ekranowe.Count) — $(($j.napisy_ekranowe | ForEach-Object { $_.text }) -join ' | ')"
+            if ($j.napisy_ekranowe.Count -lt 3) { throw "$($r.name): OCR nie odczytał napisów" }
           }
 
       - name: Test dymny interfejsu (oba warianty)

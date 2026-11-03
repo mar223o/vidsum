@@ -9,7 +9,7 @@ for pkg in ("faster_whisper", "ctranslate2", "onnxruntime", "tokenizers", "rapid
 hidden += collect_submodules("yt_dlp")   # ekstraktory ładowane dynamicznie
 
 a = Analysis(["vidsum_entry.py"], pathex=[".."], binaries=binaries, datas=datas, hiddenimports=hidden,
-             excludes=["tkinter", "matplotlib", "IPython", "pytest", "torch", "scipy", "pandas", "PIL", "sympy"], noarchive=False)
+             excludes=["tkinter", "matplotlib", "IPython", "pytest", "torch", "scipy", "pandas", "sympy"], noarchive=False)
 pyz = PYZ(a.pure)
 import sys
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="VidSum", console=True,
