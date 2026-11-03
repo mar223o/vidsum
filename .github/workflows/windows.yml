@@ -69,6 +69,7 @@ jobs:
           New-Item -ItemType Directory -Force dist\VidSum\bin | Out-Null
           Copy-Item ffbin\* dist\VidSum\bin\
           Copy-Item packaging\CZYTAJ_MNIE.txt dist\VidSum\
+          Copy-Item -Recurse skill dist\VidSum\skill
           Copy-Item docs\licencje.md, docs\format_json.md dist\VidSum\
 
       # ---------------- wariant B: oficjalny Python z python.org (podpisany) ----------------
@@ -89,6 +90,7 @@ jobs:
           New-Item -ItemType Directory -Force "$P\bin" | Out-Null
           Copy-Item ffbin\* "$P\bin\"
           Copy-Item packaging\VidSum.cmd, packaging\CZYTAJ_MNIE.txt, docs\licencje.md, docs\format_json.md $P
+          Copy-Item -Recurse skill "$P\skill"
           $sig = Get-AuthenticodeSignature "$P\python\python.exe"
           Write-Host "Podpis python.exe: $($sig.Status) — $($sig.SignerCertificate.Subject)"
 
@@ -139,6 +141,19 @@ jobs:
               Stop-Process $p -Force -ErrorAction SilentlyContinue
               Get-Process python, VidSum -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             }
+          }
+
+      - name: Test dymny serwera MCP (oba warianty)
+        run: |
+          $env:PATH = "C:\Windows\System32;C:\Windows"
+          $init = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci"}}}'
+          $list = '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+          foreach ($f in @("$PWD\dist\VidSum\VidSum.exe", "$PWD\portable\VidSum\VidSum.cmd")) {
+            $out = ($init, $list) | & $f --mcp
+            Write-Host "MCP $f :"; $out | ForEach-Object { Write-Host "  $_" }
+            $r2 = $out | Where-Object { $_ -match '"id": ?2' } | Select-Object -First 1 | ConvertFrom-Json
+            if ($r2.result.tools.Count -ne 3) { throw "MCP: zła lista narzędzi ($f)" }
+            if (($out | Where-Object { $_ -notmatch '^\{' }).Count -gt 0) { throw "MCP: śmieci na stdout ($f)" }
           }
 
       - name: ZIP + sha256 (oba warianty)

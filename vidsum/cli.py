@@ -21,6 +21,9 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             pass
     args = sys.argv[1:] if argv is None else argv
+    if args[:1] == ["--mcp"]:                   # serwer MCP dla Claude Desktop / Claude Code
+        from .mcp_server import serve_stdio
+        return serve_stdio()
     # Bez argumentów (dwuklik na VidSum.exe) albo z --ui: interfejs w przeglądarce
     if not args or args[0] == "--ui":
         ui = argparse.ArgumentParser(prog="vidsum --ui")

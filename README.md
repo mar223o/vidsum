@@ -66,3 +66,22 @@ Kilka plików naraz: `python -m vidsum film1.mp4 film2.mp4 ...` — błąd w jed
 pip install pytest
 python -m pytest -q
 ```
+
+## Claude: skill i serwer MCP (od 0.6)
+
+**Skill** (`skill/SKILL.md`) — ta sama procedura, gdy wrzucasz film prosto do czatu z Claude: kadry w arkuszach 3×3
+z czasem (Claude sam je ogląda), Whisper, wynik w układzie VidSum. Skrypty są wbudowane w SKILL.md.
+
+**Serwer MCP** — Claude Desktop / Claude Code uruchamia VidSum na Twoim komputerze
+(„przeanalizuj C:\Users\Jan\Videos\przepis.mp4”). Narzędzia: `analizuj_film`, `lista_analiz`, `pobierz_analize`.
+
+Claude Desktop — dopisz do `%APPDATA%\Claude\claude_desktop_config.json`:
+```json
+{ "mcpServers": { "vidsum": { "command": "C:\\Users\\Jan\\Programy\\VidSum\\VidSum.cmd", "args": ["--mcp"] } } }
+```
+(ścieżkę dopasuj do miejsca, gdzie rozpakowałeś program; dla wariantu .exe: `VidSum.exe`). Uruchom Claude Desktop ponownie.
+
+Claude Code (PowerShell):
+```powershell
+claude mcp add vidsum -- "C:\Users\Jan\Programy\VidSum\VidSum.cmd" --mcp
+```
