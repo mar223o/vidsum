@@ -177,3 +177,32 @@ def test_chat_with_video(server, tmp_path, monkeypatch):
     assert "Kolorowe paski" in r["odpowiedz"] and len(r["historia"]) == 2
     _, hist = req(base, f"/api/zadania/{job['id']}/czat")
     assert hist[0]["rola"] == "user" and hist[1]["silnik"] == "claude-code"
+
+
+def test_fixed_port_persistent_token_single_instance(tmp_path):
+    """Stały adres + stały klucz: stara karta działa po restarcie; drugie uruchomienie nie tworzy drugiego serwera."""
+    import socket
+    import subprocess
+    from vidsum import gui
+    with socket.socket() as s:
+        if s.connect_ex(("127.0.0.1", gui.DEFAULT_PORT)) == 0:
+            pytest.skip("port 8765 zajęty")
+    env = dict(os.environ, LOCALAPPDATA=str(tmp_path / "app"))
+    cmd = [sys.executable, "-m", "vidsum", "--ui", "--bez-przegladarki", "-o", str(tmp_path / "w")]
+    p1 = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                          cwd=Path(__file__).parent.parent)
+    try:
+        for _ in range(50):
+            time.sleep(0.2)
+            if gui._running_instance(gui.DEFAULT_PORT):
+                break
+        token = (tmp_path / "app" / "VidSum" / "token.txt").read_text().strip()
+        base = f"http://127.0.0.1:{gui.DEFAULT_PORT}"
+        st, s = req(base, "/api/status", headers={"X-Token": token}, token=False)
+        assert st == 200 and "wersja" in s
+        p2 = subprocess.run(cmd, env=env, capture_output=True, text=True, encoding="utf-8", timeout=30,
+                            cwd=Path(__file__).parent.parent)
+        assert "już działa" in p2.stdout and token in p2.stdout       # drugie uruchomienie → ten sam adres i klucz
+    finally:
+        p1.kill()
+        p1.wait(timeout=10)

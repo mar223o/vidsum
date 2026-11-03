@@ -442,9 +442,47 @@ def make_handler(app: App):
     return H
 
 
+DEFAULT_PORT = 8765
+
+
+def _persistent_token() -> str:
+    """Stały klucz (zapisany w %LOCALAPPDATA%\\VidSum) — zakładki i stare karty działają po restarcie programu."""
+    f = app_dir() / "token.txt"
+    try:
+        tok = f.read_text(encoding="utf-8").strip()
+        if len(tok) >= 16:
+            return tok
+    except OSError:
+        pass
+    tok = secrets.token_urlsafe(16)
+    f.write_text(tok, encoding="utf-8")
+    return tok
+
+
+def _running_instance(port: int) -> bool:
+    """Czy pod tym portem działa już VidSum (drugie uruchomienie → otwórz istniejący zamiast nowego)."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2) as r:
+            return b"VidSum" in r.read(4096)
+    except Exception:
+        return False
+
+
 def serve(port: int = 0, open_browser: bool = True, token: str | None = None, results: Path | None = None) -> None:
-    app = App(results or default_results_dir(), token or secrets.token_urlsafe(16))
-    srv = ThreadingHTTPServer(("127.0.0.1", port), make_handler(app))
+    token = token or _persistent_token()
+    want = port or DEFAULT_PORT
+    if not port and _running_instance(want):
+        url = f"http://127.0.0.1:{want}/?t={token}"
+        print(f"VidSum już działa — otwieram: {url}")
+        if open_browser:
+            webbrowser.open(url)
+        return
+    app = App(results or default_results_dir(), token)
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", want), make_handler(app))
+    except OSError:                       # port zajęty przez inny program → dowolny wolny
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     url = f"http://127.0.0.1:{srv.server_address[1]}/?t={app.token}"
     print(f"VidSum {__version__} — interfejs: {url}")
     print("Zamknij to okno, aby wyłączyć program.")

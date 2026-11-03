@@ -213,7 +213,8 @@ const I18N = {
    t_pobieranie_s:"pobieranie",t_ocr_s:"napisy (OCR)",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
    typ_przepis:"przepis",typ_trening:"trening",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_inne:"inne",
-   chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu"},
+   chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu",
+   offline:"Brak połączenia z programem VidSum. Sprawdź, czy czarne okno programu jest otwarte; jeśli je zamknąłeś — uruchom VidSum ponownie (otworzy tę samą stronę)."},
  en:{nav_home:"Analyze",nav_lib:"Library",hero1:"Drop a video —",hero2:"I'll tell you what it means for you.",
    hero_sub:"Recipe, workout, tutorial: speech, captions and picture turned into a concrete to-do list.",
    drop:"Drop video files here",drop_sub:"or click to choose (MP4, MOV, MKV, WEBM) — several at once is fine",
@@ -241,16 +242,18 @@ const I18N = {
    t_pobieranie_s:"download",t_ocr_s:"on-screen text",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
    typ_przepis:"recipe",typ_trening:"workout",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_inne:"other",
-   chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text"}
+   chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text",
+   offline:"Can't reach the VidSum program. Check that its black window is open; if you closed it, start VidSum again (it reopens this page)."}
 };
 let L = "pl", settings = {}, jobs = [], uploads = {}, cur = null, mode = "bal", tab = null, lib = {q:"", typ:""};
 const $ = s => document.querySelector(s);
 const t = (k, ...a) => { const v = (I18N[L] && I18N[L][k]) ?? I18N.pl[k] ?? k; return typeof v === "function" ? v(...a) : v; };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const api = (p, o = {}) => fetch(p, {...o, headers:{"X-Token":T, ...(o.headers||{})}}).then(async r => {
+const api = (p, o = {}) => fetch(p, {...o, headers:{"X-Token":T, ...(o.headers||{})}}).catch(() => {
+    throw new Error(t("offline")); }).then(async r => {
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.status); return j; });
 const fileUrl = (id, rel) => `/api/zadania/${id}/plik/${encodeURI(rel)}?t=${T}`;
-function toast(m){ const el=$("#toast"); el.textContent=m; el.classList.add("on"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("on"),2400); }
+function toast(m){ const el=$("#toast"); el.textContent=m; el.classList.add("on"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("on"),Math.max(2400,m.length*55)); }
 function fmt(s){ s=Math.max(0,Math.round(s||0)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   return (h? h+":"+String(m).padStart(2,"0") : String(m).padStart(2,"0"))+":"+String(x).padStart(2,"0"); }
 const tsb = s => `<button class="tsb" data-seek="${s}">${fmt(s)}</button>`;
