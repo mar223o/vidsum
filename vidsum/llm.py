@@ -130,14 +130,15 @@ class Ollama:
             d["pewnosc"] = "niska"
             return _clean_vision(d)
 
-    def complete(self, prompt: str) -> str:
+    def complete(self, prompt: str, as_json: bool = False) -> str:
         # kontekst dopasowany do promptu (~3 znaki/token + zapas na odpowiedź) — mniej RAM/VRAM
         need = len(prompt) // 3 + 1500
         num_ctx = min(32768, max(4096, -(-need // 2048) * 2048))
         r = self._post("/api/chat", {"model": self.model, "stream": False, "keep_alive": "5m",
                                      # limit długości + kara za powtórzenia: mały model potrafi się zapętlić
                                      "options": {"temperature": 0.2, "num_ctx": num_ctx,
-                                                 "num_predict": 1200, "repeat_penalty": 1.15},
+                                                 "num_predict": 3000 if as_json else 1200, "repeat_penalty": 1.15},
+                                     **({"format": "json"} if as_json else {}),
                                      "messages": [{"role": "user", "content": prompt}]})
         return r.get("message", {}).get("content", "").strip()
 
@@ -168,7 +169,7 @@ class ClaudeCode:
             raise LLMError("Ustawiona jest zmienna ANTHROPIC_API_KEY — Claude Code naliczałby płatne API zamiast "
                            "subskrypcji Pro. Usuń zmienną albo użyj --allow-api-key.")
 
-    def complete(self, prompt: str) -> str:
+    def complete(self, prompt: str, as_json: bool = False) -> str:
         self.check()
         proc = run([self.exe, "-p", "Wykonaj zadanie opisane na wejściu. Odpowiedz tylko wynikiem.",
                     "--output-format", "text"], input_text=prompt, timeout=self.timeout)

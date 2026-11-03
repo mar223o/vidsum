@@ -17,12 +17,13 @@ Wszystkie czasy są w sekundach (liczby), od początku filmu.
 | `schema` | string | zawsze `"vidsum.analysis/1"` |
 | `narzedzie` | `{nazwa, wersja}` | |
 | `utworzono` | string ISO 8601 | z lokalną strefą czasową |
-| `zrodlo` | obiekt | `rodzaj` (`plik`/`link`), `wejscie`, `url`, `tytul`, `autor`, `plik`, `sha256`, `dlugosc_s`, `szerokosc`, `wysokosc`, `audio` |
+| `zrodlo` | obiekt | `rodzaj` (`plik`/`link`), `wejscie`, `url`, `tytul`, `autor`, `plik`, `sha256`, `dlugosc_s`, `szerokosc`, `wysokosc`, `audio`, `film` (nazwa pliku w folderze wyników albo pełna ścieżka; od 0.5) |
 | `ustawienia` | obiekt | użyte silniki: `whisper`, `jezyk`, `obraz`, `streszczenie`, `limit_kadrow`, `pokrycie_co_s`, `uwagi_techniczne` (lista, od 0.2.2) |
 | `transkrypcja` | `{jezyk, segmenty: [{start, end, text}]}` | |
 | `kadry` | lista | `{t, file, reasons, score, vision}` — `reasons` ⊂ `zmiana_sceny`, `aktywnosc`, `pokrycie`; `vision` = obiekt poniżej albo `null` |
 | `os_czasu` | lista beatów | patrz niżej |
-| `streszczenie` | `{silnik, markdown}` albo `null` | |
+| `streszczenie` | `{silnik, markdown, dane}` albo `null` | `dane` = streszczenie strukturalne `vidsum.summary/1` (niżej, od 0.5) albo `null` |
+| `napisy_ekranowe` | lista `{start, end, text, score}` | napisy odczytane z ekranu przez OCR (od 0.4) |
 | `luki` | lista stringów | ograniczenia analizy (np. odstęp między kadrami, brak audio) |
 | `czasy` | obiekt | czasy etapów w sekundach |
 
@@ -46,3 +47,31 @@ Beat trwa od swojego kadru do następnego. Segment mowy należy do beatu, w któ
 `zmiana` jest liczona mechanicznie (różnica zbiorów obiektów i czynności), `null` dla pierwszego beatu lub bez opisu obrazu.
 
 Tryby „przepis” i „ćwiczenia” (faza 3) dodadzą osobne pola (`przepis`, `cwiczenia`) — bez zmiany powyższych.
+
+
+## Streszczenie strukturalne `vidsum.summary/1` (`streszczenie.dane`)
+Wszystkie czasy w sekundach. Pola nieużywane przez dany typ filmu są puste.
+
+| pole | typ | opis |
+|---|---|---|
+| `typ` | `przepis` / `trening` / `poradnik` / `wyklad` / `inne` | rozpoznany typ filmu |
+| `tytul`, `tytul_akcent` | string | tytuł po polsku + druga część (puenta) |
+| `teza` | string | jedno zdanie: o co chodzi i co z tego wynika |
+| `streszczenie` | lista akapitów | |
+| `co_masz_zrobic.skladniki` | `[{nazwa, ilosc, zrodlo}]` | **przepisy → dashboard** |
+| `co_masz_zrobic.kroki` | `[{t, tekst, zrodlo}]` | kroki z czasem w filmie |
+| `co_masz_zrobic.cwiczenia` | `[{nazwa, serie, powtorzenia, t, technika, zrodlo}]` | **treningi → dashboard** |
+| `co_masz_zrobic.sprzet / wskazowki / bledy / wnioski` | listy stringów | |
+| `co_masz_zrobic.czas` | string | podany albo szacunek |
+| `najwazniejsze` | `[{t, tytul, opis, zrodlo}]` | 3–5 pozycji |
+| `momenty` | `[{t, tekst}]` | |
+| `cytaty` | `[{t, tekst, tlumaczenie}]` | tylko z mowy |
+| `rozdzialy` | `[{start, end, tytul, opis, momenty:[{t, tekst}]}]` | |
+| `szczera_ocena` | string | zawsze szacunek |
+| `czego_nie_wiadomo` | lista stringów | |
+| `pytania` | lista stringów | podpowiedzi do czatu |
+
+`zrodlo` ∈ `mowa`, `obraz`, `mowa+obraz`, `szacunek`.
+
+## `czat.json` (obok `analiza.json`)
+Lista wiadomości `{rola: "user"|"asystent", tekst, czas, silnik?}` — rozmowa z filmem z widoku wyniku.

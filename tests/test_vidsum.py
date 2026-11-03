@@ -22,6 +22,19 @@ NAPISY = DATA / "napisy.json"
 
 
 # ---------- atrapa Ollamy ----------
+FAKE_SUMMARY = {
+    "typ": "przepis", "tytul": "Szybki sos", "tytul_akcent": "z cebulą", "teza": "Krótki przepis na sos.",
+    "streszczenie": ["Kroimy cebulę, wlewamy mleko i mieszamy."],
+    "co_masz_zrobic": {"skladniki": [{"nazwa": "mleko", "ilosc": "200 ml", "zrodlo": "mowa+obraz"}],
+                       "kroki": [{"t": "00:09", "tekst": "Wlej mleko", "zrodlo": "mowa"},
+                                 {"t": 1, "tekst": "Pokrój cebulę", "zrodlo": "mowa"}],
+                       "sprzet": [], "czas": "5 minut", "cwiczenia": [], "wskazowki": [], "bledy": [], "wnioski": []},
+    "najwazniejsze": [{"t": 17, "tytul": "Mieszaj 5 minut", "opis": "Na małym ogniu.", "zrodlo": "mowa"}],
+    "momenty": [{"t": 26, "tekst": "Gotowe"}], "cytaty": [{"t": 9, "tekst": "Teraz wlewamy", "tlumaczenie": ""}],
+    "rozdzialy": [{"start": 0, "end": 999, "tytul": "Całość", "opis": "Wszystko.", "momenty": []}],
+    "szczera_ocena": "Prosto.", "czego_nie_wiadomo": ["ile cebuli"], "pytania": ["Ile mleka?"],
+}
+
 class FakeOllama(http.server.BaseHTTPRequestHandler):
     calls: list[dict] = []
 
@@ -59,6 +72,8 @@ class FakeOllama(http.server.BaseHTTPRequestHandler):
         if msg.get("images"):
             content = json.dumps({"scena": "deska i nóż", "czynnosci": ["krojenie"], "obiekty": ["cebula", "nóż"],
                                   "tekst_na_ekranie": "Krok 1", "cialo": None, "pewnosc": "srednia"})
+        elif body.get("format") == "json":
+            content = json.dumps(FAKE_SUMMARY)
         else:
             content = "## Streszczenie\nFilm pokazuje przepis [mowa+obraz].\n## Najważniejsze momenty\n- `00:00` krojenie [obraz]\n## Czego nie wiadomo\n- czas pieczenia: brak danych"
         self._send({"message": {"role": "assistant", "content": content}})
@@ -162,13 +177,18 @@ def test_end_to_end_ollama(tmp_path, ollama):
         assert k["vision"]["tekst_na_ekranie"] == ["Krok 1"] and k["vision"]["cialo"] == ""   # normalizacja
     assert {b["widac"]["zrodlo"] for b in r["os_czasu"]} == {"obraz"}
     assert r["streszczenie"]["silnik"] == "ollama:fake-vl"
+    dane = r["streszczenie"]["dane"]
+    assert dane["typ"] == "przepis" and dane["schema"] == "vidsum.summary/1"
+    assert [k["t"] for k in dane["co_masz_zrobic"]["kroki"]] == [1.0, 9.0]       # „00:09” → 9 s, posortowane
+    assert dane["rozdzialy"][0]["end"] <= r["zrodlo"]["dlugosc_s"]               # czasy przycięte do długości
+    assert "### Składniki" in r["streszczenie"]["markdown"] and "200 ml" in r["streszczenie"]["markdown"]
     imgs = [c for c in FakeOllama.calls if c.get("messages") and c["messages"][0].get("images")]
     assert len(imgs) == len(r["kadry"]) and imgs[0]["format"] == "json"
     assert any(c.get("keep_alive") == 0 for c in FakeOllama.calls)          # zwolnienie VRAM
     prompt = (out / "prompt_dla_claude.md").read_text(encoding="utf-8")
     assert "[mowa]" in prompt and "brak danych" in prompt and "Teraz wlewamy" in prompt
     md = (out / "raport.md").read_text(encoding="utf-8")
-    assert "## Streszczenie" in md and "(z mowy)" in md and "(z obrazu" in md
+    assert "## W skrócie" in md and "(z mowy)" in md and "(z obrazu" in md
     assert "⏱ Czas analizy:" in md and "kadry " in md                     # czas w raporcie
     assert (out / "transkrypcja.srt").read_text(encoding="utf-8").startswith("1\n00:00:00,500 --> 00:00:06,000")
 
@@ -427,3 +447,15 @@ def test_ocr_in_pipeline_and_timeline(tmp_path):
     assert r["czasy"]["ocr_s"] > 0
     prompt = (_only_dir(tmp_path / "w") / "prompt_dla_claude.md").read_text(encoding="utf-8")
     assert "NAPISY: " in prompt and "Maris" in prompt
+
+
+def test_parse_summary_robustness():
+    from vidsum.summary import parse_summary, to_markdown
+    assert parse_summary("to nie jest json", 60) is None
+    d = parse_summary("Oto wynik:\n```json\n" + json.dumps(FAKE_SUMMARY) + "\n```", 30)
+    assert d and d["rozdzialy"][0]["end"] == 30 and d["typ"] == "przepis"
+    bad = dict(FAKE_SUMMARY, typ="cokolwiek", momenty=[{"t": "x", "tekst": "a"}, "śmieć"])
+    d = parse_summary(json.dumps(bad), 30)
+    assert d["typ"] == "inne" and d["momenty"] == [{"t": 0.0, "tekst": "a"}]
+    md = to_markdown(d)
+    assert "## Najważniejsze" in md and "`00:17` **Mieszaj 5 minut**" in md

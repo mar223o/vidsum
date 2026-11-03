@@ -5,6 +5,7 @@ import datetime as dt
 import hashlib
 import json
 import re
+import shutil
 import threading
 import time
 from dataclasses import asdict, dataclass, field
@@ -13,6 +14,7 @@ from typing import Callable
 
 from . import __version__
 from .analysis import FrameInfo, build_beats, build_summary_prompt, ts
+from .summary import build_json_prompt, parse_summary, to_markdown
 from .fetch import resolve
 from .llm import ClaudeCode, LLMError, Ollama
 from .media import (choose_frames, extract_audio, extract_frame, frame_signature, hamming, plan_for, probe,
@@ -40,6 +42,7 @@ class Options:
     allow_api_key: bool = False
     prefer_subtitles: bool = True              # napisy z YouTube zamiast Whispera, jeśli są
     ocr: bool = True                           # gęsty OCR napisów na ekranie (+ podpowiedzi słów dla Whispera)
+    move_source: bool = False                  # przenieś plik źródłowy do folderu wyników (wysłane z UI)
     extra: dict = field(default_factory=dict)
 
 
@@ -213,12 +216,13 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     beats = build_beats(frames, tr.segments, info.duration, ocr_lines)
     meta = {"tytuł": src.title, "autor": src.uploader, "długość": ts(info.duration),
             "język mowy": tr.language}
-    prompt = build_summary_prompt(beats, meta, gaps)
+    prompt = build_summary_prompt(beats, meta, gaps)             # wersja do wklejenia na claude.ai
     (out / "prompt_dla_claude.md").write_text(prompt, encoding="utf-8")
+    json_prompt = build_json_prompt(beats, meta, gaps)           # wersja dla programu (dane do widoku)
 
     # 4) STRESZCZENIE
     t = time.time()
-    summary_md, summary_engine = None, None
+    summary_md, summary_engine, summary_data = None, None, None
     summary_mode = opt.summary
     if summary_mode == "auto":
         # Claude (subskrypcja Pro) daje dużo lepsze streszczenia niż mały model lokalny;
@@ -241,7 +245,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             else:
                 eng = Ollama(opt.summary_model or opt.vision_model, opt.ollama_host)
                 summary_engine = f"ollama:{eng.model}"
-            summary_md = eng.complete(prompt)
+            raw = eng.complete(json_prompt, as_json=True)
+            summary_data = parse_summary(raw, info.duration)
+            summary_md = to_markdown(summary_data) if summary_data else raw
+            if not summary_data:
+                log("        ! model nie zwrócił poprawnych danych — zapisuję tekst")
         except LLMError as e:
             gaps.append(f"Streszczenie nie powstało: {e}")
             log(f"        ! {e}")
@@ -252,14 +260,28 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if speech_thread:
         timings["mowa_rownolegle"] = True
 
+    # film do odtwarzacza w widoku wyniku: pobrany z linku / wysłany z UI → przenosimy do folderu wyników;
+    # plik wskazany ścieżką zostaje na miejscu (bez kopiowania dużych plików)
+    src_sha = _sha256(src.path)
+    if src.kind == "link" or opt.move_source:
+        dst = out / ("film" + src.path.suffix.lower())
+        try:
+            shutil.move(str(src.path), dst)
+            film_ref = dst.name
+        except OSError:
+            film_ref = str(src.path)
+    else:
+        film_ref = str(src.path)
+
     result = {
         "schema": SCHEMA,
         "narzedzie": {"nazwa": "VidSum", "wersja": __version__},
         "utworzono": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "zrodlo": {"rodzaj": src.kind, "wejscie": src.original, "url": src.webpage_url,
                    "tytul": src.title, "autor": src.uploader, "plik": src.path.name,
-                   "sha256": _sha256(src.path), "dlugosc_s": round(info.duration, 2),
-                   "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio},
+                   "sha256": src_sha, "dlugosc_s": round(info.duration, 2),
+                   "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio,
+                   "film": film_ref},
         "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto",
                        "obraz": f"ollama:{opt.vision_model}" if vision_engine else "brak",
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,
@@ -268,7 +290,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         "napisy_ekranowe": [asdict(l) for l in ocr_lines],
         "kadry": [asdict(f) for f in frames],
         "os_czasu": beats,
-        "streszczenie": {"silnik": summary_engine, "markdown": summary_md} if summary_md else None,
+        "streszczenie": {"silnik": summary_engine, "markdown": summary_md, "dane": summary_data} if summary_md else None,
         "luki": gaps,
         "czasy": timings,
     }

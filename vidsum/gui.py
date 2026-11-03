@@ -5,6 +5,7 @@ losowego tokenu z adresu strony — inne strony otwarte w przeglądarce nie mog�
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import mimetypes
 import os
@@ -62,12 +63,29 @@ class Job:
         self.finished: float | None = None
         self.stage = ""                 # np. "2/4 kadry"
 
+    def card(self) -> dict:
+        """Dane do karty w Bibliotece (z analiza.json, w pamięci podręcznej)."""
+        if getattr(self, "_card", None) is not None or self.status != "gotowe" or not self.out:
+            return getattr(self, "_card", None) or {}
+        try:
+            r = json.loads((self.out / "analiza.json").read_text(encoding="utf-8"))
+        except Exception:
+            self._card = {}
+            return self._card
+        d = ((r.get("streszczenie") or {}).get("dane") or {})
+        z = r.get("zrodlo", {})
+        self._card = {"tytul": d.get("tytul") or z.get("tytul") or z.get("plik"), "akcent": d.get("tytul_akcent", ""),
+                      "teza": d.get("teza", ""), "typ": d.get("typ", ""), "dlugosc": z.get("dlugosc_s"),
+                      "autor": z.get("autor"), "miniatura": (r.get("kadry") or [{}])[0].get("file"),
+                      "czas_analizy": (r.get("czasy") or {}).get("razem_s"), "utworzono": r.get("utworzono")}
+        return self._card
+
     def to_dict(self) -> dict:
         end = self.finished or time.time()
         return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-200:],
                 "error": self.error, "out": str(self.out) if self.out else None, "created": self.created,
                 "stage": self.stage,
-                "elapsed": round(end - self.started, 1) if self.started else None}
+                "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card()}
 
 
 class Worker:
@@ -119,7 +137,29 @@ class App:
         self.worker = Worker()
         self.settings_file = app_dir() / "ustawienia.json"
         self.settings = self._load_settings()
+        self.scan_library()
 
+    def scan_library(self) -> None:
+        """Biblioteka: wcześniejsze analizy z dysku (przetrwają ponowne uruchomienie programu)."""
+        roots = {Path(self.settings.get("wyniki") or self.results), self.results}
+        known = {j.out.resolve() for j in self.worker.jobs.values() if j.out}
+        for root in roots:
+            if not root.is_dir():
+                continue
+            for f in root.glob("*/analiza.json"):
+                d = f.parent.resolve()
+                if d in known:
+                    continue
+                jid = hashlib.sha1(str(d).encode("utf-8")).hexdigest()[:8]
+                job = Job(jid, str(d), d.name, Options(), None)
+                job.status, job.out, job.created = "gotowe", d, f.stat().st_mtime
+                try:
+                    c = json.loads(f.read_text(encoding="utf-8")).get("czasy", {})
+                    job.started, job.finished = 0.0, float(c.get("razem_s") or 0.0)
+                except Exception:
+                    pass
+                job.label = job.card().get("tytul") or d.name
+                self.worker.jobs[jid] = job
     def _load_settings(self) -> dict:
         d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
              "streszczenie": "auto", "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results)}
@@ -225,6 +265,82 @@ def make_handler(app: App):
             p = (root / rel).resolve()
             return p if p.is_relative_to(root) else None   # bez wychodzenia poza folder wyników
 
+        def _video(self, jid: str):
+            """Film do odtwarzacza, z obsługą Range (przewijanie w <video>)."""
+            p = self._job_file(jid, "analiza.json")
+            if not p or not p.is_file():
+                return self._json({"error": "brak"}, 404)
+            ref = json.loads(p.read_text(encoding="utf-8")).get("zrodlo", {}).get("film")
+            if not ref:
+                return self._json({"error": "brak filmu"}, 404)
+            f = Path(ref) if Path(ref).is_absolute() else p.parent / ref
+            if not f.is_file():
+                return self._json({"error": "film przeniesiony lub usunięty"}, 404)
+            size = f.stat().st_size
+            ctype = mimetypes.guess_type(f.name)[0] or "video/mp4"
+            rng = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range") or "")
+            start, end = 0, size - 1
+            if rng and (rng.group(1) or rng.group(2)):
+                if rng.group(1):
+                    start = int(rng.group(1))
+                    end = int(rng.group(2)) if rng.group(2) else size - 1
+                else:
+                    start = max(0, size - int(rng.group(2)))
+                end = min(end, size - 1)
+                if start > end:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{size}")
+                    self.end_headers()
+                    return
+                self.send_response(206)
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            else:
+                self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(end - start + 1))
+            self.end_headers()
+            with open(f, "rb") as fh:
+                fh.seek(start)
+                left = end - start + 1
+                try:
+                    while left > 0:
+                        chunk = fh.read(min(1 << 20, left))
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        left -= len(chunk)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass            # przeglądarka przerwała (przewinięcie) — normalne
+
+        def _ask(self, jid: str, question: str):
+            p = self._job_file(jid, "analiza.json")
+            if not p or not p.is_file():
+                return self._json({"error": "brak wyników"}, 404)
+            if not question:
+                return self._json({"error": "puste pytanie"}, 400)
+            from .summary import build_chat_prompt
+            analysis = json.loads(p.read_text(encoding="utf-8"))
+            hist_file = p.parent / "czat.json"
+            history = json.loads(hist_file.read_text(encoding="utf-8")) if hist_file.is_file() else []
+            prompt = build_chat_prompt(analysis, question, history)
+            try:
+                try:
+                    eng = ClaudeCode()
+                    eng.check()
+                    silnik = "claude-code"
+                except LLMError:
+                    eng = Ollama(app.settings.get("model_obrazu") or "qwen3-vl:4b-instruct")
+                    silnik = f"ollama:{eng.model}"
+                answer = eng.complete(prompt)
+            except Exception as e:
+                return self._json({"error": f"Nie udało się odpowiedzieć: {e}"}, 400)
+            now = time.strftime("%Y-%m-%dT%H:%M:%S")
+            history += [{"rola": "user", "tekst": question, "czas": now},
+                        {"rola": "asystent", "tekst": answer, "czas": now, "silnik": silnik}]
+            hist_file.write_text(json.dumps(history, ensure_ascii=False, indent=1), encoding="utf-8")
+            return self._json({"odpowiedz": answer, "historia": history})
+
         # --- GET ---
         def do_GET(self):
             u = urllib.parse.urlparse(self.path)
@@ -242,8 +358,17 @@ def make_handler(app: App):
             if u.path == "/api/ustawienia":
                 return self._json(app.settings)
             if u.path == "/api/zadania":
+                if qs.get("skanuj"):
+                    app.scan_library()
                 jobs = sorted(app.worker.jobs.values(), key=lambda j: -j.created)
                 return self._json([j.to_dict() for j in jobs])
+            m = re.fullmatch(r"/api/zadania/(\w+)/film", u.path)
+            if m:
+                return self._video(m.group(1))
+            m = re.fullmatch(r"/api/zadania/(\w+)/czat", u.path)
+            if m:
+                p = self._job_file(m.group(1), "czat.json")
+                return self._json(json.loads(p.read_text(encoding="utf-8")) if p and p.is_file() else [])
             m = re.fullmatch(r"/api/zadania/(\w+)/plik/(.+)", u.path)
             if m:
                 p = self._job_file(m.group(1), urllib.parse.unquote(m.group(2)))
@@ -274,7 +399,9 @@ def make_handler(app: App):
                             break
                         f.write(chunk)
                         left -= len(chunk)
-                job = Job(secrets.token_hex(4), str(dst), name, app.options(app.settings), dst)
+                opt = app.options(app.settings)
+                opt.move_source = True          # film zostaje w folderze wyników — do odtwarzacza
+                job = Job(secrets.token_hex(4), str(dst), name, opt, dst)
                 app.worker.submit(job)
                 return self._json(job.to_dict())
             if u.path == "/api/link":
@@ -285,6 +412,9 @@ def make_handler(app: App):
                 job = Job(secrets.token_hex(4), src, src, app.options(app.settings), None)
                 app.worker.submit(job)
                 return self._json(job.to_dict())
+            m = re.fullmatch(r"/api/zadania/(\w+)/pytanie", u.path)
+            if m:
+                return self._ask(m.group(1), (self._body().get("pytanie") or "").strip())
             m = re.fullmatch(r"/api/zadania/(\w+)/claude", u.path)
             if m:
                 job = app.worker.jobs.get(m.group(1))

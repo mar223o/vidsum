@@ -133,3 +133,47 @@ def test_claude_button(server, tmp_path, monkeypatch):
     _, r = req(base, f"/api/zadania/{job['id']}/claude", method="POST", data=b"")
     assert "Z Claude" in r["markdown"]
     assert (Path(j["out"]) / "streszczenie_claude.md").is_file()
+
+
+def test_video_streaming_with_range(server):
+    base, _ = server
+    data = (DATA / "bez_audio.mp4").read_bytes()
+    _, job = req(base, "/api/wyslij", data=data, method="POST", headers={"X-Filename": "film.mp4"})
+    assert wait_done(base, job["id"])["status"] == "gotowe"
+    st, full = req(base, f"/api/zadania/{job['id']}/film")
+    assert st == 200 and full == data                       # wysłany film zachowany do odtwarzacza
+    r = urllib.request.Request(base + f"/api/zadania/{job['id']}/film", headers={"X-Token": TOKEN, "Range": "bytes=100-199"})
+    with urllib.request.urlopen(r) as resp:
+        assert resp.status == 206 and resp.headers["Content-Range"] == f"bytes 100-199/{len(data)}"
+        assert resp.read() == data[100:200]
+
+
+def test_library_survives_restart(server, tmp_path):
+    base, app = server
+    _, job = req(base, "/api/link", data=json.dumps({"zrodlo": str(DATA / "bez_audio.mp4")}).encode(), method="POST")
+    assert wait_done(base, job["id"])["status"] == "gotowe"
+    from vidsum.gui import App
+    app2 = App(app.results, "x")                             # „ponowne uruchomienie”
+    jobs = [j.to_dict() for j in app2.worker.jobs.values()]
+    assert len(jobs) == 1 and jobs[0]["status"] == "gotowe"
+    assert jobs[0]["card"]["tytul"] == "bez_audio.mp4" and jobs[0]["card"]["miniatura"].startswith("kadry/")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="atrapa claude jako skrypt POSIX")
+def test_chat_with_video(server, tmp_path, monkeypatch):
+    base, _ = server
+    d = tmp_path / "bin"
+    d.mkdir()
+    fake = d / "claude"
+    fake.write_text(f"#!{sys.executable}\nimport sys\np=sys.stdin.read()\n"
+                    "assert 'PYTANIE: Co jest w filmie?' in p and 'OŚ CZASU' in p\nprint('Kolorowe paski `00:01`.')\n")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", str(d) + os.pathsep + os.environ["PATH"])
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    _, job = req(base, "/api/link", data=json.dumps({"zrodlo": str(DATA / "bez_audio.mp4")}).encode(), method="POST")
+    wait_done(base, job["id"])
+    _, r = req(base, f"/api/zadania/{job['id']}/pytanie", data=json.dumps({"pytanie": "Co jest w filmie?"}).encode(),
+               method="POST")
+    assert "Kolorowe paski" in r["odpowiedz"] and len(r["historia"]) == 2
+    _, hist = req(base, f"/api/zadania/{job['id']}/czat")
+    assert hist[0]["rola"] == "user" and hist[1]["silnik"] == "claude-code"
