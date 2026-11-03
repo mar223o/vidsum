@@ -64,6 +64,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp = opt.out_root / "_pobrane"
     src = resolve(inp, tmp, opt.cookies_from_browser)
+    t_fetch = round(time.time() - t0, 1)
     name = _safe_name(src.title or src.path.stem)
     out = opt.out_root / f"{name}_{stamp}"
     (out / "kadry").mkdir(parents=True, exist_ok=True)
@@ -72,13 +73,14 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     info = probe(src.path)
     log(f"  długość {ts(info.duration)}, {info.width}x{info.height}, audio: {'tak' if info.has_audio else 'nie'}")
     gaps: list[str] = []
-    timings: dict[str, float] = {}
+    timings: dict[str, float] = {"pobieranie_s": t_fetch} if src.kind == "link" else {}
 
     # 1) MOWA — napisy z serwisu (najszybciej), gotowy plik albo Whisper.
     #    Whisper na CPU działa RÓWNOLEGLE z opisem kadrów na GPU (to największy zysk czasu).
     t_speech = time.time()
     tr_box: dict = {}
     speech_thread = None
+    speech_job = None
     if opt.transcript_file:
         tr_box["tr"] = SidecarEngine(opt.transcript_file).transcribe(language=opt.language)
     elif not info.has_audio:
@@ -105,11 +107,12 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 tr_box["err"] = e
             finally:
                 wav.unlink(missing_ok=True)
-                tr_box["s"] = round(time.time() - t_speech, 1)
+                tr_box["s"] = round(time.time() - tr_box.get("t0", t_speech), 1)
 
         if device == "cpu" and opt.vision == "ollama":
-            speech_thread = threading.Thread(target=run_whisper, daemon=True)
-            speech_thread.start()
+            # start dopiero PO wycięciu kadrów: ffmpeg i Whisper na CPU naraz spowalniały się nawzajem
+            # (na komputerze testowym kadry 96 s zamiast kilku); opis kadrów idzie na GPU, więc tam nakładanie się opłaca
+            speech_job = run_whisper
         else:                       # Whisper na GPU: po kolei, bo 8 GB VRAM nie zmieści obu modeli
             run_whisper()
 
@@ -137,6 +140,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     gaps.append(f"Kadry co najwyżej co {max_gap:.0f} s — krótkie czynności między kadrami mogły zostać pominięte.")
     timings["kadry_s"] = round(time.time() - t, 1)
     log(f"        {len(frames)} kadrów (pominięto {dropped} powtarzających się; limit {plan.max_frames})")
+    if speech_job:
+        tr_box["t0"] = time.time()
+        speech_thread = threading.Thread(target=speech_job, daemon=True)
+        speech_thread.start()
 
     # 3) OBRAZ
     t = time.time()
@@ -216,6 +223,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         vision_engine.unload()
     timings["streszczenie_s"] = round(time.time() - t, 1)
     timings["razem_s"] = round(time.time() - t0, 1)
+    if speech_thread:
+        timings["mowa_rownolegle"] = True
 
     result = {
         "schema": SCHEMA,
@@ -239,8 +248,23 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     (out / "analiza.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "transkrypcja.srt").write_text(_srt(tr), encoding="utf-8")
     (out / "raport.md").write_text(_report_md(result), encoding="utf-8")
-    log(f"  ✔ gotowe w {timings['razem_s']} s")
+    log(f"  ✔ gotowe w {_dur(timings['razem_s'])} — {_timing_line(timings)}")
     return out
+
+
+_STAGES = [("pobieranie_s", "pobieranie"), ("transkrypcja_s", "mowa"), ("kadry_s", "kadry"),
+           ("obraz_s", "opis obrazu"), ("streszczenie_s", "streszczenie")]
+
+
+def _dur(sec: float) -> str:
+    sec = float(sec or 0)
+    return f"{int(sec // 60)} min {sec % 60:.0f} s" if sec >= 60 else f"{sec:.1f} s"
+
+
+def _timing_line(c: dict) -> str:
+    parts = [f"{lab} {_dur(c[k])}" for k, lab in _STAGES if c.get(k, 0) >= 0.05]   # wyłączone etapy pomijamy
+    note = " (mowa liczona równolegle z opisem obrazu)" if c.get("mowa_rownolegle") else ""
+    return " · ".join(parts) + note
 
 
 def _srt(tr: Transcript) -> str:
@@ -256,7 +280,8 @@ def _report_md(r: dict) -> str:
          f"- Źródło: {z['url'] or z['wejscie']}",
          f"- Długość: {ts(z['dlugosc_s'])} · obraz {z['szerokosc']}×{z['wysokosc']} · audio: {'tak' if z['audio'] else 'nie'}",
          f"- Silniki: mowa `{r['ustawienia']['whisper']}`, obraz `{r['ustawienia']['obraz']}`, "
-         f"streszczenie `{r['ustawienia']['streszczenie']}`", ""]
+         f"streszczenie `{r['ustawienia']['streszczenie']}`",
+         f"- ⏱ Czas analizy: **{_dur(r['czasy'].get('razem_s', 0))}** — {_timing_line(r['czasy'])}", ""]
     if r["streszczenie"]:
         L += [r["streszczenie"]["markdown"], ""]
     else:

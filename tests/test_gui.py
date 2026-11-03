@@ -88,6 +88,7 @@ def test_upload_polish_name_and_results(server):
     assert job["label"] == name
     j = wait_done(base, job["id"])
     assert j["status"] == "gotowe", j
+    assert j["elapsed"] is not None and j["elapsed"] > 0                       # czas w interfejsie
     _, r = req(base, f"/api/zadania/{job['id']}/plik/analiza.json")
     assert r["zrodlo"]["plik"] == name and r["kadry"]
     st, img = req(base, f"/api/zadania/{job['id']}/plik/" + urllib.parse.quote(r["kadry"][0]["file"]))

@@ -66,6 +66,22 @@ def _clean_vision(d: dict) -> dict:
     return out
 
 
+_FIELD_STR = re.compile(r'"(\w+)"\s*:\s*"((?:[^"\\]|\\.)*)"')
+_FIELD_LIST = re.compile(r'"(\w+)"\s*:\s*\[([^\]]*)\]')
+
+
+def salvage_json(txt: str) -> dict:
+    """Wyciąga kompletne pola z uciętego JSON-a, np. '{"scena": "X", "obiekty": ["a", "b' → {"scena": "X"}."""
+    d: dict = {}
+    for k, v in _FIELD_STR.findall(txt):
+        d.setdefault(k, v.replace('\\"', '"'))
+    for k, v in _FIELD_LIST.findall(txt):
+        d.setdefault(k, re.findall(r'"((?:[^"\\]|\\.)*)"', v))
+    if not d and not txt.lstrip().startswith("{"):
+        d["scena"] = txt.strip()[:200]       # zwykły tekst zamiast JSON-a
+    return d
+
+
 class Ollama:
     def __init__(self, model: str, host: str | None = None, timeout: float = 600):
         self.model = model
@@ -102,14 +118,17 @@ class Ollama:
         b64 = base64.b64encode(Path(image).read_bytes()).decode("ascii")
         r = self._post("/api/chat", {
             "model": self.model, "stream": False, "format": "json", "keep_alive": "5m",
-            "options": {"temperature": 0},
+            "options": {"temperature": 0, "num_predict": 600},
             "messages": [{"role": "user", "content": VISION_PROMPT.format(t=t_label), "images": [b64]}],
         })
         txt = r.get("message", {}).get("content", "")
         try:
             return _clean_vision(json.loads(txt))
         except json.JSONDecodeError:
-            return _clean_vision({"scena": txt[:200], "pewnosc": "niska"})
+            # model urwał JSON w połowie — odzyskaj kompletne pola zamiast wklejać surowy tekst
+            d = salvage_json(txt)
+            d["pewnosc"] = "niska"
+            return _clean_vision(d)
 
     def complete(self, prompt: str) -> str:
         # kontekst dopasowany do promptu (~3 znaki/token + zapas na odpowiedź) — mniej RAM/VRAM

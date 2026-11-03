@@ -58,10 +58,16 @@ class Job:
         self.out: Path | None = None
         self.error: str | None = None
         self.created = time.time()
+        self.started: float | None = None
+        self.finished: float | None = None
+        self.stage = ""                 # np. "2/4 kadry"
 
     def to_dict(self) -> dict:
+        end = self.finished or time.time()
         return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-200:],
-                "error": self.error, "out": str(self.out) if self.out else None, "created": self.created}
+                "error": self.error, "out": str(self.out) if self.out else None, "created": self.created,
+                "stage": self.stage,
+                "elapsed": round(end - self.started, 1) if self.started else None}
 
 
 class Worker:
@@ -82,12 +88,16 @@ class Worker:
         while True:
             job = self.q.get()
             job.status = "trwa"
+            job.started = time.time()
 
             def log(msg: str, job=job) -> None:
                 for line in str(msg).splitlines():
                     job.log.append(line)
                     if line.strip().startswith("wyniki:"):
                         job.out = Path(line.split("wyniki:", 1)[1].strip())
+                    m = re.match(r"\s*\[(\d)/4\]\s*(\S+)", line)
+                    if m:
+                        job.stage = m.group(1)
             try:
                 job.out = analyze(job.source, job.opt, log)
                 job.status = "gotowe"
@@ -96,6 +106,7 @@ class Worker:
                 job.log.append("✖ " + job.error)
                 traceback.print_exc()
             finally:
+                job.finished = time.time()
                 if job.upload:
                     shutil.rmtree(job.upload.parent, ignore_errors=True)
 

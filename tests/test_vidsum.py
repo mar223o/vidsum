@@ -169,6 +169,7 @@ def test_end_to_end_ollama(tmp_path, ollama):
     assert "[mowa]" in prompt and "brak danych" in prompt and "Teraz wlewamy" in prompt
     md = (out / "raport.md").read_text(encoding="utf-8")
     assert "## Streszczenie" in md and "(z mowy)" in md and "(z obrazu" in md
+    assert "⏱ Czas analizy:" in md and "kadry " in md                     # czas w raporcie
     assert (out / "transkrypcja.srt").read_text(encoding="utf-8").startswith("1\n00:00:00,500 --> 00:00:06,000")
 
 
@@ -368,3 +369,14 @@ def test_speech_runs_in_parallel_with_vision(tmp_path, ollama, monkeypatch):
     assert r["transkrypcja"]["segmenty"][0]["text"] == "mowa z atrapy"
     assert c["transkrypcja_s"] >= 2.0 and c["obraz_s"] >= 1.0
     assert c["razem_s"] < c["transkrypcja_s"] + c["obraz_s"]      # nakładały się w czasie
+
+
+def test_salvage_truncated_vision_json():
+    """Regresja z prawdziwego filmu: model urwał JSON i w raporcie lądował surowy tekst."""
+    from vidsum.llm import _clean_vision, salvage_json
+    t = ('{ "scena": "Kucharz dodaje coś do dużego garnka.", "czynnosci": [ "dodawanie", "mieszanie" ], '
+         '"obiekty": [ "garnek", "płytka indukcyjna", "ręk')
+    v = _clean_vision(salvage_json(t))
+    assert v["scena"] == "Kucharz dodaje coś do dużego garnka."
+    assert v["czynnosci"] == ["dodawanie", "mieszanie"] and v["obiekty"] == []
+    assert "{" not in v["scena"]

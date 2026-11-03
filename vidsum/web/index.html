@@ -60,6 +60,13 @@ pre.log{margin:0;font:12px/1.45 var(--mono);color:var(--muted);background:var(--
 .src{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid currentColor;margin-right:6px;white-space:nowrap}
 .src.szacunek{color:var(--est)}.src.mowa{color:var(--speech)}.src.obraz{color:var(--vision)}.src.brak_danych{color:var(--none)}
 .empty{color:var(--muted);font-size:14px}
+.timer{font:600 12px var(--mono);color:var(--muted);white-space:nowrap}
+.stage{font-size:12px;color:var(--warn);white-space:nowrap}
+.timing{margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:13px}
+.timing-head{margin-bottom:6px}
+.trow{display:grid;grid-template-columns:110px 1fr 64px;gap:10px;align-items:center;margin:3px 0;color:var(--muted)}
+.tbar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}.tbar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.tval{text-align:right;font-family:var(--mono);color:var(--ink)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:14px;opacity:0;transition:.2s;pointer-events:none}
 .toast.on{opacity:1}
 @media (max-width:640px){ .beat{grid-template-columns:1fr} header{padding:12px 16px} }
@@ -113,7 +120,9 @@ const I18N = {
    claude:"Podsumuj przez Claude",folder:"Otwórz folder",copied:"Skopiowano — wklej na claude.ai",saved:"Zapisano",
    uploading:"Wysyłanie",summary:"Streszczenie",no_summary:"Brak streszczenia — użyj „Kopiuj prompt” albo „Podsumuj przez Claude”.",
    gaps:"Ograniczenia analizy",timeline:"Oś czasu",seen:"obraz",heard:"mowa",nodata:"brak danych",
-   claude_wait:"Claude pisze streszczenie…",dur:"długość",chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code"},
+   claude_wait:"Claude pisze streszczenie…",dur:"długość",chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",
+   took:"Czas analizy",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",stage_0:"pobieranie / start",
+   t_pobieranie_s:"pobieranie",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",t_streszczenie_s:"streszczenie",parallel:"mowa liczona równolegle z opisem obrazu"},
  en:{drop:"Drop video files here",drop_sub:"or click to choose (MP4, MOV, MKV, WEBM) — several at once is fine",
    links_ph:"…or paste YouTube / Instagram / TikTok link(s) or a path C:\\…\\video.mp4 (one per line)",
    analyze:"Analyze",settings:"Settings",s_lang:"Speech language",s_whisper:"Speech model (Whisper)",s_vis_on:"Image analysis",s_vision:"Vision model (Ollama)",
@@ -123,7 +132,9 @@ const I18N = {
    claude:"Summarize with Claude",folder:"Open folder",copied:"Copied — paste into claude.ai",saved:"Saved",
    uploading:"Uploading",summary:"Summary",no_summary:"No summary — use “Copy prompt” or “Summarize with Claude”.",
    gaps:"Analysis limits",timeline:"Timeline",seen:"vision",heard:"speech",nodata:"no data",
-   claude_wait:"Claude is writing the summary…",dur:"length",chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code"}
+   claude_wait:"Claude is writing the summary…",dur:"length",chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",
+   took:"Analysis time",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",stage_0:"download / start",
+   t_pobieranie_s:"download",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",t_streszczenie_s:"summary",parallel:"speech ran in parallel with vision"}
 };
 let L = "pl", settings = {}, jobs = [], shown = null, uploads = {};
 const $ = s => document.querySelector(s);
@@ -189,6 +200,8 @@ function renderJobs(){
   const up = Object.values(uploads).map(u => `<div class="job"><div class="job-top"><span class="name">${esc(u.name)}</span>
     <span class="st w_kolejce">${t("uploading")} ${u.pct}%</span></div></div>`).join("");
   const js = jobs.map(j => `<div class="job"><div class="job-top"><span class="name" title="${esc(j.label)}">${esc(j.label)}</span>
+      ${j.elapsed!=null ? `<span class="timer" data-start="${j.status==="trwa" ? Date.now()/1000 - j.elapsed : ""}">⏱ ${fmt(j.elapsed)}</span>` : ""}
+      ${j.status==="trwa" ? `<span class="stage">${j.stage ? j.stage+"/4 · "+t("stage_"+j.stage) : t("stage_0")}</span>` : ""}
       <span class="st ${j.status}">${t(j.status)}</span></div>
       ${j.status!=="gotowe" ? `<pre class="log">${esc(j.log.slice(-6).join("\n")||"…")}</pre>` : ""}
       ${j.status==="gotowe" ? `<div class="actions">
@@ -229,6 +242,13 @@ function md(s){
   }
   close(); return out;
 }
+function timing(c){
+  if (!c || c.razem_s == null) return "";
+  const keys = ["pobieranie_s","transkrypcja_s","kadry_s","obraz_s","streszczenie_s"].filter(k => c[k] != null && c[k] >= 0.05);
+  const max = Math.max(...keys.map(k => c[k]), 0.1);
+  return `<div class="timing"><div class="timing-head">⏱ ${t("took")}: <b>${fmt(c.razem_s)}</b>${c.mowa_rownolegle ? ` <span class="meta">· ${t("parallel")}</span>` : ""}</div>
+    ${keys.map(k => `<div class="trow"><span>${t("t_"+k)}</span><span class="tbar"><i style="width:${Math.max(2, 100*c[k]/max)}%"></i></span><span class="tval">${c[k] < 60 ? c[k].toFixed(1)+" s" : fmt(c[k])}</span></div>`).join("")}</div>`;
+}
 async function showResult(id, claudeMd){
   shown = id; const box = $("#result"); box.hidden = false;
   const r = await api(`/api/zadania/${id}/plik/analiza.json`);
@@ -245,6 +265,7 @@ async function showResult(id, claudeMd){
       <p><span class="src ${b.slychac.zrodlo}">${t("heard")}</span>${esc(b.slychac.tekst) || t("nodata")}</p></div></div>`; }).join("");
   box.innerHTML = `<h2>${esc(z.tytul || z.plik)}</h2>
     <div class="meta">${t("dur")} ${fmt(z.dlugosc_s)} · ${esc(r.ustawienia.whisper)} · ${esc(r.ustawienia.obraz)} · ${esc(r.ustawienia.streszczenie)}</div>
+    ${timing(r.czasy)}
     <div class="md">${summary ? md(summary) : `<p class="empty">${t("no_summary")}</p>`}</div>
     ${r.luki.length ? `<div class="gaps"><b>${t("gaps")}:</b><br>${r.luki.map(esc).join("<br>")}</div>` : ""}
     <h2 style="font-size:16px;margin-top:18px">${t("timeline")}</h2>${beats}`;
@@ -253,6 +274,8 @@ async function showResult(id, claudeMd){
 
 async function poll(){ try { jobs = await api("/api/zadania"); renderJobs(); } catch {} }
 loadSettings().then(() => { loadStatus(); poll(); });
+setInterval(() => document.querySelectorAll(".timer[data-start]").forEach(el => {
+  if (el.dataset.start) el.textContent = "⏱ " + fmt(Date.now()/1000 - Number(el.dataset.start)); }), 1000);
 setInterval(poll, 1500); setInterval(loadStatus, 15000);
 </script>
 </body>
