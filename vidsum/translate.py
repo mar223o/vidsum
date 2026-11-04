@@ -106,7 +106,9 @@ def translate_segments(engine: Engine, segments: list[dict], src: str | None, tg
                     res = translate_lines(engine, texts[a:b], src, tgt, ctx)
                 except LLMError as e:
                     log(f"        ! tłumaczenie {tgt}: {str(e)[:80]}")
-                    raise
+                    if "repeat" not in str(e).lower():   # Ollama nie działa itp. — przerwij ten język
+                        raise
+                    res = None                            # przerwana odpowiedź — jak zła odpowiedź
                 if res is not None:
                     break
             if res is not None:

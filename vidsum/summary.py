@@ -326,6 +326,23 @@ def _loads(raw: str) -> dict:
     return d if isinstance(d, dict) else {}
 
 
+def _try(engine, prompt: str, log) -> str:
+    """Jedno wywołanie z jedną ponowną próbą. Pomiar: Ollama potrafi przerwać odpowiedź
+    („token repeat limit reached”) — wtedy druga próba zwykle przechodzi; jeśli nie, ten etap jest pusty."""
+    from .llm import LLMError
+    for attempt in (1, 2):
+        try:
+            return engine.complete(prompt, as_json=True)
+        except LLMError as e:
+            log(f"        ! model: {str(e)[:100]}" + (" — ponawiam" if attempt == 1 else " — pomijam ten etap"))
+            last = e
+            if "połączyć" in str(e) or "nie odpowiada" in str(e):
+                raise                                  # Ollama nie działa — nie ma sensu ponawiać
+    if "repeat" not in str(last).lower():
+        raise last
+    return ""
+
+
 def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda s: None,
                    chunk_chars: int = 6000, trace: list | None = None) -> dict | None:
     """Streszczenie w dwóch etapach. `engine.complete(prompt, as_json=True)` — Ollama albo Claude."""
@@ -336,7 +353,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     for i, part in enumerate(parts, 1):
         if len(parts) > 1:
             log(f"        fakty: fragment {i}/{len(parts)}")
-        raw = engine.complete(EXTRACT_PROMPT.format(meta=meta_line, timeline=part), as_json=True)
+        raw = _try(engine, EXTRACT_PROMPT.format(meta=meta_line, timeline=part), log)
         if trace is not None:
             trace.append(raw)
         d = _loads(raw)
@@ -352,7 +369,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     short = timeline if len(timeline) <= 9000 else "\n".join(_chunks(timeline, 9000)[0].splitlines()) + "\n[…]"
     p: dict = {}
     for _ in (1, 2):                                   # jedna ponowna próba, gdy odpowiedź nie jest poprawnym JSON-em
-        raw = engine.complete(PRESENT_PROMPT.format(meta=meta_line, facts=facts_json, timeline=short), as_json=True)
+        raw = _try(engine, PRESENT_PROMPT.format(meta=meta_line, facts=facts_json, timeline=short), log)
         if trace is not None:
             trace.append(raw)
         p = _loads(raw)

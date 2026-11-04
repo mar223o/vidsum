@@ -591,3 +591,21 @@ def test_english_speech_summarized_from_polish_translation(tmp_path, ollama):
                if c.get("messages") and "ZAPIS:" in c["messages"][0]["content"] and "FAKTY Z FILMU" not in c["messages"][0]["content"]]
     assert extract and "MOWA: EN: Heat the oil to 190 degrees" in extract[0]      # (atrapa „tłumaczy” dopisując EN:)
     assert "polskie tłumaczenie maszynowe" in extract[0]
+
+
+def test_staged_summary_survives_repeat_limit():
+    """Regresja z pomiaru: „prediction aborted, token repeat limit reached” nie może zabić streszczenia."""
+    from vidsum.llm import LLMError
+    from vidsum.summary import staged_summary
+    n = {"i": 0}
+
+    class Eng:
+        def complete(self, prompt, as_json=False):
+            n["i"] += 1
+            if n["i"] == 1:
+                raise LLMError('Ollama 500: {"error":"prediction aborted, token repeat limit reached"}')
+            if "FAKTY Z FILMU" not in prompt:
+                return json.dumps({"typ": "przepis", "kroki": [{"t": 1, "tekst": "Smaż w 190°C", "zrodlo": "mowa"}]})
+            return json.dumps({"teza": "Frytki."})
+    d = staged_summary(Eng(), "[1s] MOWA: fry at 190", "", 10.0)
+    assert d["co_masz_zrobic"]["kroki"][0]["tekst"] == "Smaż w 190°C" and d["teza"] == "Frytki."
