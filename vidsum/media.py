@@ -164,7 +164,22 @@ def extract_frame(path: Path, t: float, out: Path, width: int = 768) -> Path:
 
 
 def frame_signature(path: Path) -> int:
-    """64-bitowy „odcisk” kadru (dHash 9×8 w skali szarości) — do wykrywania prawie identycznych kadrów."""
+    """64-bitowy „odcisk” kadru (dHash 9×8 w skali szarości) — do wykrywania prawie identycznych kadrów.
+
+    W procesie (OpenCV) — uruchamianie ffmpeg dla każdej klatki kosztowało na Windows sekundy na klatkę."""
+    try:
+        import cv2
+        import numpy as np
+        img = cv2.imdecode(np.fromfile(str(path), dtype=np.uint8), cv2.IMREAD_GRAYSCALE)   # polskie ścieżki
+        if img is not None:
+            raw = cv2.resize(img, (9, 8), interpolation=cv2.INTER_AREA).tobytes()
+            bits = 0
+            for row in range(8):
+                for col in range(8):
+                    bits = (bits << 1) | (raw[row * 9 + col] > raw[row * 9 + col + 1])
+            return bits
+    except ImportError:
+        pass
     raw = run([find_tool("ffmpeg"), "-v", "error", "-i", str(path), "-vf", "scale=9:8,format=gray",
                "-f", "rawvideo", "-"]).stdout
     if len(raw) < 72:

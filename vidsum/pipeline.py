@@ -23,6 +23,7 @@ from .media import (choose_frames, extract_audio, extract_frame, frame_signature
 from .transcribe import SidecarEngine, Transcript, WhisperEngine
 
 SCHEMA = "vidsum.analysis/1"
+VISION_WORKERS = 2          # ile kadrów naraz opisuje model obrazu
 
 
 @dataclass
@@ -78,6 +79,13 @@ def _emit(opt: Options, kind: str, data) -> None:
 
 def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     t0 = time.time()
+    trail: list[str] = []                       # pełny przebieg (co, kiedy, nad czym) → przebieg.log w wynikach
+    outer_log = log
+
+    def log(msg: str) -> None:                  # noqa: F811 — ten sam log + zapis z czasem od startu
+        trail.append(f"[{time.time() - t0:6.1f} s] {msg}")
+        outer_log(msg)
+
     opt.language = normalize(opt.language)          # nieznany kod → czytelny błąd od razu
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp = opt.out_root / "_pobrane"
@@ -93,80 +101,110 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     gaps: list[str] = []
     timings: dict[str, float] = {"pobieranie_s": t_fetch} if src.kind == "link" else {}
 
-    # 0) NAPISY NA EKRANIE (OCR) — przed Whisperem, bo dają mu podpowiedzi słów
+    # Kolejność (od 0.7.2, cel: minutowy film ≈ minuta): OCR na CPU w tle, Whisper na GPU od razu (bez czekania na OCR),
+    # kadry równolegle; po opisie kadrów — druga, dokładniejsza transkrypcja z podpowiedziami z napisów (GPU, kilka s).
     ocr_lines: list = []
     pre_notes: list[str] = []
-    if opt.ocr:
+    ocr_box: dict = {}
+
+    def run_ocr() -> None:
         t = time.time()
-        log("  [0/4] napisy na ekranie (OCR)…")
         try:
             from .ocr import ensure_models, read_captions
             mdir = ensure_models(Path(opt.whisper_root) if opt.whisper_root else out.parent / "_modele", log)
-            ocr_lines = read_captions(src.path, info.duration, mdir, log)
-            if ocr_lines:
-                _emit(opt, "napisy", [asdict(l) for l in ocr_lines])
+            ocr_box["lines"] = read_captions(src.path, info.duration, mdir, log)
+            if ocr_box["lines"]:
+                _emit(opt, "napisy", [asdict(l) for l in ocr_box["lines"]])
         except Exception as e:     # OCR to dodatek — jego awaria nie zatrzymuje analizy
-            pre_notes.append(f"OCR napisów niedostępny ({type(e).__name__}: {str(e)[:100]}).")
+            ocr_box["note"] = f"OCR napisów niedostępny ({type(e).__name__}: {str(e)[:100]})."
             log(f"        ! OCR: {e}")
-        timings["ocr_s"] = round(time.time() - t, 1)
+        ocr_box["s"] = round(time.time() - t, 1)
 
-    # 1) MOWA — napisy z serwisu (najszybciej), gotowy plik albo Whisper.
-    #    Whisper na CPU działa RÓWNOLEGLE z opisem kadrów na GPU (to największy zysk czasu).
     t_speech = time.time()
     tr_box: dict = {}
     speech_thread = None
     speech_job = None
+    need_whisper = info.has_audio and not opt.transcript_file and not (src.subtitles and opt.prefer_subtitles)
+    small_model = any(x in Path(opt.whisper_model).name.lower() for x in ("tiny", "base", "small"))
+    engine, device, wav = None, "cpu", None
+    if need_whisper:
+        engine = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root)
+        engine.cuda_download = opt.cuda_download
+        device, _ = engine.resolve_device(log)
+
+    # 0) NAPISY NA EKRANIE (OCR)
+    ocr_thread = None
+    if opt.ocr:
+        log("  [0/4] napisy na ekranie (OCR)" + (" — w tle" if not need_whisper or device == "cuda" else "") + "…")
+        if need_whisper and device != "cuda":
+            run_ocr()                      # CPU: Whisper i tak czeka (podpowiedzi słów z napisów, pomiar WER)
+        else:
+            ocr_thread = threading.Thread(target=run_ocr, daemon=True)
+            ocr_thread.start()
+
+    def finish_ocr() -> None:
+        nonlocal ocr_lines
+        if ocr_thread and ocr_thread.is_alive():
+            log("        czekam na OCR…")
+            ocr_thread.join()
+        ocr_lines = ocr_box.get("lines", [])
+        if "note" in ocr_box and ocr_box["note"] not in pre_notes:
+            pre_notes.append(ocr_box["note"])
+        if opt.ocr:
+            timings["ocr_s"] = ocr_box.get("s", 0.0)
+
+    if not ocr_thread:
+        finish_ocr()
+
+    # 1) MOWA — napisy z serwisu (najszybciej), gotowy plik albo Whisper.
     if opt.transcript_file:
         tr_box["tr"] = SidecarEngine(opt.transcript_file).transcribe(language=opt.language)
         _emit(opt, "transkrypcja", {"jezyk": tr_box["tr"].language, "segmenty": [asdict(x) for x in tr_box["tr"].segments]})
+        tr_box["s"] = round(time.time() - t_speech, 1)
     elif not info.has_audio:
         tr_box["tr"] = Transcript(None, "brak", [])
         gaps.append("Brak ścieżki dźwiękowej — wszystko pochodzi tylko z obrazu.")
-    elif src.subtitles and opt.prefer_subtitles:
+    elif not need_whisper:
         tr = SidecarEngine(src.subtitles).transcribe(language=opt.language)
         tr.engine = f"napisy serwisu ({src.subtitles_kind})"
         sfx = src.subtitles.suffixes            # np. pobrane_ID.en-orig.vtt → "en"
         if not tr.language and len(sfx) > 1:
             tr.language = lang_base(sfx[-2].strip("."))
         tr_box["tr"] = tr
+        tr_box["s"] = round(time.time() - t_speech, 1)
         _emit(opt, "transkrypcja", {"jezyk": tr.language, "segmenty": [asdict(x) for x in tr.segments]})
         log(f"  [1/4] mowa z napisów serwisu ({src.subtitles_kind}) — bez Whispera")
     else:
         wav = extract_audio(src.path, out / "_audio.wav")
-        # podpowiedzi słów tylko dla dużych modeli — małym szkodzą (pomiar: small WER 13–52%)
-        small_model = any(x in Path(opt.whisper_model).name.lower() for x in ("tiny", "base", "small"))
-        hot = None
-        if ocr_lines and not small_model:
+        if device != "cuda" and ocr_lines and not small_model:
+            # podpowiedzi słów tylko dla dużych modeli — małym szkodzą (pomiar: small WER 13–52%)
             from .ocr import hotwords
-            hot = hotwords(ocr_lines, src.title)
-        engine = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root, hotwords=hot)
-        engine.coverage_hints = [(l.start, l.end) for l in ocr_lines]
-        engine.cuda_download = opt.cuda_download
-        device, _ = engine.resolve_device(log)
+            engine.hotwords = hotwords(ocr_lines, src.title)
+            engine.coverage_hints = [(l.start, l.end) for l in ocr_lines]
         log(f"  [1/4] transkrypcja (Whisper {opt.whisper_model}, {device}; za pierwszym razem pobieranie modelu)…")
 
         def run_whisper() -> None:
+            t = time.time()
             try:
                 tr_box["tr"] = engine.transcribe(wav, opt.language)
                 _emit(opt, "transkrypcja", {"jezyk": tr_box["tr"].language,
                                             "segmenty": [asdict(x) for x in tr_box["tr"].segments]})
+                log(f"        transkrypcja gotowa: {len(tr_box['tr'].segments)} zdań, {time.time() - t:.1f} s")
                 if engine.recovered:
                     tr_box["tr"].note = ((tr_box["tr"].note + " ") if tr_box["tr"].note else "") + \
                         f"Odzyskano {engine.recovered} zdań pominiętych przez Whispera (drugi przebieg bez podpowiedzi)."
             except Exception as e:   # błąd mowy nie może zatrzymać analizy obrazu
                 tr_box["err"] = e
             finally:
-                wav.unlink(missing_ok=True)
-                tr_box["s"] = round(time.time() - tr_box.get("t0", t_speech), 1)
+                tr_box["s"] = round(time.time() - t, 1)
 
         if device == "cpu" and opt.vision == "ollama":
             # start dopiero PO wycięciu kadrów: ffmpeg i Whisper na CPU naraz spowalniały się nawzajem
             # (na komputerze testowym kadry 96 s zamiast kilku); opis kadrów idzie na GPU, więc tam nakładanie się opłaca
             speech_job = run_whisper
         elif device == "cuda":
-            # Whisper na GPU od razu, RÓWNOLEGLE z wycinaniem kadrów (ffmpeg na CPU); przed opisem kadrów
+            # Whisper na GPU od razu, RÓWNOLEGLE z OCR i wycinaniem kadrów (CPU); przed opisem kadrów
             # czekamy na koniec — dwa modele naraz nie zmieszczą się w 8 GB VRAM
-            tr_box["t0"] = time.time()
             speech_thread = threading.Thread(target=run_whisper, daemon=True)
             speech_thread.start()
         else:
@@ -197,7 +235,6 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     timings["kadry_s"] = round(time.time() - t, 1)
     log(f"        {len(frames)} kadrów (pominięto {dropped} powtarzających się; limit {plan.max_frames})")
     if speech_job:
-        tr_box["t0"] = time.time()
         speech_thread = threading.Thread(target=speech_job, daemon=True)
         speech_thread.start()
 
@@ -213,18 +250,32 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         vision_engine.check()
         log(f"  [3/4] opis kadrów ({opt.vision_model})…")
         failed: list[str] = []
-        for i, f in enumerate(frames, 1):
+        done = [0]
+        lock = threading.Lock()
+
+        def describe(f: FrameInfo) -> None:
+            err = None
             for attempt in (1, 2):   # Ollama sama podnosi model po awarii — jedna ponowna próba
                 try:
                     f.vision = vision_engine.describe_frame(out / f.file, ts(f.t))
                     break
                 except LLMError as e:
                     err = e
-            if f.vision is None:
-                failed.append(ts(f.t))
-                log(f"        {i}/{len(frames)} {ts(f.t)} ! błąd: {str(err)[:90]}")
-            else:
-                log(f"        {i}/{len(frames)} {ts(f.t)} {f.vision.get('scena', '')[:70]}")
+            with lock:
+                done[0] += 1
+                if f.vision is None:
+                    failed.append(ts(f.t))
+                    log(f"        {done[0]}/{len(frames)} kadr {ts(f.t)} ! błąd: {str(err)[:90]}")
+                else:
+                    v = f.vision
+                    log(f"        {done[0]}/{len(frames)} kadr {ts(f.t)}: {v.get('scena', '')[:90]}"
+                        + (f" | czynności: {', '.join(v['czynnosci'])[:60]}" if v.get("czynnosci") else ""))
+
+        # dwa kadry naraz: Ollama przetwarza równoległe zapytania, a GPU między krokami jednego kadru nie jest pełne
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=VISION_WORKERS) as pool:
+            list(pool.map(describe, frames))
+        failed.sort()
         _emit(opt, "kadry", [{"t": f.t, "file": f.file, "scena": (f.vision or {}).get("scena", "")} for f in frames])
         if failed:
             gaps.append(f"Nie udało się opisać kadrów: {', '.join(failed)} — w tych miejscach obraz = brak danych.")
@@ -235,10 +286,35 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if speech_thread and speech_thread.is_alive():
         log("        czekam na transkrypcję…")
         speech_thread.join()
+    finish_ocr()
     if "err" in tr_box:
+        if wav:
+            wav.unlink(missing_ok=True)
         raise tr_box["err"]
     tr = tr_box["tr"]
     timings["transkrypcja_s"] = tr_box.get("s", round(time.time() - t_speech, 1))
+    if wav and device == "cuda" and ocr_lines and not small_model and tr.segments:
+        # druga, dokładniejsza transkrypcja: podpowiedzi słów z napisów na ekranie (nazwy, liczby) —
+        # pomiar: WER 5,5% → 0–1,4% po polsku. Na GPU to kilka sekund.
+        t = time.time()
+        if vision_engine:
+            vision_engine.unload()                 # karta dla Whispera
+        log("  [1/4] poprawka transkrypcji z podpowiedziami z napisów na ekranie (GPU)…")
+        from .ocr import hotwords
+        eng2 = WhisperEngine(opt.whisper_model, "cuda", download_root=opt.whisper_root, hotwords=hotwords(ocr_lines, src.title))
+        eng2.coverage_hints = [(l.start, l.end) for l in ocr_lines]
+        try:
+            tr2 = eng2.transcribe(wav, tr.language)
+            if tr2.segments:
+                if eng2.recovered:
+                    tr2.note = f"Odzyskano {eng2.recovered} zdań pominiętych przez Whispera (drugi przebieg bez podpowiedzi)."
+                tr = tr_box["tr"] = tr2
+                _emit(opt, "transkrypcja", {"jezyk": tr.language, "segmenty": [asdict(x) for x in tr.segments]})
+        except Exception as e:                     # zostaje pierwsza wersja
+            log(f"        ! poprawka transkrypcji: {e}")
+        timings["transkrypcja_poprawka_s"] = round(time.time() - t, 1)
+    if wav:
+        wav.unlink(missing_ok=True)
     if info.has_audio and not tr.segments:
         gaps.append("Nie rozpoznano mowy — film może mieć muzykę lub inne dźwięki, ale nikt nie mówi "
                     "(albo mowa jest niewyraźna / w innym języku).")
@@ -274,8 +350,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             gaps.append(f"Model tekstowy niedostępny ({e}) — bez streszczenia i tłumaczeń.")
             log(f"        ! {e}")
             text_engine = None
-    t_tr = time.time()
-    if text_engine and targets:
+    def run_translations() -> None:
+        t_tr = time.time()
         from .translate import translate_segments
         seg_dicts = [asdict(s) for s in tr.segments]
         for lang in targets:
@@ -287,11 +363,17 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 continue
             translations[lang] = {"silnik": text_name, "segmenty": segs, "nieprzetlumaczone": failed}
             _emit(opt, "tlumaczenie_" + lang, segs)
+            log(f"        tłumaczenie na {name_pl(lang)} gotowe ({time.time() - t_tr:.1f} s)")
             if failed:
                 gaps.append(f"Tłumaczenie na {name_pl(lang)}: {failed} z {len(segs)} linii bez tłumaczenia "
                             "(model nie zwrócił poprawnej odpowiedzi) — w tych miejscach tylko oryginał.")
-    if targets:
         timings["tlumaczenie_s"] = round(time.time() - t_tr, 1)
+
+    # tłumaczenie RÓWNOLEGLE ze streszczeniem (ten sam model w Ollamie obsługuje dwa zapytania naraz)
+    tr_thread = None
+    if text_engine and targets:
+        tr_thread = threading.Thread(target=run_translations, daemon=True)
+        tr_thread.start()
 
     t_s = time.time()
     if text_engine and summary_mode != "brak":
@@ -317,12 +399,17 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             log(f"        ! {e}")
 
     timings["streszczenie_s"] = round(time.time() - t_s, 1)
+    if tr_thread:
+        if tr_thread.is_alive():
+            log("        czekam na tłumaczenie…")
+        tr_thread.join()
+        timings["tekst_razem_s"] = round(time.time() - t_s, 1)
     if text_engine and isinstance(text_engine, Ollama):
         text_engine.unload()
     if vision_engine:
         vision_engine.unload()
     timings["razem_s"] = round(time.time() - t0, 1)
-    if speech_thread:
+    if speech_thread or ocr_thread:
         timings["mowa_rownolegle"] = True
 
     # film do odtwarzacza w widoku wyniku: pobrany z linku / wysłany z UI → przenosimy do folderu wyników;
@@ -366,12 +453,14 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     for lang, tdata in translations.items():           # napisy w innych językach (pusta linia = brak tłumaczenia)
         (out / f"transkrypcja.{lang}.srt").write_text(_srt(tdata["segmenty"]), encoding="utf-8")
     (out / "raport.md").write_text(_report_md(result), encoding="utf-8")
+    (out / "przebieg.log").write_text("\n".join(trail) + "\n", encoding="utf-8")
     log(f"  ✔ gotowe w {_dur(timings['razem_s'])} — {_timing_line(timings)}")
     return out
 
 
 _STAGES = [("pobieranie_s", "pobieranie"), ("ocr_s", "napisy (OCR)"), ("transkrypcja_s", "mowa"), ("kadry_s", "kadry"),
-           ("obraz_s", "opis obrazu"), ("streszczenie_s", "streszczenie"), ("tlumaczenie_s", "tłumaczenie")]
+           ("obraz_s", "opis obrazu"), ("transkrypcja_poprawka_s", "poprawka mowy"),
+           ("streszczenie_s", "streszczenie"), ("tlumaczenie_s", "tłumaczenie")]
 
 
 def _dur(sec: float) -> str:
@@ -381,7 +470,7 @@ def _dur(sec: float) -> str:
 
 def _timing_line(c: dict) -> str:
     parts = [f"{lab} {_dur(c[k])}" for k, lab in _STAGES if c.get(k, 0) >= 0.05]   # wyłączone etapy pomijamy
-    note = " (mowa liczona równolegle z opisem obrazu)" if c.get("mowa_rownolegle") else ""
+    note = " (część etapów idzie równolegle, więc suma jest większa niż całość)" if c.get("mowa_rownolegle") or c.get("tekst_razem_s") else ""
     return " · ".join(parts) + note
 
 

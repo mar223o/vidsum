@@ -73,6 +73,7 @@ label.f{display:grid;gap:4px;font-size:12.5px;color:var(--muted)}
 .part{max-height:260px;overflow:auto;font-size:13.5px;line-height:1.5;background:var(--bg);border-radius:8px;padding:8px 12px}
 .part div{display:flex;gap:10px}.part code{color:var(--muted);flex:none}
 .quit{margin-left:6px;font-size:12px}
+pre.log.full{max-height:340px}
 pre.log{margin:0;font:12px/1.45 var(--mono);color:var(--muted);background:var(--bg);border-radius:8px;padding:8px 10px;max-height:130px;overflow:auto;white-space:pre-wrap}
 .section-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:34px 0 12px}
 .section-h h2{font:400 26px var(--serif);margin:0}
@@ -202,8 +203,8 @@ const I18N = {
    queue:"W toku",recent:"Ostatnio",all:"Wszystko",no_jobs:"Brak analiz. Wrzuć film powyżej.",lib_title:"Twoja biblioteka",
    lib_sub:"Wszystkie analizy z tego komputera.",search:"Szukaj w tytułach i tezach…",lib_empty:"Biblioteka jest pusta.",
    w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",uploading:"Wysyłanie",open:"Otwórz",
-   stage_0:"pobieranie / start",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",
-   part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",
+   stage_0:"start · napisy (OCR)",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",
+   part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
    quit:"Zakończ",quit_q:"Wyłączyć VidSum? Trwająca analiza zostanie przerwana.",quit_done:"VidSum wyłączony. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
    t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_poradnik:"Kroki",t_todo_inne:"Wnioski",
@@ -233,8 +234,8 @@ const I18N = {
    queue:"In progress",recent:"Recent",all:"All",no_jobs:"No analyses yet. Drop a video above.",lib_title:"Your library",
    lib_sub:"Every analysis on this computer.",search:"Search titles and theses…",lib_empty:"Library is empty.",
    w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",uploading:"Uploading",open:"Open",
-   stage_0:"download / start",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",
-   part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",
+   stage_0:"start · on-screen text",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",
+   part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
    quit:"Quit",quit_q:"Quit VidSum? A running analysis will be stopped.",quit_done:"VidSum stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
    t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_poradnik:"Steps",t_todo_inne:"Takeaways",
@@ -319,16 +320,19 @@ function jobRow(j){
     <span class="st ${j.status}">${t(j.status)}</span>
     ${j.status==="gotowe" ? `<a class="btn" href="#/wynik/${j.id}">${t("open")}</a>` : ""}</div>
     ${partsHtml(j)}
-    ${j.status==="trwa"||j.status==="blad"||j.status==="w_kolejce" ? `<pre class="log">${esc(j.log.slice(-5).join("\n")||"…")}</pre>` : ""}</div>`;
+    ${j.status==="trwa"||j.status==="blad"||j.status==="w_kolejce" ? (openParts.has(j.id+":log")
+       ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>`
+       : `<pre class="log">${esc(j.log.slice(-3).join("\n")||"…")}</pre>`) : ""}</div>`;
 }
 /* podgląd gotowych etapów w trakcie analizy — tylko na żądanie (zwinięte) */
 const openParts = new Set(), partCache = {};
 function partLabel(k){ return k.startsWith("tlumaczenie_") ? t("part_tl")+" ("+k.slice(12).toUpperCase()+")" : t("part_"+k); }
 function partsHtml(j){
   const ks = j.czesciowe || [];
-  if (!ks.length) return "";
-  const btns = ks.map(k => `<button data-part="${j.id}:${k}" class="${openParts.has(j.id+":"+k)?"on":""}">${esc(partLabel(k))}</button>`).join("");
-  const panels = ks.filter(k => openParts.has(j.id+":"+k)).map(k => {
+  const live = j.status==="trwa" ? `<button data-part="${j.id}:log" class="${openParts.has(j.id+":log")?"on":""}">${esc(t("part_log"))}</button>` : "";
+  if (!ks.length) return live ? `<div class="parts">${live}</div>` : "";
+  const btns = live + ks.map(k => `<button data-part="${j.id}:${k}" class="${openParts.has(j.id+":"+k)?"on":""}">${esc(partLabel(k))}</button>`).join("");
+  const panels = ks.filter(k => k !== "log").filter(k => openParts.has(j.id+":"+k)).map(k => {
     let d = (partCache[j.id]||{})[k];
     if (!d) return `<div class="part">…</div>`;
     if (k === "transkrypcja") d = d.segmenty;
@@ -342,7 +346,7 @@ document.addEventListener("click", async e => {
   if (!b) return;
   const key = b.dataset.part, id = key.split(":")[0];
   openParts.has(key) ? openParts.delete(key) : openParts.add(key);
-  if (openParts.has(key)) { try { partCache[id] = await api(`/api/zadania/${id}/czesciowe`); } catch {} }
+  if (openParts.has(key) && !key.endsWith(":log")) { try { partCache[id] = await api(`/api/zadania/${id}/czesciowe`); } catch {} }
   renderHome();
 });
 $("#quit").addEventListener("click", async () => {
@@ -386,7 +390,9 @@ function renderHome(){
       <div id="queue"></div><div id="recent"></div>`;
     bindHome();
   }
+  const prevScroll = [...document.querySelectorAll("pre.log.full")].map(e => e.scrollHeight - e.scrollTop - e.clientHeight < 30);
   $("#queue").innerHTML = (up || active.length) ? `<div class="section-h"><h2>${t("queue")}</h2></div><section class="panel">${up}${active.map(jobRow).join("")}</section>` : "";
+  document.querySelectorAll("pre.log.full").forEach((e, i) => { if (prevScroll[i] !== false) e.scrollTop = e.scrollHeight; });   // przewijaj na bieżąco, chyba że czytasz wyżej
   $("#recent").innerHTML = `<div class="section-h"><h2>${t("recent")}</h2><a href="#/biblioteka">${t("all")} →</a></div>` +
     (done.length ? `<div class="cards">${done.map(card).join("")}</div>` : `<p class="empty">${t("no_jobs")}</p>`);
 }

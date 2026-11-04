@@ -83,7 +83,7 @@ class Job:
 
     def to_dict(self) -> dict:
         end = self.finished or time.time()
-        return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-200:],
+        return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-400:],
                 "error": self.error, "out": str(self.out) if self.out else None, "created": self.created,
                 "stage": self.stage, "czesciowe": list(self.partial) if self.status == "trwa" else [],
                 "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card()}

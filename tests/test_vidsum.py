@@ -211,9 +211,11 @@ def test_end_to_end_ollama(tmp_path, ollama):
     assert (out / "transkrypcja.srt").read_text(encoding="utf-8").startswith("1\n00:00:00,500 --> 00:00:06,000")
 
 
-def test_vision_failure_does_not_abort(tmp_path, ollama):
+def test_vision_failure_does_not_abort(tmp_path, ollama, monkeypatch):
     """Awaria modelu na jednym kadrze (np. brak pamięci): ponowna próba, potem 'brak danych'."""
     FakeOllama.fail_images = {2, 3, 4}   # kadr 2: obie próby padają; kadr 3: druga próba OK
+    import vidsum.pipeline as pl
+    monkeypatch.setattr(pl, "VISION_WORKERS", 1)    # numery żądań = kolejność kadrów
     rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--ollama", ollama,
                "--model-obrazu", "fake-vl", "--max-kadrow", "4", "--streszczenie", "ollama", "--model-tekstowy", "fake-vl"])
     assert rc == 0
@@ -619,3 +621,47 @@ def test_pipeline_emits_partial_results(tmp_path, ollama):
     analyze(str(FILM), opt, log=lambda m: None)
     assert list(got)[:2] == ["transkrypcja", "kadry"] and "tlumaczenie_en" in got
     assert got["transkrypcja"]["segmenty"][0]["text"] and got["kadry"][0]["scena"] == "deska i nóż"
+
+
+def test_gpu_order_whisper_first_then_hotword_pass(tmp_path, ollama, monkeypatch):
+    """GPU: transkrypcja startuje od razu (nie czeka na OCR), po kadrach — druga z podpowiedziami z napisów."""
+    import time as _t
+    import vidsum.pipeline as pl
+    import vidsum.ocr as ocr
+    from vidsum.ocr import OcrLine
+    from vidsum.transcribe import Segment, Transcript
+    events = []
+
+    class FakeWhisper:
+        def __init__(self, *a, hotwords=None, **k):
+            self.hotwords, self.coverage_hints, self.recovered, self.cuda_download = hotwords, [], 0, False
+
+        def resolve_device(self, log=None):
+            return "cuda", None
+
+        def transcribe(self, wav, language=None):
+            events.append(("whisper", self.hotwords, _t.time()))
+            text = "Start with Agria potatoes" if self.hotwords else "Start with a grilled potatoes"
+            return Transcript("en", "atrapa:cuda", [Segment(1, 3, text)])
+
+    def slow_ocr(video, duration, mdir, log):
+        _t.sleep(1.5)
+        events.append(("ocr_done", None, _t.time()))
+        return [OcrLine(1.0, 3.0, "start with agria potatoes", 0.95)]
+
+    monkeypatch.setattr(pl, "WhisperEngine", FakeWhisper)
+    monkeypatch.setattr(ocr, "read_captions", slow_ocr)
+    monkeypatch.setattr(ocr, "ensure_models", lambda root, log=None: root)
+    got = []
+    opt = pl.Options(out_root=tmp_path, ollama_host=ollama, vision_model="fake-vl", text_model="fake-txt",
+                     max_frames=4, translate=[], on_partial=lambda k, d: got.append((k, d)))
+    out = pl.analyze(str(DATA / "Filmy testowe ąęś" / "przepis z mową.mp4"), opt, log=lambda m: None)
+    w = [e for e in events if e[0] == "whisper"]
+    ocr_t = next(e[2] for e in events if e[0] == "ocr_done")
+    assert w[0][1] is None and w[0][2] < ocr_t                  # pierwsza transkrypcja przed końcem OCR
+    assert w[1][1] and "agria" in w[1][1].lower()               # druga z podpowiedziami
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    assert r["transkrypcja"]["segmenty"][0]["text"] == "Start with Agria potatoes"
+    assert "transkrypcja_poprawka_s" in r["czasy"] and r["napisy_ekranowe"]
+    assert [k for k, _ in got].count("transkrypcja") == 2       # podgląd: najpierw szybka, potem poprawiona
+    assert (out / "przebieg.log").read_text(encoding="utf-8").count("kadr") >= 2
