@@ -127,10 +127,16 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     need_whisper = info.has_audio and not opt.transcript_file and not (src.subtitles and opt.prefer_subtitles)
     small_model = any(x in Path(opt.whisper_model).name.lower() for x in ("tiny", "base", "small"))
     engine, device, wav = None, "cpu", None
-    if need_whisper:
+    # automatyczne napisy YouTube to też maszynowe rozpoznawanie mowy (na komputerze testowym „a grilled potatoes” zamiast
+    # „Agria”) — na GPU służą tylko za szybki podgląd, a docelową transkrypcję robi Whisper z podpowiedziami z OCR
+    auto_caps = (info.has_audio and not opt.transcript_file and bool(src.subtitles) and opt.prefer_subtitles
+                 and src.subtitles_kind == "automatyczne")
+    caps_then_whisper = False
+    if need_whisper or auto_caps:
         engine = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root)
         engine.cuda_download = opt.cuda_download
         device, _ = engine.resolve_device(log)
+        caps_then_whisper = auto_caps and device == "cuda"
 
     # 0) NAPISY NA EKRANIE (OCR)
     ocr_thread = None
@@ -173,7 +179,12 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         tr_box["tr"] = tr
         tr_box["s"] = round(time.time() - t_speech, 1)
         _emit(opt, "transkrypcja", {"jezyk": tr.language, "segmenty": [asdict(x) for x in tr.segments]})
-        log(f"  [1/4] mowa z napisów serwisu ({src.subtitles_kind}) — bez Whispera")
+        if caps_then_whisper:
+            wav = extract_audio(src.path, out / "_audio.wav")
+            log(f"  [1/4] mowa: napisy serwisu (automatyczne) jako podgląd; dokładna transkrypcja Whisperem na GPU "
+                f"po opisie kadrów")
+        else:
+            log(f"  [1/4] mowa z napisów serwisu ({src.subtitles_kind}) — bez Whispera")
     else:
         wav = extract_audio(src.path, out / "_audio.wav")
         if device != "cuda" and ocr_lines and not small_model:
@@ -293,16 +304,18 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         raise tr_box["err"]
     tr = tr_box["tr"]
     timings["transkrypcja_s"] = tr_box.get("s", round(time.time() - t_speech, 1))
-    if wav and device == "cuda" and ocr_lines and not small_model and tr.segments:
+    use_hot = bool(ocr_lines) and not small_model
+    if wav and device == "cuda" and tr.segments and (use_hot or caps_then_whisper):
         # druga, dokładniejsza transkrypcja: podpowiedzi słów z napisów na ekranie (nazwy, liczby) —
         # pomiar: WER 5,5% → 0–1,4% po polsku. Na GPU to kilka sekund.
         t = time.time()
         if vision_engine:
             vision_engine.unload()                 # karta dla Whispera
-        log("  [1/4] poprawka transkrypcji z podpowiedziami z napisów na ekranie (GPU)…")
+        log("  [1/4] dokładna transkrypcja Whisperem (GPU)" + (" z podpowiedziami z napisów na ekranie" if use_hot else "") + "…")
         from .ocr import hotwords
-        eng2 = WhisperEngine(opt.whisper_model, "cuda", download_root=opt.whisper_root, hotwords=hotwords(ocr_lines, src.title))
-        eng2.coverage_hints = [(l.start, l.end) for l in ocr_lines]
+        eng2 = WhisperEngine(opt.whisper_model, "cuda", download_root=opt.whisper_root,
+                             hotwords=hotwords(ocr_lines, src.title) if use_hot else None)
+        eng2.coverage_hints = [(l.start, l.end) for l in ocr_lines] if use_hot else []
         try:
             tr2 = eng2.transcribe(wav, tr.language)
             if tr2.segments:
@@ -458,8 +471,42 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         (out / f"transkrypcja.{lang}.srt").write_text(_srt(tdata["segmenty"]), encoding="utf-8")
     (out / "raport.md").write_text(_report_md(result), encoding="utf-8")
     (out / "przebieg.log").write_text("\n".join(trail) + "\n", encoding="utf-8")
+    try:
+        _append_history(opt.out_root, {**result, "_folder": out.name}, len(ocr_lines))
+    except OSError as e:                         # np. plik otwarty w Excelu — analiza i tak jest zapisana
+        log(f"        ! historia czasów: {e}")
     log(f"  ✔ gotowe w {_dur(timings['razem_s'])} — {_timing_line(timings)}")
     return out
+
+
+HISTORY_COLS = ["data", "wersja", "tytul", "dlugosc_s", "zrodlo_mowy", "kadrow", "napisow_ocr", "razem_s", "pobieranie_s",
+                "ocr_s", "transkrypcja_s", "transkrypcja_poprawka_s", "kadry_s", "obraz_s", "streszczenie_s",
+                "tlumaczenie_s", "folder"]
+
+
+def _append_history(root: Path, r: dict, n_ocr: int) -> None:
+    """Jedna linijka na analizę w historia_czasow.csv (w folderze wyników) — do porównywania wersji i filmów.
+
+    Średnik jako separator i przecinek dziesiętny: plik otwiera się poprawnie w polskim Excelu."""
+    import csv
+    f = Path(root) / "historia_czasow.csv"
+    new = not f.is_file()
+    c = r["czasy"]
+
+    def num(v):
+        return "" if v in (None, "") else str(v).replace(".", ",")
+    row = {"data": r["utworzono"][:19].replace("T", " "), "wersja": r["narzedzie"]["wersja"],
+           "tytul": r["zrodlo"].get("tytul") or r["zrodlo"].get("plik"), "dlugosc_s": num(r["zrodlo"]["dlugosc_s"]),
+           "zrodlo_mowy": r["ustawienia"]["whisper"], "kadrow": len(r["kadry"]), "napisow_ocr": n_ocr,
+           "folder": r.get("_folder", "")}
+    for k in HISTORY_COLS:
+        if k.endswith("_s") and k != "dlugosc_s":
+            row[k] = num(c.get(k))
+    with open(f, "a", encoding="utf-8-sig" if new else "utf-8", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=HISTORY_COLS, delimiter=";")
+        if new:
+            w.writeheader()
+        w.writerow(row)
 
 
 _STAGES = [("pobieranie_s", "pobieranie"), ("ocr_s", "napisy (OCR)"), ("transkrypcja_s", "mowa"), ("kadry_s", "kadry"),

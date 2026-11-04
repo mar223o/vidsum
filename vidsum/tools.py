@@ -57,3 +57,24 @@ def run(args: list[str], *, check: bool = True, input_text: str | None = None,
         tail = proc.stderr_text.strip().splitlines()[-5:]  # type: ignore[attr-defined]
         raise ToolError(f"Polecenie {Path(args[0]).name} zakończone kodem {proc.returncode}:\n" + "\n".join(tail))
     return proc
+
+
+def disable_power_throttling() -> bool:
+    """Windows 11 potrafi spowalniać procesy działające w tle bez okna (EcoQoS / „power throttling”) —
+    a VidSum Start działa właśnie tak. Wyłączamy to dla naszego procesu (dotyczy też wątków OCR/Whisper)."""
+    import os
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class PPTS(ctypes.Structure):           # PROCESS_POWER_THROTTLING_STATE
+            _fields_ = [("Version", wintypes.ULONG), ("ControlMask", wintypes.ULONG), ("StateMask", wintypes.ULONG)]
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        state = PPTS(1, 0x1 | 0x4, 0)           # EXECUTION_SPEED | IGNORE_TIMER_RESOLUTION → wyłączone
+        ok = k32.SetProcessInformation(k32.GetCurrentProcess(), 4, ctypes.byref(state), ctypes.sizeof(state))
+        k32.SetPriorityClass(k32.GetCurrentProcess(), 0x00000020)   # NORMAL_PRIORITY_CLASS
+        return bool(ok)
+    except Exception:
+        return False

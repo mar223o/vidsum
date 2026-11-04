@@ -43,6 +43,11 @@ python -m vidsum "https://www.instagram.com/reel/..." --ciasteczka-z edge
 
 Jeśli `Activate.ps1` jest zablokowany: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
+## Czasy etapów
+Każda analiza dopisuje linijkę do `historia_czasow.csv` w folderze wyników (otwiera się w Excelu): data, wersja,
+film, czas całości i każdego etapu (OCR, transkrypcja, kadry, opis obrazu, streszczenie, tłumaczenie).
+Szczegółowy przebieg jednej analizy: `przebieg.log` w jej folderze.
+
 ## Najważniejsze opcje
 | opcja | domyślnie | opis |
 |---|---|---|

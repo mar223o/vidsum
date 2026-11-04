@@ -678,3 +678,57 @@ def test_quotes_must_be_in_transcript_and_type_fields():
         "co_masz_zrobic": {"cwiczenia": [{"nazwa": "Smażenie", "t": 1}]}}), 60)
     assert d["co_masz_zrobic"]["cwiczenia"] == []
     assert verify_quotes(d, segs) == 1 and [q["t"] for q in d["cytaty"]] == [2.0, 3.0]
+
+
+def test_timing_history_csv(tmp_path):
+    """Każda analiza dopisuje linijkę z czasami etapów do historia_czasow.csv (porównywanie w czasie)."""
+    for _ in range(2):
+        assert main(["--bez-ocr", str(DATA / "bez_audio.mp4"), "-o", str(tmp_path), "--obraz", "brak",
+                     "--streszczenie", "brak"]) == 0
+    rows = (tmp_path / "historia_czasow.csv").read_text(encoding="utf-8-sig").strip().splitlines()
+    assert len(rows) == 3 and rows[0].startswith("data;wersja;tytul;dlugosc_s")
+    cells = rows[1].split(";")
+    assert cells[2] == "bez_audio.mp4" and "," in cells[7]                       # razem_s z przecinkiem
+
+
+def test_youtube_auto_captions_replaced_by_whisper_on_gpu(tmp_path, monkeypatch, ollama):
+    """Automatyczne napisy YouTube = tylko podgląd; na GPU docelowo Whisper (z podpowiedziami z OCR)."""
+    import vidsum.pipeline as pl
+    import vidsum.ocr as ocr
+    from vidsum.fetch import Source
+    from vidsum.ocr import OcrLine
+    from vidsum.transcribe import Segment, Transcript
+    vtt = tmp_path / "x.en-orig.vtt"
+    vtt.write_text("WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nStart with a grilled potatoes\n", encoding="utf-8")
+    film = tmp_path / "pobrane.mp4"                       # kopia — pliki z linków są przenoszone do wyników
+    film.write_bytes((DATA / "Filmy testowe ąęś" / "przepis z mową.mp4").read_bytes())
+    monkeypatch.setattr(pl, "resolve", lambda inp, tmp, c=None: Source("link", inp, film, "Fries", "x", inp, vtt, "automatyczne"))
+    calls = []
+
+    class FakeWhisper:
+        def __init__(self, *a, hotwords=None, **k):
+            self.hotwords, self.coverage_hints, self.recovered, self.cuda_download = hotwords, [], 0, False
+
+        def resolve_device(self, log=None):
+            return "cuda", None
+
+        def transcribe(self, wav, language=None):
+            calls.append(self.hotwords)
+            return Transcript("en", "atrapa:cuda", [Segment(1, 3, "Start with Agria potatoes")])
+    monkeypatch.setattr(pl, "WhisperEngine", FakeWhisper)
+    monkeypatch.setattr(ocr, "read_captions", lambda *a, **k: [OcrLine(1.0, 3.0, "start with agria potatoes", 0.95)])
+    monkeypatch.setattr(ocr, "ensure_models", lambda root, log=None: root)
+    got = []
+    out = pl.analyze("https://youtube.com/shorts/x", pl.Options(out_root=tmp_path / "w", ollama_host=ollama, vision="brak",
+                     summary="brak", translate=[], on_partial=lambda k, d: got.append(d) if k == "transkrypcja" else None),
+                     log=lambda m: None)
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    assert len(calls) == 1 and "agria" in calls[0].lower()
+    assert r["transkrypcja"]["segmenty"][0]["text"] == "Start with Agria potatoes"
+    assert "grilled" in got[0]["segmenty"][0]["text"]                            # podgląd z YouTube był od razu
+
+
+@pytest.mark.skipif(os.name != "nt", reason="tylko Windows")
+def test_power_throttling_disabled_on_windows():
+    from vidsum.tools import disable_power_throttling
+    assert disable_power_throttling() is True

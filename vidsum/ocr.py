@@ -62,12 +62,18 @@ class CaptionOCR:
         self.engine.text_recognizer = TextRecognizer({
             "model_path": str(model_dir / "rec.onnx"), "keys_path": str(model_dir / "dict.txt"),
             "rec_img_shape": [3, 48, 320], "rec_batch_num": 6, "use_cuda": False})
+        # Detektor domyślnie POWIĘKSZA klatkę tak, by krótszy bok miał 736 px (Shorts 360×640 → 736×1308).
+        # Ograniczamy dłuższy bok do 768 px: pomiar — ten sam wynik (45/45 napisów), 3× szybciej.
+        for op in self.engine.text_detector.preprocess_op:
+            if hasattr(op, "limit_type"):
+                op.limit_type, op.limit_side_len = "max", 768
 
     def read(self, image: Path, min_score: float = 0.80) -> list[tuple[str, float]]:
         res, _ = self.engine(str(image))
         out = []
         for box, text, score in res or []:
             text = re.sub(r"\s+", " ", str(text)).strip()
+            text = re.sub(r"(?<=\d)[oO](?=[\d°])", "0", text)      # „19o°C” → „190°C”
             if float(score) >= min_score and len(text) >= 2:
                 out.append((text, float(score)))
         return out
@@ -107,29 +113,49 @@ def read_captions(video: Path, duration: float, model_dir: Path, log=print) -> l
         run([find_tool("ffmpeg"), "-v", "error", "-i", str(video), "-an", "-vf",
              f"fps={fps},scale='min(720,iw)':-2", "-q:v", "3", str(Path(tmp) / "f_%06d.jpg")])
         frames = sorted(Path(tmp).glob("f_*.jpg"))
-        prev_img, prev_texts = None, []
-        skipped, last_log, t0 = 0, 0.0, time.time()
-        for i, f in enumerate(frames):
-            t = i / fps
-            img = _small_gray(f)
-            if prev_img is not None and img is not None and _same_frame(prev_img, img):
-                texts = prev_texts                         # ta sama klatka (także te same napisy) — bez OCR
+        n = len(frames)
+        texts_at: list[list | None] = [None] * n
+        imgs = [_small_gray(f) for f in frames]
+        skipped, done, last_log, t0 = 0, 0, 0.0, time.time()
+
+        def read(i: int) -> list:
+            nonlocal skipped, done, last_log
+            prev = i - 1
+            if prev >= 0 and texts_at[prev] is not None and imgs[i] is not None and imgs[prev] is not None \
+                    and _same_frame(imgs[prev], imgs[i]):
                 skipped += 1
-            else:
-                texts = ocr.read(f)
-            prev_img, prev_texts = img, texts
+                return texts_at[prev]                      # ta sama klatka (także te same napisy) — bez OCR
+            done += 1
+            res = ocr.read(frames[i])
             if time.time() - last_log > 5:                 # postęp na żywo (podgląd „co teraz robi”)
                 last_log = time.time()
-                log(f"        OCR {i + 1}/{len(frames)} klatek ({t:.0f} s filmu): {' | '.join(x for x, _ in texts)[:80]}")
-            for text, score in texts:
+                log(f"        OCR {i + 1}/{n} klatek ({i / fps:.0f} s filmu): {' | '.join(x for x, _ in res)[:80]}")
+            return res
+
+        # 1. przebieg: co druga klatka. 2. przebieg: klatka pomiędzy — tylko gdy napisy przed i po się różnią
+        # (wtedy coś się zmieniło i krótki napis mógłby zniknąć). Gdy napis stoi, połowa klatek odpada.
+        for i in range(0, n, 2):
+            texts_at[i] = read(i)
+        for i in range(1, n, 2):
+            a = texts_at[i - 1]
+            b = texts_at[i + 1] if i + 1 < n else None
+            if b is not None and [x for x, _ in a] == [x for x, _ in b]:
+                texts_at[i] = a
+                skipped += 1
+            else:
+                texts_at[i] = read(i)
+        for i, texts in enumerate(texts_at):
+            t = i / fps
+            for text, score in texts or []:
                 last = next((l for l in reversed(lines[-6:]) if l.text == text), None)
                 if last and t - last.end <= 1.5 / fps:
                     last.end = round(t + 1 / fps, 2)           # ten sam napis dalej na ekranie
                     last.score = max(last.score, score)
                 else:
                     lines.append(OcrLine(round(t, 2), round(t + 1 / fps, 2), text, round(score, 3)))
-    log(f"        OCR: {len(frames)} klatek ({fps}/s, {skipped} pominiętych jako takie same), {len(lines)} napisów, "
-        f"{time.time() - t0:.1f} s")
+    el = time.time() - t0
+    log(f"        OCR: {n} klatek ({fps}/s; odczytanych {done}, pominiętych {skipped} — bez zmiany napisów), "
+        f"{len(lines)} napisów, {el:.1f} s ({el / max(1, done):.2f} s na klatkę)")
     return lines
 
 

@@ -23,6 +23,8 @@ def main(argv: list[str] | None = None) -> int:
         logf = open(app_dir() / "vidsum.log", "a", encoding="utf-8", buffering=1)
         sys.stdout = sys.stdout or logf
         sys.stderr = sys.stderr or logf
+    from .tools import disable_power_throttling
+    disable_power_throttling()           # program w tle nie może być spowalniany przez Windows
     for s in (sys.stdout, sys.stderr):  # polskie znaki w konsoli Windows
         try:
             s.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
