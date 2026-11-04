@@ -72,9 +72,18 @@ def disable_power_throttling() -> bool:
         class PPTS(ctypes.Structure):           # PROCESS_POWER_THROTTLING_STATE
             _fields_ = [("Version", wintypes.ULONG), ("ControlMask", wintypes.ULONG), ("StateMask", wintypes.ULONG)]
         k32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        state = PPTS(1, 0x1 | 0x4, 0)           # EXECUTION_SPEED | IGNORE_TIMER_RESOLUTION → wyłączone
-        ok = k32.SetProcessInformation(k32.GetCurrentProcess(), 4, ctypes.byref(state), ctypes.sizeof(state))
-        k32.SetPriorityClass(k32.GetCurrentProcess(), 0x00000020)   # NORMAL_PRIORITY_CLASS
-        return bool(ok)
+        k32.GetCurrentProcess.restype = wintypes.HANDLE            # uchwyt 64-bitowy (inaczej ucięty do int)
+        k32.SetProcessInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        k32.SetProcessInformation.restype = wintypes.BOOL
+        k32.SetPriorityClass.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        me = k32.GetCurrentProcess()
+        ok = False
+        for mask in (0x1 | 0x4, 0x1):         # EXECUTION_SPEED (+ IGNORE_TIMER_RESOLUTION, Win11) → wyłączone
+            state = PPTS(1, mask, 0)
+            if k32.SetProcessInformation(me, 4, ctypes.byref(state), ctypes.sizeof(state)):
+                ok = True
+                break
+        k32.SetPriorityClass(me, 0x00000020)   # NORMAL_PRIORITY_CLASS
+        return ok
     except Exception:
         return False
