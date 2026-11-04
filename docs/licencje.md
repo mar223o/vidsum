@@ -13,6 +13,12 @@
 | Whisper large-v3-turbo | mowa (domyślny od 0.4) | MIT | tak |
 | Ollama | uruchamianie modelu wizyjnego | MIT | tak |
 | Qwen3-VL 4B / 8B Instruct | opis kadrów | Apache 2.0 (tag na HuggingFace) | tak |
+| Qwen3 8B / 4B (Alibaba) | lokalny model tekstowy: streszczenie, czat, tłumaczenia (od 0.7) | Apache 2.0 (HuggingFace) | tak, także komercyjnie |
+| Bielik 4.5B / Minitron 7B v3 (SpeakLeash) | kandydaci w pomiarze (polski model) | Apache 2.0 (HuggingFace) | tak |
+| Gemma 3 4B (Google) | kandydat w pomiarze | Gemma Terms of Use | tak, z zasadami użycia Google |
+| Granite 3.3 8B (IBM) | kandydat w pomiarze | Apache 2.0 | tak |
+| Llama 3.1 8B (Meta) | kandydat w pomiarze (odrzucony) | Llama 3.1 Community License | tak, z warunkami Meta |
+| NVIDIA cuBLAS 12.8 + cuDNN 9.10 (pakiety PyPI `nvidia-cublas-cu12`, `nvidia-cudnn-cu12`) | Whisper na GPU (od 0.7) | NVIDIA Software License / cuDNN SLA | tak; program ich NIE rozprowadza — pobiera je na komputer użytkownika z oficjalnych pakietów NVIDIA |
 | Claude Code | streszczenie przez subskrypcję Pro | warunki Anthropic | tak, w ramach planu |
 
 \* Licencja yt-dlp pozwala na wszystko, ale regulaminy YouTube / Instagrama / TikToka generalnie zabraniają

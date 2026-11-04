@@ -449,7 +449,7 @@ def test_speech_runs_in_parallel_with_vision(tmp_path, ollama, monkeypatch):
         def __init__(self, *a, **k):
             pass
 
-        def resolve_device(self):
+        def resolve_device(self, log=None):
             return "cpu", None
 
         def transcribe(self, wav, language=None):

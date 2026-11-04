@@ -172,11 +172,19 @@ def test_chat_with_video(server, tmp_path, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     _, job = req(base, "/api/link", data=json.dumps({"zrodlo": str(DATA / "bez_audio.mp4")}).encode(), method="POST")
     wait_done(base, job["id"])
+    # domyślnie czat jest LOKALNY (samodzielna aplikacja) — Claude nie jest używany, nawet gdy jest zainstalowany;
+    # tu Ollama „nie działa”, więc czytelny błąd zamiast cichego przejścia na Claude
+    with pytest.raises(urllib.error.HTTPError) as e:
+        req(base, f"/api/zadania/{job['id']}/pytanie", data=json.dumps({"pytanie": "Co jest w filmie?"}).encode(),
+            method="POST")
+    assert "Ollam" in json.loads(e.value.read())["error"]
+    # Claude jako świadomie wybrany dodatek
+    req(base, "/api/ustawienia", data=json.dumps({"streszczenie": "claude"}).encode(), method="POST")
     _, r = req(base, f"/api/zadania/{job['id']}/pytanie", data=json.dumps({"pytanie": "Co jest w filmie?"}).encode(),
                method="POST")
     assert "Kolorowe paski" in r["odpowiedz"] and len(r["historia"]) == 2
     _, hist = req(base, f"/api/zadania/{job['id']}/czat")
-    assert hist[0]["rola"] == "user" and hist[1]["silnik"] == "claude-code"
+    assert hist[0]["rola"] == "user" and hist[1]["silnik"] == "claude-code" and len(hist) == 2
 
 
 def test_fixed_port_persistent_token_single_instance(tmp_path):
