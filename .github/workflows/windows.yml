@@ -164,8 +164,8 @@ jobs:
             Start-Sleep 3
             $alive = $true
             try { Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing -TimeoutSec 2 | Out-Null } catch { $alive = $false }
-            if ($alive) { throw "$($r.name): „Zakończ” nie wyłączył programu" }
-            Write-Host "$($r.name): wyłączony przyciskiem Zakończ ✔"
+            if ($alive) { throw "$($r.name): przycisk Zakoncz nie wylaczyl programu" }
+            Write-Host "$($r.name): wylaczony przyciskiem Zakoncz - OK"
           }
           Get-Content "$env:LOCALAPPDATA\VidSum\vidsum.log" -Tail 5
 
