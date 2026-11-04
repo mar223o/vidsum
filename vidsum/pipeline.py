@@ -20,7 +20,7 @@ from .languages import DEFAULT_TRANSLATIONS, base as lang_base, name_pl, normali
 from .llm import DEFAULT_TEXT_MODEL, ClaudeCode, LLMError, Ollama
 from .media import (choose_frames, extract_audio, extract_frame, frame_signature, hamming, plan_for, probe,
                     scene_scores)
-from .transcribe import SidecarEngine, Transcript, WhisperEngine
+from .transcribe import Segment, SidecarEngine, Transcript, WhisperEngine
 
 SCHEMA = "vidsum.analysis/1"
 
@@ -248,27 +248,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             gaps.append(f"Model tekstowy niedostępny ({e}) — bez streszczenia i tłumaczeń.")
             log(f"        ! {e}")
             text_engine = None
-    if text_engine and summary_mode != "brak":
-        log(f"  [4/4] streszczenie ({text_name})…")
-        try:
-            if summary_mode == "claude":          # duży model: jeden prompt z pełną osią czasu
-                raw = text_engine.complete(json_prompt, as_json=True)
-                summary_data = parse_summary(raw, info.duration)
-            else:                                  # lokalny 4–8B: etapami (pomiar: dużo więcej faktów, docs/modele.md)
-                raw = ""
-                meta_txt = "; ".join(f"{k}: {v}" for k, v in meta.items() if v not in (None, ""))
-                summary_data = staged_summary(text_engine, compact_timeline(beats), meta_txt, info.duration, log)
-            summary_md = to_markdown(summary_data) if summary_data else (raw or None)
-            summary_engine = text_name
-            if not summary_data:
-                log("        ! model nie zwrócił poprawnych danych")
-                gaps.append("Model tekstowy nie zwrócił poprawnego streszczenia — zostaje oś czasu i transkrypcja.")
-        except LLMError as e:
-            gaps.append(f"Streszczenie nie powstało: {e}")
-            log(f"        ! {e}")
-    timings["streszczenie_s"] = round(time.time() - t, 1)
-
-    t = time.time()
+    t_tr = time.time()
     if text_engine and targets:
         from .translate import translate_segments
         seg_dicts = [asdict(s) for s in tr.segments]
@@ -283,10 +263,38 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             if failed:
                 gaps.append(f"Tłumaczenie na {name_pl(lang)}: {failed} z {len(segs)} linii bez tłumaczenia "
                             "(model nie zwrócił poprawnej odpowiedzi) — w tych miejscach tylko oryginał.")
-    elif targets and not text_engine:
-        pass                                          # luka już opisana wyżej
     if targets:
-        timings["tlumaczenie_s"] = round(time.time() - t, 1)
+        timings["tlumaczenie_s"] = round(time.time() - t_tr, 1)
+
+    t_s = time.time()
+    if text_engine and summary_mode != "brak":
+        log(f"  [4/4] streszczenie ({text_name})…")
+        try:
+            if summary_mode == "claude":          # duży model: jeden prompt z pełną osią czasu
+                raw = text_engine.complete(json_prompt, as_json=True)
+                summary_data = parse_summary(raw, info.duration)
+            else:                                  # lokalny 4–8B: etapami (pomiar: dużo więcej faktów, docs/modele.md)
+                raw = ""
+                meta_txt = "; ".join(f"{k}: {v}" for k, v in meta.items() if v not in (None, ""))
+                # mały model gubi fakty, gdy jednocześnie tłumaczy i streszcza — jeśli mowa nie jest po polsku,
+                # a mamy jej polskie tłumaczenie, streszcza z polskiej wersji (oryginał zostaje w wynikach)
+                src_beats = beats
+                pl = translations.get("pl")
+                if pl and lang_base(tr.language) != "pl":
+                    pl_segs = [Segment(x["start"], x["end"], x["text"] or o.text) for x, o in zip(pl["segmenty"], tr.segments)]
+                    src_beats = build_beats(frames, pl_segs, info.duration, ocr_lines)
+                    meta_txt += "; MOWA poniżej to polskie tłumaczenie maszynowe z oryginału"
+                summary_data = staged_summary(text_engine, compact_timeline(src_beats), meta_txt, info.duration, log)
+            summary_md = to_markdown(summary_data) if summary_data else (raw or None)
+            summary_engine = text_name
+            if not summary_data:
+                log("        ! model nie zwrócił poprawnych danych")
+                gaps.append("Model tekstowy nie zwrócił poprawnego streszczenia — zostaje oś czasu i transkrypcja.")
+        except LLMError as e:
+            gaps.append(f"Streszczenie nie powstało: {e}")
+            log(f"        ! {e}")
+
+    timings["streszczenie_s"] = round(time.time() - t_s, 1)
     if text_engine and isinstance(text_engine, Ollama):
         text_engine.unload()
     if vision_engine:

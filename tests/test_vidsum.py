@@ -573,3 +573,21 @@ def test_staged_summary_merges_facts_and_chunks():
     assert [k["t"] for k in c["kroki"]] == sorted(k["t"] for k in c["kroki"]) and len(c["kroki"]) == len(e.prompts) - 1
     assert c["skladniki"] == [{"nazwa": "ziemniaki", "ilosc": "brak danych", "zrodlo": "mowa"}]   # bez dubli z porcji
     assert c["wskazowki"] == ["nie przypal"]
+
+
+def test_english_speech_summarized_from_polish_translation(tmp_path, ollama):
+    """Oryginał EN zostaje w transkrypcji; lokalne streszczenie dostaje polskie tłumaczenie mowy."""
+    srt = tmp_path / "en.srt"
+    srt.write_text("1\n00:00:01,000 --> 00:00:04,000\nHeat the oil to 190 degrees\n\n"
+                   "2\n00:00:09,000 --> 00:00:12,000\nFry until golden\n", encoding="utf-8")
+    rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "w"), "--napisy", str(srt), "--jezyk", "en",
+               "--obraz", "brak", "--ollama", ollama, "--model-tekstowy", "fake-txt"])
+    assert rc == 0
+    r = json.loads((_only_dir(tmp_path / "w") / "analiza.json").read_text(encoding="utf-8"))
+    tr = r["transkrypcja"]
+    assert tr["segmenty"][0]["text"] == "Heat the oil to 190 degrees"            # oryginał nietknięty
+    assert list(tr["tlumaczenia"]) == ["pl"]                                       # en → tylko pl
+    extract = [c["messages"][0]["content"] for c in FakeOllama.calls
+               if c.get("messages") and "ZAPIS:" in c["messages"][0]["content"] and "FAKTY Z FILMU" not in c["messages"][0]["content"]]
+    assert extract and "MOWA: EN: Heat the oil to 190 degrees" in extract[0]      # (atrapa „tłumaczy” dopisując EN:)
+    assert "polskie tłumaczenie maszynowe" in extract[0]

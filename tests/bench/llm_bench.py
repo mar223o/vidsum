@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from vidsum.llm import Ollama  # noqa: E402
 from vidsum.summary import parse_summary, staged_summary  # noqa: E402
-from vidsum.translate import translate_lines  # noqa: E402
+from vidsum.translate import translate_segments  # noqa: E402
 
 DATA = Path(__file__).parent / "data"
 
@@ -79,6 +79,22 @@ class Recorder:
         return self.last
 
 
+def polish_speech(eng, tl: str) -> str:
+    """MOWA w osi czasu → polskie tłumaczenie (jak pipeline przed streszczeniem lokalnym)."""
+    rows = tl.splitlines()
+    idx, segs = [], []
+    for i, r in enumerate(rows):
+        m = re.search(r"MOWA: (.*?)(?: \| |$)", r)
+        if m:
+            idx.append(i)
+            segs.append({"start": i, "end": i + 1, "text": m.group(1)})
+    out, _ = translate_segments(eng, segs, "en", "pl")
+    for i, o, x in zip(idx, segs, out):
+        if x["text"]:
+            rows[i] = rows[i].replace("MOWA: " + o["text"], "MOWA: " + x["text"], 1)
+    return "\n".join(rows)
+
+
 def compact_from_prompt(prompt: str) -> str:
     """Oś czasu z zapisanego promptu (stary format) → zwięzły format etapowy (jak compact_timeline)."""
     tl = prompt.split("OŚ CZASU:", 1)[1]
@@ -106,8 +122,9 @@ def main() -> None:
     ap.add_argument("model")
     ap.add_argument("--wyniki", default="bench_llm")
     ap.add_argument("--host")
-    ap.add_argument("--tryb", choices=["jeden", "etapy", "oba"], default="oba",
-                    help="jeden = jeden duży prompt; etapy = fakty, potem opis (vidsum.summary.staged_summary)")
+    ap.add_argument("--tryb", choices=["jeden", "etapy", "etapy_pl", "oba", "wszystkie"], default="oba",
+                    help="jeden = jeden duży prompt; etapy = fakty, potem opis; etapy_pl = jak w programie: najpierw "
+                         "tłumaczenie MOWY na polski, potem etapy; oba = etapy + etapy_pl")
     a = ap.parse_args()
     out = Path(a.wyniki)
     out.mkdir(parents=True, exist_ok=True)
@@ -123,7 +140,7 @@ def main() -> None:
     res["ladowanie_s"] = round(time.time() - t, 1)
 
     prompt = (DATA / "frytki_prompt.txt").read_text(encoding="utf-8")
-    modes = ["jeden", "etapy"] if a.tryb == "oba" else [a.tryb]
+    modes = {"oba": ["etapy", "etapy_pl"], "wszystkie": ["jeden", "etapy", "etapy_pl"]}.get(a.tryb, [a.tryb])
     for mode in modes:
         t = time.time()
         if mode == "jeden":
@@ -131,9 +148,15 @@ def main() -> None:
             d = parse_summary(raw, 58.0)
         else:
             meta = re.search(r"^Metadane: (.*)$", prompt, re.M).group(1)
-            raw = ""
-            d = staged_summary(eng, compact_from_prompt(prompt), meta, 58.0, print)
-        key = "streszczenie" if mode == "jeden" else "streszczenie_etapy"
+            trace: list = []
+            tl = compact_from_prompt(prompt)
+            if mode == "etapy_pl":
+                tl = polish_speech(eng, tl)
+                trace.append(tl)
+                meta += "; MOWA poniżej to polskie tłumaczenie maszynowe z oryginału"
+            d = staged_summary(eng, tl, meta, 58.0, print, trace=trace)
+            raw = "\n\n=====\n\n".join(trace)
+        key = {"jeden": "streszczenie", "etapy": "streszczenie_etapy", "etapy_pl": "streszczenie_etapy_pl"}[mode]
         res[key + "_s"] = round(time.time() - t, 1)
         if raw:
             (out / f"{safe}_{mode}_surowe.txt").write_text(raw, encoding="utf-8")
@@ -147,14 +170,19 @@ def main() -> None:
         t = time.time()
         rec = Recorder(eng)
         try:
-            hyp = translate_lines(rec, task["lines"], task["src"], task["tgt"])
+            # jak w programie: porcje po 20 linii, przy złej odpowiedzi ponowna próba i mniejsze porcje
+            segs, failed = translate_segments(rec, [{"start": i, "end": i + 1, "text": t} for i, t in enumerate(task["lines"])],
+                                              task["src"], task["tgt"])
+            hyp = [x["text"] or "" for x in segs]
+            row_failed = failed
         except Exception as e:  # noqa: BLE001
-            hyp, err = None, str(e)[:200]
+            hyp, err, row_failed = None, str(e)[:200], None
         else:
             err = None
         dt = round(time.time() - t, 1)
-        row = {"zadanie": task["nazwa"], "s": dt, "linie_ok": hyp is not None, "blad": err}
-        if not hyp:
+        row = {"zadanie": task["nazwa"], "s": dt, "linie_ok": bool(hyp) and not row_failed, "blad": err,
+               "nieprzetlumaczone": row_failed if hyp else None}
+        if not row["linie_ok"]:
             row["surowe"] = rec.last[:1500]          # do diagnozy: co model zwrócił
         if hyp:
             row["chrf"] = round(sum(chrf(h, r) for h, r in zip(hyp, task["ref"])) / len(hyp), 1)

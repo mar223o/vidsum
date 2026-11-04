@@ -88,7 +88,7 @@ def _lst(x) -> list:
     return x if isinstance(x, list) else []
 
 
-def parse_summary(text: str, duration: float) -> dict | None:
+def parse_summary(text: str, duration: float, allow_partial: bool = False) -> dict | None:
     """Wyciąga i normalizuje JSON streszczenia z odpowiedzi modelu. None, gdy to nie JSON."""
     t = text.strip()
     m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", t, re.S)
@@ -150,7 +150,7 @@ def parse_summary(text: str, duration: float) -> dict | None:
         out[k].sort(key=lambda x: x["t"])
     out["co_masz_zrobic"]["kroki"].sort(key=lambda x: x["t"])
     out["rozdzialy"].sort(key=lambda x: x["start"])
-    if not (out["streszczenie"] or out["najwazniejsze"] or out["teza"]):
+    if not (out["streszczenie"] or out["najwazniejsze"] or out["teza"]) and not allow_partial:
         return None
     return out
 
@@ -327,7 +327,7 @@ def _loads(raw: str) -> dict:
 
 
 def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda s: None,
-                   chunk_chars: int = 6000) -> dict | None:
+                   chunk_chars: int = 6000, trace: list | None = None) -> dict | None:
     """Streszczenie w dwóch etapach. `engine.complete(prompt, as_json=True)` — Ollama albo Claude."""
     meta_line = f"Metadane: {meta}" if meta else ""
     ext: dict = {"kroki": [], "skladniki": [], "cwiczenia": [], "sprzet": [], "wskazowki": [], "bledy": [], "fakty": []}
@@ -336,7 +336,10 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     for i, part in enumerate(parts, 1):
         if len(parts) > 1:
             log(f"        fakty: fragment {i}/{len(parts)}")
-        d = _loads(engine.complete(EXTRACT_PROMPT.format(meta=meta_line, timeline=part), as_json=True))
+        raw = engine.complete(EXTRACT_PROMPT.format(meta=meta_line, timeline=part), as_json=True)
+        if trace is not None:
+            trace.append(raw)
+        d = _loads(raw)
         if _str(d.get("typ")).lower() in TYPES:
             types.append(_str(d.get("typ")).lower())
         for k in ext:
@@ -347,7 +350,14 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     facts_json = json.dumps({"typ": typ, **ext}, ensure_ascii=False)
     # do drugiego etapu: zapis skrócony do rozsądnej długości (fakty są już kompletne)
     short = timeline if len(timeline) <= 9000 else "\n".join(_chunks(timeline, 9000)[0].splitlines()) + "\n[…]"
-    p = _loads(engine.complete(PRESENT_PROMPT.format(meta=meta_line, facts=facts_json, timeline=short), as_json=True))
+    p: dict = {}
+    for _ in (1, 2):                                   # jedna ponowna próba, gdy odpowiedź nie jest poprawnym JSON-em
+        raw = engine.complete(PRESENT_PROMPT.format(meta=meta_line, facts=facts_json, timeline=short), as_json=True)
+        if trace is not None:
+            trace.append(raw)
+        p = _loads(raw)
+        if p.get("teza") or p.get("streszczenie") or p.get("najwazniejsze"):
+            break
     def texts(xs) -> list[str]:
         return [x if isinstance(x, str) else _str((x or {}).get("tekst") or (x or {}).get("nazwa")) for x in xs]
 
@@ -356,4 +366,5 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         "cwiczenia": ext["cwiczenia"], "wskazowki": texts(ext["wskazowki"]), "bledy": texts(ext["bledy"]),
         "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7]}}
     merged["co_masz_zrobic"]["sprzet"] = texts(ext["sprzet"])
-    return parse_summary(json.dumps(merged, ensure_ascii=False), duration)
+    has_facts = any(ext[k] for k in ("kroki", "skladniki", "cwiczenia", "wskazowki", "fakty"))
+    return parse_summary(json.dumps(merged, ensure_ascii=False), duration, allow_partial=has_facts)

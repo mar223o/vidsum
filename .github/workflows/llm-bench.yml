@@ -11,16 +11,13 @@ permissions:
 jobs:
   model:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
         model:
           - qwen3:8b
-          - qwen3:4b
-          - qwen3-vl:4b-instruct
           - gemma3:4b
-          - granite3.3:8b
           - SpeakLeash/bielik-4.5b-v3.0-instruct:Q8_0
           - SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M
     steps:
@@ -58,11 +55,11 @@ jobs:
           for f in sorted(glob.glob("wyniki/*.json")):
               d = json.load(open(f, encoding="utf-8"))
               if "model" not in d: continue
-              rows.append((max(d.get(k, {}).get("wynik", -99) for k in ("streszczenie", "streszczenie_etapy")), d))
+              rows.append((max(d.get(k, {}).get("wynik", -99) for k in ("streszczenie", "streszczenie_etapy", "streszczenie_etapy_pl")), d))
           print("| model | tryb | wynik | fakty | zmyślenia | JSON | kroki | czas | chrF tłum. |")
           print("|---|---|---|---|---|---|---|---|---|")
           for w, d in sorted(rows, key=lambda x: -x[0]):
-              for key, lab in (("streszczenie", "jeden"), ("streszczenie_etapy", "etapy")):
+              for key, lab in (("streszczenie", "jeden"), ("streszczenie_etapy", "etapy"), ("streszczenie_etapy_pl", "etapy_pl")):
                   s = d.get(key)
                   if not s: continue
                   print(f"| {d['model']} | {lab} | {s['wynik']} | {s['fakty']}/{s.get('fakty_z', 14)} | {', '.join(s['zmyslenia']) or '—'} | "
