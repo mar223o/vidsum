@@ -25,7 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import __version__
-from .llm import ClaudeCode, LLMError, Ollama
+from .llm import DEFAULT_TEXT_MODEL, ClaudeCode, LLMError, Ollama
 from .pipeline import Options, analyze
 from .tools import ToolError, find_tool
 
@@ -162,7 +162,8 @@ class App:
                 self.worker.jobs[jid] = job
     def _load_settings(self) -> dict:
         d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
-             "streszczenie": "auto", "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results)}
+             "streszczenie": "auto", "model_tekstowy": DEFAULT_TEXT_MODEL, "tlumaczenia": "pl,en", "gpu_pobieranie": True,
+             "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results)}
         try:
             saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
             if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":
@@ -181,12 +182,19 @@ class App:
 
     def options(self, s: dict) -> Options:
         mk = s.get("max_kadrow")
+        from .languages import parse_list
+        try:
+            tl = parse_list(s.get("tlumaczenia", "pl,en"))
+        except ValueError:
+            tl = ["pl", "en"]
         return Options(out_root=Path(s.get("wyniki") or self.results),
                        language=None if s.get("jezyk") in (None, "", "auto") else s["jezyk"],
                        whisper_model=s.get("whisper") or "large-v3-turbo", ocr=bool(s.get("ocr", True)),
                        whisper_root=str(app_dir() / "modele"),
                        vision=s.get("obraz", "ollama"), vision_model=s.get("model_obrazu") or "qwen3-vl:4b-instruct",
                        summary=s.get("streszczenie") or "auto", max_frames=int(mk) if mk else None,
+                       text_model=s.get("model_tekstowy") or DEFAULT_TEXT_MODEL, translate=tl,
+                       cuda_download=bool(s.get("gpu_pobieranie", True)),
                        cookies_from_browser=s.get("ciasteczka_z") or None)
 
     def status(self) -> dict:
@@ -203,6 +211,13 @@ class App:
             st["ollama"], st["ollama_info"] = True, model
         except LLMError as e:
             st["ollama"], st["ollama_info"] = False, str(e)
+        tm = self.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL
+        try:
+            st["model_tekstowy"], st["model_tekstowy_pobrany"] = tm, Ollama(tm).has_model()
+        except LLMError:
+            st["model_tekstowy"], st["model_tekstowy_pobrany"] = tm, False
+        from . import cuda
+        st["gpu_nvidia"], st["cuda_pobrana"] = cuda.gpu_count() > 0, cuda.installed()
         try:
             ClaudeCode().check()
             st["claude"], st["claude_info"] = True, "Claude Code"
@@ -325,12 +340,12 @@ def make_handler(app: App):
             history = json.loads(hist_file.read_text(encoding="utf-8")) if hist_file.is_file() else []
             prompt = build_chat_prompt(analysis, question, history)
             try:
-                try:
-                    eng = ClaudeCode()
-                    eng.check()
-                    silnik = "claude-code"
-                except LLMError:
-                    eng = Ollama(app.settings.get("model_obrazu") or "qwen3-vl:4b-instruct")
+                # samodzielnie: lokalny model tekstowy; Claude tylko gdy użytkownik wybrał go w ustawieniach
+                if app.settings.get("streszczenie") == "claude":
+                    eng, silnik = ClaudeCode(), "claude-code"
+                else:
+                    eng = Ollama(app.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
+                    eng.ensure(lambda m: None)
                     silnik = f"ollama:{eng.model}"
                 answer = eng.complete(prompt)
             except Exception as e:

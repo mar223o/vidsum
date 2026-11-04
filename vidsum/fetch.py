@@ -50,18 +50,21 @@ def download(url: str, workdir: Path, cookies_from_browser: str | None = None, s
         "no_warnings": True,
         "ffmpeg_location": str(Path(find_tool("ffmpeg")).parent),
     }
-    if subtitles:
-        # napisy z serwisu = transkrypcja bez Whispera (najszybciej); tylko oryginalny język, nie tłumaczenia
-        opts.update({"writesubtitles": True, "writeautomaticsub": True, "subtitlesformat": "vtt",
-                     "subtitleslangs": ["pl", "en", "pl-orig", "en-orig"]})
+    # napisy wybieramy dopiero po odczytaniu informacji o filmie (język oryginału), zob. choose_subtitle_lang
     if cookies_from_browser:
         # Instagram/TikTok często wymagają zalogowania: np. "chrome", "edge", "firefox"
         opts["cookiesfrombrowser"] = (cookies_from_browser,)
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            info = ydl.extract_info(url, download=False)
             if info.get("_type") == "playlist" and info.get("entries"):
                 info = info["entries"][0]
+            choice = choose_subtitle_lang(info) if subtitles else None
+            if choice:
+                # tylko napisy w JĘZYKU ORYGINAŁU (od autora albo automatyczne rozpoznanie mowy) — nigdy tłumaczenia
+                ydl.params.update({"writesubtitles": True, "writeautomaticsub": True, "subtitlesformat": "vtt",
+                                   "subtitleslangs": [choice[0]]})
+            info = ydl.process_ie_result(info, download=True)
             files = [Path(d["filepath"]) for d in info.get("requested_downloads", []) if d.get("filepath")]
             path = files[0] if files else Path(ydl.prepare_filename(info))
     except Exception as e:
@@ -75,23 +78,36 @@ def download(url: str, workdir: Path, cookies_from_browser: str | None = None, s
                   info.get("webpage_url") or url, sub, kind)
 
 
-def pick_subtitles(info: dict) -> tuple[Path | None, str | None]:
-    """Wybór napisów: od autora > automatyczne w języku oryginału (-orig) > automatyczne w języku filmu.
+def choose_subtitle_lang(info: dict) -> tuple[str, str] | None:
+    """Który język napisów pobrać: (kod, "autor"|"automatyczne") albo None (wtedy Whisper).
 
-    Automatyczne „pl” dla filmu po angielsku to maszynowe tłumaczenie — tych nie bierzemy.
+    Transkrypcja ma być ZAWSZE w języku oryginału. Napisy od autora w innym języku i automatyczne
+    tłumaczenia YouTube (np. „pl” dla filmu po angielsku) to przekłady — tych nie bierzemy.
     """
+    manual = set((info.get("subtitles") or {}).keys()) - {"live_chat"}
+    auto = set((info.get("automatic_captions") or {}).keys())
+    orig = (info.get("language") or "").strip()
+    ob = orig.split("-")[0].lower()
+    if orig:
+        for cand in (orig, ob):
+            if cand in manual:
+                return cand, "autor"
+        for cand in (f"{orig}-orig", f"{ob}-orig"):
+            if cand in auto:
+                return cand, "automatyczne"
+    origs = sorted(a for a in auto if a.endswith("-orig"))   # „-orig” = rozpoznanie mowy w języku filmu
+    if len(origs) == 1:
+        return origs[0], "automatyczne"
+    if ob and ob in auto:
+        return ob, "automatyczne"
+    return None
+
+
+def pick_subtitles(info: dict) -> tuple[Path | None, str | None]:
+    """Pobrany plik napisów i jego rodzaj (po choose_subtitle_lang pobierany jest najwyżej jeden)."""
     req = info.get("requested_subtitles") or {}
     have = {lang: Path(d["filepath"]) for lang, d in req.items() if d.get("filepath") and Path(d["filepath"]).is_file()}
-    if not have:
+    choice = choose_subtitle_lang(info)
+    if not choice or choice[0] not in have:
         return None, None
-    manual = set((info.get("subtitles") or {}).keys())
-    orig_lang = (info.get("language") or "").split("-")[0]
-    for lang in ("pl", "en"):
-        if lang in have and lang in manual:
-            return have[lang], "autor"
-    for lang, p in have.items():
-        if lang.endswith("-orig"):
-            return p, "automatyczne"
-    if orig_lang and orig_lang in have:
-        return have[orig_lang], "automatyczne"
-    return None, None
+    return have[choice[0]], choice[1]

@@ -87,8 +87,9 @@ def _call(name: str, args: dict) -> str:
     if name == "analizuj_film":
         from .pipeline import Options, analyze
         from .gui import app_dir
+        # streszczenie i tłumaczenie robi Claude (to on wywołuje narzędzie) — lokalnie tylko mowa, obraz, napisy
         opt = Options(out_root=_results_root(), language=None if args.get("jezyk", "auto") == "auto" else args["jezyk"],
-                      whisper_root=str(app_dir() / "modele"), summary="brak")
+                      whisper_root=str(app_dir() / "modele"), summary="brak", translate=[])
         from .llm import LLMError, Ollama
         try:
             Ollama(opt.vision_model).check()

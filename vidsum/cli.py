@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .languages import normalize, parse_list
+from .llm import DEFAULT_TEXT_MODEL
 from .pipeline import Options, analyze
 
 
@@ -24,6 +26,28 @@ def main(argv: list[str] | None = None) -> int:
     if args[:1] == ["--mcp"]:                   # serwer MCP dla Claude Desktop / Claude Code
         from .mcp_server import serve_stdio
         return serve_stdio()
+    if args[:1] == ["--pobierz-cuda"]:          # biblioteki NVIDIA dla Whispera na GPU (jednorazowo)
+        from . import cuda
+        try:
+            d = cuda.ensure(print)
+        except Exception as e:
+            print(f"✖ {e}", file=sys.stderr)
+            return 1
+        cuda.activate(d)
+        from .transcribe import _missing_cuda_libs
+        miss = _missing_cuda_libs()
+        print("✔ biblioteki CUDA załadowane" if not miss else f"✖ nie da się załadować: {', '.join(miss)}")
+        print(f"  karty NVIDIA widoczne: {cuda.gpu_count()}")
+        return 1 if miss else 0
+    if args[:1] == ["--pobierz-model"]:         # lokalny model tekstowy do Ollamy (jednorazowo)
+        from .llm import LLMError, Ollama
+        try:
+            Ollama(args[1] if len(args) > 1 else DEFAULT_TEXT_MODEL).ensure(print)
+        except LLMError as e:
+            print(f"✖ {e}", file=sys.stderr)
+            return 1
+        print("✔ model gotowy")
+        return 0
     # Bez argumentów (dwuklik na VidSum.exe) albo z --ui: interfejs w przeglądarce
     if not args or args[0] == "--ui":
         ui = argparse.ArgumentParser(prog="vidsum --ui")
@@ -40,7 +64,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="vidsum", description="Analiza filmu: mowa + obraz -> streszczenie ze źródłami.")
     ap.add_argument("wejscie", nargs="+", help="plik(i) MP4 albo link(i) (YouTube/Instagram/TikTok)")
     ap.add_argument("-o", "--wyniki", default="vidsum_wyniki", help="folder na wyniki")
-    ap.add_argument("--jezyk", choices=["auto", "pl", "en"], default="auto")
+    ap.add_argument("--jezyk", default="auto", help="język mowy: auto (wykryj) albo kod, np. pl, en, de, es, uk (99 języków)")
+    ap.add_argument("--tlumacz", default="pl,en", help="tłumaczenia transkrypcji (oryginał zostaje zawsze): "
+                    "lista kodów bez języka oryginału, domyślnie pl,en; 'brak' = bez tłumaczeń")
     ap.add_argument("--whisper", default="large-v3-turbo", help="model Whisper: small / medium / large-v3-turbo / large-v3")
     ap.add_argument("--whisper-urzadzenie", default="auto", choices=["auto", "cuda", "cpu"])
     ap.add_argument("--whisper-folder", default=None, help="gdzie trzymać pobrane modele Whisper")
@@ -49,8 +75,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--bez-ocr", action="store_true", help="bez odczytu napisów z ekranu")
     ap.add_argument("--model-obrazu", default="qwen3-vl:4b-instruct")
     ap.add_argument("--streszczenie", choices=["auto", "ollama", "claude", "brak"], default="auto",
-                    help="auto = Claude Code (Pro), jeśli zainstalowany, inaczej Ollama; claude = `claude -p`")
-    ap.add_argument("--model-streszczenia", default=None)
+                    help="auto/ollama = lokalny model tekstowy (samodzielnie); claude = dodatek przez `claude -p`")
+    ap.add_argument("--model-tekstowy", default=DEFAULT_TEXT_MODEL,
+                    help="lokalny model do streszczenia, czatu i tłumaczeń (Ollama); pobierany przy pierwszym użyciu")
+    ap.add_argument("--model-streszczenia", default=None, help=argparse.SUPPRESS)   # dawna nazwa
+    ap.add_argument("--bez-pobierania-cuda", action="store_true",
+                    help="nie pobieraj bibliotek NVIDIA dla Whispera na GPU (zostanie CPU)")
     ap.add_argument("--ollama", default=None, help="adres Ollamy (domyślnie http://127.0.0.1:11434)")
     ap.add_argument("--max-kadrow", type=int, default=None)
     ap.add_argument("--ciasteczka-z", default=None, metavar="PRZEGLĄDARKA",
@@ -58,8 +88,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--allow-api-key", action="store_true", help="pozwól Claude Code użyć ANTHROPIC_API_KEY (płatne)")
     ap.add_argument("--version", action="version", version=f"VidSum {__version__}")
     a = ap.parse_args(argv)
+    try:
+        lang = normalize(a.jezyk)
+        tl = parse_list(a.tlumacz)
+    except ValueError as e:
+        ap.error(str(e))
 
-    opt = Options(out_root=Path(a.wyniki), language=None if a.jezyk == "auto" else a.jezyk,
+    opt = Options(out_root=Path(a.wyniki), language=lang, translate=tl, text_model=a.model_tekstowy,
+                  cuda_download=not a.bez_pobierania_cuda,
                   whisper_model=a.whisper, whisper_device=a.whisper_urzadzenie, whisper_root=a.whisper_folder or _models_dir(),
                   transcript_file=Path(a.napisy) if a.napisy else None, vision=a.obraz,
                   vision_model=a.model_obrazu, summary=a.streszczenie, summary_model=a.model_streszczenia,

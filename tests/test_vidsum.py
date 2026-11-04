@@ -50,7 +50,7 @@ class FakeOllama(http.server.BaseHTTPRequestHandler):
         self.wfile.write(b)
 
     def do_GET(self):
-        self._send({"models": [{"name": "fake-vl:latest"}]})
+        self._send({"models": [{"name": "fake-vl:latest"}, {"name": "fake-txt:latest"}]})
 
     fail_images: set[int] = set()   # numery żądań z obrazem (od 1), które mają zwrócić 500
 
@@ -68,10 +68,18 @@ class FakeOllama(http.server.BaseHTTPRequestHandler):
                 return
         if self.path == "/api/generate":
             return self._send({"done": True})
+        if self.path == "/api/pull":
+            return self._send({"status": "success"})
         msg = body["messages"][0]
-        if msg.get("images"):
+        if "LINES:" in msg["content"]:                       # tłumaczenie: „EN: ” + oryginał, te same numery
+            import re as _re
+            lines = _re.findall(r"^(\d+)\. (.*)$", msg["content"].split("LINES:")[1], _re.M)
+            content = json.dumps({n: "EN: " + t for n, t in lines})
+        elif msg.get("images"):
             content = json.dumps({"scena": "deska i nóż", "czynnosci": ["krojenie"], "obiekty": ["cebula", "nóż"],
                                   "tekst_na_ekranie": "Krok 1", "cialo": None, "pewnosc": "srednia"})
+        elif body.get("format") == "json" and "ZAPIS:" in msg["content"] and "FAKTY Z FILMU" not in msg["content"]:
+            content = json.dumps({"typ": FAKE_SUMMARY["typ"], **FAKE_SUMMARY["co_masz_zrobic"]})   # etap 1: fakty
         elif body.get("format") == "json":
             content = json.dumps(FAKE_SUMMARY)
         else:
@@ -163,7 +171,7 @@ def _only_dir(root: Path) -> Path:
 def test_end_to_end_ollama(tmp_path, ollama):
     out_root = tmp_path / "wyniki ąę"
     rc = main(["--bez-ocr", str(FILM), "-o", str(out_root), "--napisy", str(NAPISY), "--ollama", ollama,
-               "--model-obrazu", "fake-vl", "--streszczenie", "ollama"])
+               "--model-obrazu", "fake-vl", "--streszczenie", "ollama", "--model-tekstowy", "fake-txt"])
     assert rc == 0
     out = _only_dir(out_root)
     assert out.name.startswith("przepis żółć test_")
@@ -176,7 +184,16 @@ def test_end_to_end_ollama(tmp_path, ollama):
         assert (out / k["file"]).is_file()
         assert k["vision"]["tekst_na_ekranie"] == ["Krok 1"] and k["vision"]["cialo"] == ""   # normalizacja
     assert {b["widac"]["zrodlo"] for b in r["os_czasu"]} == {"obraz"}
-    assert r["streszczenie"]["silnik"] == "ollama:fake-vl"
+    assert r["streszczenie"]["silnik"] == "ollama:fake-txt"            # osobny model tekstowy
+    # oryginał po polsku zostaje; tłumaczenie tylko na angielski (pl → [en]), te same czasy segmentów
+    tr = r["transkrypcja"]
+    assert tr["jezyk"] == "pl" and list(tr["tlumaczenia"]) == ["en"] and r["ustawienia"]["tlumaczenia"] == ["en"]
+    en = tr["tlumaczenia"]["en"]
+    assert en["silnik"] == "ollama:fake-txt" and en["nieprzetlumaczone"] == 0
+    assert [(s["start"], s["end"]) for s in en["segmenty"]] == [(s["start"], s["end"]) for s in tr["segmenty"]]
+    assert all(e["text"] == "EN: " + o["text"] for e, o in zip(en["segmenty"], tr["segmenty"]))
+    assert (out / "transkrypcja.en.srt").read_text(encoding="utf-8").count("EN: ") == 4
+    assert "tlumaczenie_s" in r["czasy"]
     dane = r["streszczenie"]["dane"]
     assert dane["typ"] == "przepis" and dane["schema"] == "vidsum.summary/1"
     assert [k["t"] for k in dane["co_masz_zrobic"]["kroki"]] == [1.0, 9.0]       # „00:09” → 9 s, posortowane
@@ -190,6 +207,7 @@ def test_end_to_end_ollama(tmp_path, ollama):
     md = (out / "raport.md").read_text(encoding="utf-8")
     assert "## W skrócie" in md and "(z mowy)" in md and "(z obrazu" in md
     assert "⏱ Czas analizy:" in md and "kadry " in md                     # czas w raporcie
+    assert "## Tłumaczenie: angielski" in md and "oryginał: polski" in md
     assert (out / "transkrypcja.srt").read_text(encoding="utf-8").startswith("1\n00:00:00,500 --> 00:00:06,000")
 
 
@@ -197,7 +215,7 @@ def test_vision_failure_does_not_abort(tmp_path, ollama):
     """Awaria modelu na jednym kadrze (np. brak pamięci): ponowna próba, potem 'brak danych'."""
     FakeOllama.fail_images = {2, 3, 4}   # kadr 2: obie próby padają; kadr 3: druga próba OK
     rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--ollama", ollama,
-               "--model-obrazu", "fake-vl", "--max-kadrow", "4", "--streszczenie", "ollama"])
+               "--model-obrazu", "fake-vl", "--max-kadrow", "4", "--streszczenie", "ollama", "--model-tekstowy", "fake-vl"])
     assert rc == 0
     r = json.loads((_only_dir(tmp_path) / "analiza.json").read_text(encoding="utf-8"))
     vis = [k["vision"] for k in r["kadry"]]
@@ -222,7 +240,8 @@ def test_summary_timeout_still_writes_results(tmp_path, monkeypatch):
     monkeypatch.setattr(llm.Ollama, "__init__", lambda self, m, h=None, timeout=600: orig(self, m, h, timeout=0.5))
     try:
         rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--obraz", "brak",
-                   "--streszczenie", "ollama", "--ollama", f"http://127.0.0.1:{srv.server_address[1]}"])
+                   "--streszczenie", "ollama", "--model-tekstowy", "fake-vl",
+                   "--ollama", f"http://127.0.0.1:{srv.server_address[1]}"])
     finally:
         srv.shutdown()
     assert rc == 0
@@ -231,20 +250,28 @@ def test_summary_timeout_still_writes_results(tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="atrapa claude jako skrypt POSIX")
-def test_auto_summary_picks_engine(tmp_path, monkeypatch, ollama):
-    """auto: jest `claude` i brak klucza API → Claude; brak `claude` → Ollama."""
+def test_auto_summary_is_local_even_with_claude(tmp_path, monkeypatch, ollama):
+    """Faza 6: aplikacja jest samodzielna — auto = lokalny model, nawet gdy Claude Code jest zainstalowany."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setenv("PATH", str(_fake_claude(tmp_path)) + os.pathsep + os.environ["PATH"])
-    main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "a"), "--napisy", str(NAPISY), "--obraz", "brak"])
+    main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "a"), "--napisy", str(NAPISY), "--obraz", "brak",
+          "--ollama", ollama, "--model-tekstowy", "fake-txt"])
     r = json.loads((_only_dir(tmp_path / "a") / "analiza.json").read_text(encoding="utf-8"))
-    assert r["streszczenie"]["silnik"] == "claude-code"
-    monkeypatch.setenv("PATH", str(tmp_path / "pusty"))            # nie ma claude (ani niczego)
-    monkeypatch.setenv("VIDSUM_FFMPEG", __import__("shutil").which("ffmpeg", path=os.defpath + ":/usr/local/bin") or "")
-    monkeypatch.setenv("VIDSUM_FFPROBE", __import__("shutil").which("ffprobe", path=os.defpath + ":/usr/local/bin") or "")
+    assert r["streszczenie"]["silnik"] == "ollama:fake-txt"
     main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "b"), "--napisy", str(NAPISY), "--obraz", "brak",
-          "--ollama", ollama, "--model-streszczenia", "fake-vl"])
+          "--ollama", ollama, "--model-streszczenia", "fake-vl", "--tlumacz", "brak"])      # dawna opcja działa
     r = json.loads((_only_dir(tmp_path / "b") / "analiza.json").read_text(encoding="utf-8"))
-    assert r["streszczenie"]["silnik"] == "ollama:fake-vl"
+    assert r["streszczenie"]["silnik"] == "ollama:fake-vl" and r["transkrypcja"]["tlumaczenia"] == {}
+
+
+def test_text_model_is_pulled_when_missing(tmp_path, ollama):
+    """Model tekstowy, którego nie ma w Ollamie, jest pobierany automatycznie (bez ręcznego `ollama pull`)."""
+    main(["--bez-ocr", str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--obraz", "brak",
+          "--ollama", ollama, "--model-tekstowy", "nowy-model:8b", "--tlumacz", "brak"])
+    pulls = [c for c in FakeOllama.calls if c.get("model") == "nowy-model:8b" and "messages" not in c]
+    assert pulls, "brak żądania /api/pull"
+    chats = [c for c in FakeOllama.calls if c.get("messages") and c.get("model") == "nowy-model:8b"]
+    assert chats and chats[0].get("think") is False                    # qwen3 itp. bez „myślenia”
 
 
 def test_no_audio_and_no_vision(tmp_path):
@@ -275,14 +302,14 @@ def test_claude_summary_and_api_key_guard(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", str(_fake_claude(tmp_path)) + os.pathsep + os.environ["PATH"])
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "a"), "--napisy", str(NAPISY), "--obraz", "brak",
-               "--streszczenie", "claude"])
+               "--streszczenie", "claude", "--tlumacz", "brak"])
     assert rc == 0
     r = json.loads((_only_dir(tmp_path / "a") / "analiza.json").read_text(encoding="utf-8"))
     assert r["streszczenie"]["silnik"] == "claude-code" and "OK od Claude" in r["streszczenie"]["markdown"]
 
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")       # bezpiecznik: nie płacimy przypadkiem za API
     rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "b"), "--napisy", str(NAPISY), "--obraz", "brak",
-               "--streszczenie", "claude"])
+               "--streszczenie", "claude", "--tlumacz", "brak"])
     r = json.loads((_only_dir(tmp_path / "b") / "analiza.json").read_text(encoding="utf-8"))
     assert r["streszczenie"] is None and any("ANTHROPIC_API_KEY" in g for g in r["luki"])
     assert "sk-test" not in json.dumps(r)                    # klucz nigdy w wynikach
@@ -338,22 +365,75 @@ def test_parse_vtt_youtube_rolling_captions():
                     (3602.0, 3604.5, "Zażółć gęślą jaźń")]
 
 
-def test_pick_subtitles_prefers_author_and_original(tmp_path):
-    from vidsum.fetch import pick_subtitles
-    files = {}
-    for lang in ("pl", "en", "en-orig"):
-        f = tmp_path / f"x.{lang}.vtt"
-        f.write_text("WEBVTT\n", encoding="utf-8")
-        files[lang] = {"filepath": str(f)}
-    # napisy od autora po polsku wygrywają
-    p, kind = pick_subtitles({"requested_subtitles": files, "subtitles": {"pl": []}, "language": "en"})
-    assert p.name == "x.pl.vtt" and kind == "autor"
-    # tylko automatyczne: bierzemy oryginał (en-orig), NIE maszynowe tłumaczenie na pl
-    p, kind = pick_subtitles({"requested_subtitles": files, "subtitles": {}, "language": "en"})
-    assert p.name == "x.en-orig.vtt" and kind == "automatyczne"
-    only_pl = {"pl": files["pl"]}
-    assert pick_subtitles({"requested_subtitles": only_pl, "subtitles": {}, "language": "en"}) == (None, None)
+def test_subtitles_only_in_original_language(tmp_path):
+    """Transkrypcja ZAWSZE w języku oryginału: napisy autora w innym języku i tłumaczenia YouTube odpadają."""
+    from vidsum.fetch import choose_subtitle_lang, pick_subtitles
+    c = choose_subtitle_lang
+    # film po angielsku: autor dał też napisy PL (to przekład) → bierzemy angielskie od autora
+    assert c({"language": "en", "subtitles": {"pl": [], "en": []}, "automatic_captions": {"en-orig": [], "pl": []}}) == ("en", "autor")
+    # tylko polskie od autora do filmu po angielsku → nie; automatyczne en-orig → tak
+    assert c({"language": "en", "subtitles": {"pl": []}, "automatic_captions": {"en-orig": [], "pl": []}}) == ("en-orig", "automatyczne")
+    # niemiecki film (dowolny język, nie tylko pl/en)
+    assert c({"language": "de", "subtitles": {}, "automatic_captions": {"de-orig": [], "en": [], "pl": []}}) == ("de-orig", "automatyczne")
+    assert c({"language": "de-DE", "subtitles": {"de-DE": []}, "automatic_captions": {}}) == ("de-DE", "autor")
+    # język nieznany: jedno „-orig” wskazuje oryginał; bez tego → Whisper
+    assert c({"subtitles": {}, "automatic_captions": {"es-orig": [], "pl": []}}) == ("es-orig", "automatyczne")
+    assert c({"subtitles": {"pl": []}, "automatic_captions": {}}) is None
+    assert c({}) is None
+    f = tmp_path / "x.en-orig.vtt"
+    f.write_text("WEBVTT\n", encoding="utf-8")
+    info = {"language": "en", "subtitles": {"pl": []}, "automatic_captions": {"en-orig": []},
+            "requested_subtitles": {"en-orig": {"filepath": str(f)}}}
+    assert pick_subtitles(info) == (f, "automatyczne")
     assert pick_subtitles({}) == (None, None)
+
+
+def test_languages_all_whisper_codes_and_targets():
+    from faster_whisper.tokenizer import _LANGUAGE_CODES
+    from vidsum.languages import LANGUAGES, normalize, parse_list, translation_targets as tt
+    assert set(LANGUAGES) == set(_LANGUAGE_CODES) and len(LANGUAGES) == 100
+    assert normalize("DE") == "de" and normalize("auto") is None and normalize("") is None and normalize("pt-BR") == "pt"
+    with pytest.raises(ValueError):
+        normalize("xx")
+    # oryginał zostaje zawsze; tłumaczenia: en → pl; pl → en; inne → pl i en
+    assert tt("en") == ["pl"] and tt("pl") == ["en"] and tt("de") == ["pl", "en"] and tt("uk") == ["pl", "en"]
+    assert tt(None) == [] and tt("en-orig") == ["pl"]
+    assert tt("de", parse_list("pl")) == ["pl"] and parse_list("brak") == [] and parse_list("pl, en") == ["pl", "en"]
+
+
+def test_cli_rejects_unknown_language(tmp_path, capsys):
+    with pytest.raises(SystemExit):
+        main([str(DATA / "bez_audio.mp4"), "-o", str(tmp_path), "--jezyk", "klingon"])
+    assert "Nieznany język" in capsys.readouterr().err
+
+
+def test_translate_segments_chunks_retries_and_gaps():
+    """Tłumaczenie porcjami; zła odpowiedź → ponowna próba i mniejsze porcje; nigdy zgadywany tekst."""
+    from vidsum.translate import translate_segments
+    import re as _re
+
+    class Eng:
+        def __init__(self):
+            self.prompts = []
+
+        def complete(self, prompt, as_json=False):
+            self.prompts.append(prompt)
+            lines = _re.findall(r"^(\d+)\. (.*)$", prompt.split("LINES:")[1], _re.M)
+            if any("ZEPSUTE" in t for _, t in lines):
+                return "to nie jest json"
+            if any("CHINY" in t for _, t in lines):
+                return json.dumps({n: "tekst 中文" for n, _ in lines})       # obce pismo → odrzucone
+            return json.dumps({n: f"PL<{t}>" for n, t in lines})
+
+    segs = [{"start": i, "end": i + 1, "text": f"line {i}"} for i in range(45)]
+    segs[30]["text"] = "ZEPSUTE"
+    segs[40]["text"] = "CHINY"
+    e = Eng()
+    out, failed = translate_segments(e, segs, "en", "pl", chunk=20)
+    assert failed == 2 and out[30]["text"] is None and out[40]["text"] is None
+    assert out[0]["text"] == "PL<line 0>" and out[44]["text"] == "PL<line 44>" and out[29]["text"] == "PL<line 29>"
+    assert [(s["start"], s["end"]) for s in out] == [(s["start"], s["end"]) for s in segs]
+    assert "from English into Polish" in e.prompts[0] and "Previous lines" in e.prompts[1]
 
 
 def test_speech_runs_in_parallel_with_vision(tmp_path, ollama, monkeypatch):
@@ -459,3 +539,37 @@ def test_parse_summary_robustness():
     assert d["typ"] == "inne" and d["momenty"] == [{"t": 0.0, "tekst": "a"}]
     md = to_markdown(d)
     assert "## Najważniejsze" in md and "`00:17` **Mieszaj 5 minut**" in md
+
+
+def test_staged_summary_merges_facts_and_chunks():
+    """Lokalne modele: najpierw fakty (porcjami dla długich filmów), potem opis całości; scalanie w jeden schemat."""
+    from vidsum.summary import compact_timeline, staged_summary
+    beats = [{"start": i * 10, "end": i * 10 + 10, "kadr": "", "napisy": "190°C" if i == 3 else "",
+              "widac": {"zrodlo": "obraz", "scena": "kuchnia", "czynnosci": ["krojenie"], "obiekty": ["nóż", "deska"]},
+              "slychac": {"zrodlo": "mowa", "tekst": f"zdanie {i}"}} for i in range(6)]
+    tl = compact_timeline(beats)
+    assert "[30s] MOWA: zdanie 3 | NAPISY: 190°C | OBRAZ: kuchnia (krojenie)" in tl and "nóż" not in tl
+
+    class Eng:
+        def __init__(self):
+            self.prompts = []
+
+        def complete(self, prompt, as_json=False):
+            self.prompts.append(prompt)
+            if "ZAPIS:\n" in prompt and "FAKTY Z FILMU" not in prompt:       # etap 1, porcja
+                first = int(prompt.split("ZAPIS:\n")[1].split("s]")[0].strip("["))
+                return json.dumps({"typ": "przepis", "kroki": [{"t": first, "tekst": f"krok od {first}", "zrodlo": "mowa"}],
+                                   "skladniki": [{"nazwa": "ziemniaki", "ilosc": "brak danych", "zrodlo": "mowa"}],
+                                   "wskazowki": [{"tekst": "nie przypal"}], "fakty": []})
+            assert '"krok od 0"' in prompt                                     # etap 2 dostaje fakty
+            return json.dumps({"tytul": "Frytki", "teza": "Jak zrobić frytki.", "streszczenie": ["Akapit."],
+                               "najwazniejsze": [{"t": 30, "tytul": "190", "opis": "x", "zrodlo": "obraz"}]})
+
+    e = Eng()
+    d = staged_summary(e, tl, "tytuł: test", 60.0, chunk_chars=120)
+    assert len(e.prompts) >= 3                                                 # ≥2 porcje + opis
+    c = d["co_masz_zrobic"]
+    assert d["typ"] == "przepis" and d["tytul"] == "Frytki"
+    assert [k["t"] for k in c["kroki"]] == sorted(k["t"] for k in c["kroki"]) and len(c["kroki"]) == len(e.prompts) - 1
+    assert c["skladniki"] == [{"nazwa": "ziemniaki", "ilosc": "brak danych", "zrodlo": "mowa"}]   # bez dubli z porcji
+    assert c["wskazowki"] == ["nie przypal"]

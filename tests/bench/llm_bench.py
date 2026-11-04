@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from vidsum.llm import Ollama  # noqa: E402
-from vidsum.summary import parse_summary  # noqa: E402
+from vidsum.summary import parse_summary, staged_summary  # noqa: E402
 from vidsum.translate import translate_lines  # noqa: E402
 
 DATA = Path(__file__).parent / "data"
@@ -70,11 +70,44 @@ def score_summary(d: dict | None, raw: str) -> dict:
             "wynik": len(hit) - 2 * len(bad)}
 
 
+class Recorder:
+    def __init__(self, eng):
+        self.eng, self.last = eng, ""
+
+    def complete(self, prompt, as_json=False, max_tokens=None):
+        self.last = self.eng.complete(prompt, as_json=as_json, max_tokens=max_tokens)
+        return self.last
+
+
+def compact_from_prompt(prompt: str) -> str:
+    """Oś czasu z zapisanego promptu (stary format) → zwięzły format etapowy (jak compact_timeline)."""
+    tl = prompt.split("OŚ CZASU:", 1)[1]
+    out = []
+    for m in re.finditer(r"\[(\d+):(\d+)–[^\]]*\] OBRAZ: (.*?)\n(?:    NAPISY: (.*?)\n)?    MOWA: (.*?)(?:\n|$)", tl):
+        t = int(m.group(1)) * 60 + int(m.group(2))
+        obraz, napisy, mowa = m.group(3), m.group(4), m.group(5)
+        fields = dict(f.split(": ", 1) for f in obraz.split("; ")[1:] if ": " in f)
+        scene = obraz.split("; ")[0]
+        caps = napisy or fields.get("napisy w filmie")
+        parts = []
+        if mowa and mowa != "—":
+            parts.append(f"MOWA: {mowa}")
+        if caps:
+            parts.append(f"NAPISY: {caps}")
+        seen = scene + (f" ({fields['czynności']})" if fields.get("czynności") else "")
+        if not scene.startswith("{"):
+            parts.append(f"OBRAZ: {seen}")
+        out.append(f"[{t}s] " + " | ".join(parts))
+    return "\n".join(out)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("model")
     ap.add_argument("--wyniki", default="bench_llm")
     ap.add_argument("--host")
+    ap.add_argument("--tryb", choices=["jeden", "etapy", "oba"], default="oba",
+                    help="jeden = jeden duży prompt; etapy = fakty, potem opis (vidsum.summary.staged_summary)")
     a = ap.parse_args()
     out = Path(a.wyniki)
     out.mkdir(parents=True, exist_ok=True)
@@ -90,27 +123,39 @@ def main() -> None:
     res["ladowanie_s"] = round(time.time() - t, 1)
 
     prompt = (DATA / "frytki_prompt.txt").read_text(encoding="utf-8")
-    t = time.time()
-    raw = eng.complete(prompt, as_json=True)
-    res["streszczenie_s"] = round(time.time() - t, 1)
-    (out / f"{safe}_streszczenie_surowe.txt").write_text(raw, encoding="utf-8")
-    d = parse_summary(raw, 58.0)
-    if d:
-        (out / f"{safe}_streszczenie.json").write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
-    res["streszczenie"] = score_summary(d, raw)
-    print("streszczenie:", res["streszczenie"], f"{res['streszczenie_s']} s", flush=True)
+    modes = ["jeden", "etapy"] if a.tryb == "oba" else [a.tryb]
+    for mode in modes:
+        t = time.time()
+        if mode == "jeden":
+            raw = eng.complete(prompt, as_json=True)
+            d = parse_summary(raw, 58.0)
+        else:
+            meta = re.search(r"^Metadane: (.*)$", prompt, re.M).group(1)
+            raw = ""
+            d = staged_summary(eng, compact_from_prompt(prompt), meta, 58.0, print)
+        key = "streszczenie" if mode == "jeden" else "streszczenie_etapy"
+        res[key + "_s"] = round(time.time() - t, 1)
+        if raw:
+            (out / f"{safe}_{mode}_surowe.txt").write_text(raw, encoding="utf-8")
+        if d:
+            (out / f"{safe}_{mode}.json").write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+        res[key] = score_summary(d, raw)
+        print(f"{key}:", res[key], f"{res[key + '_s']} s", flush=True)
 
     res["tlumaczenia"] = []
     for task in json.loads((DATA / "tlumaczenia.json").read_text(encoding="utf-8")):
         t = time.time()
+        rec = Recorder(eng)
         try:
-            hyp = translate_lines(eng, task["lines"], task["src"], task["tgt"])
+            hyp = translate_lines(rec, task["lines"], task["src"], task["tgt"])
         except Exception as e:  # noqa: BLE001
             hyp, err = None, str(e)[:200]
         else:
             err = None
         dt = round(time.time() - t, 1)
         row = {"zadanie": task["nazwa"], "s": dt, "linie_ok": hyp is not None, "blad": err}
+        if not hyp:
+            row["surowe"] = rec.last[:1500]          # do diagnozy: co model zwrócił
         if hyp:
             row["chrf"] = round(sum(chrf(h, r) for h, r in zip(hyp, task["ref"])) / len(hyp), 1)
             joined = " ".join(hyp).lower()

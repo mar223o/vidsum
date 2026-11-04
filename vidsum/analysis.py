@@ -85,7 +85,7 @@ def beats_as_text(beats: list[dict]) -> str:
 SUMMARY_PROMPT = """Jesteś asystentem, który ogląda film za użytkownika i mówi mu konkretnie, co z niego wynika.
 Dostajesz oś czasu filmu z dwóch niezależnych źródeł:
 - OBRAZ — automatyczne opisy kadrów z małego lokalnego modelu (bywają nieprecyzyjne: myli narzędzia i nazwy),
-- MOWA — automatyczna transkrypcja albo napisy (mogą być literówki; może być po angielsku),
+- MOWA — automatyczna transkrypcja albo napisy (mogą być literówki; może być w dowolnym języku — streszczenie i tak pisz po polsku),
 - NAPISY — tekst odczytany z ekranu przez OCR (zwykle dokładny w nazwach, liczbach i ilościach; oznaczaj jako [obraz]).
 
 Najpierw sam rozpoznaj TYP filmu: przepis | trening | poradnik | wykład/rozmowa | inne.

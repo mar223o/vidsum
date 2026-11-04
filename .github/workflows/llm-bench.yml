@@ -20,7 +20,6 @@ jobs:
           - qwen3:4b
           - qwen3-vl:4b-instruct
           - gemma3:4b
-          - llama3.1:8b
           - granite3.3:8b
           - SpeakLeash/bielik-4.5b-v3.0-instruct:Q8_0
           - SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M
@@ -59,14 +58,15 @@ jobs:
           for f in sorted(glob.glob("wyniki/*.json")):
               d = json.load(open(f, encoding="utf-8"))
               if "model" not in d: continue
-              s = d["streszczenie"]
-              rows.append((s["wynik"], d))
-          print("| model | wynik | fakty | zmyślenia | JSON | kroki | czas streszcz. | chrF tłum. |")
-          print("|---|---|---|---|---|---|---|---|")
+              rows.append((max(d.get(k, {}).get("wynik", -99) for k in ("streszczenie", "streszczenie_etapy")), d))
+          print("| model | tryb | wynik | fakty | zmyślenia | JSON | kroki | czas | chrF tłum. |")
+          print("|---|---|---|---|---|---|---|---|---|")
           for w, d in sorted(rows, key=lambda x: -x[0]):
-              s = d["streszczenie"]
-              print(f"| {d['model']} | {w} | {s['fakty']}/{s.get('fakty_z', 14)} | {', '.join(s['zmyslenia']) or '—'} | "
-                    f"{'tak' if s['json_ok'] else 'NIE'} | {s.get('kroki', 0)} | {d['streszczenie_s']} s | {d['tlumaczenia_chrf_srednio']} |")
+              for key, lab in (("streszczenie", "jeden"), ("streszczenie_etapy", "etapy")):
+                  s = d.get(key)
+                  if not s: continue
+                  print(f"| {d['model']} | {lab} | {s['wynik']} | {s['fakty']}/{s.get('fakty_z', 14)} | {', '.join(s['zmyslenia']) or '—'} | "
+                        f"{'tak' if s['json_ok'] else 'NIE'} | {s.get('kroki', 0)} | {d.get(key + '_s')} s | {d['tlumaczenia_chrf_srednio']} |")
           PY
           cat "$GITHUB_STEP_SUMMARY"
       - name: Zapis na gałąź wyniki-pomiarow

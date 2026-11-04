@@ -17,7 +17,7 @@ SUMMARY_JSON_PROMPT = """Jesteś asystentem, który ogląda film za użytkownika
 Dostajesz oś czasu filmu z niezależnych źródeł:
 - OBRAZ — automatyczne opisy kadrów z małego lokalnego modelu (bywają nieprecyzyjne: myli narzędzia i nazwy),
 - NAPISY — tekst odczytany z ekranu (OCR; zwykle dokładny w nazwach, liczbach i ilościach),
-- MOWA — automatyczna transkrypcja (mogą być literówki; może być po angielsku).
+- MOWA — automatyczna transkrypcja w języku oryginału (mogą być literówki; może być w dowolnym języku — odpowiadasz i tak po polsku).
 
 Odpowiedz WYŁĄCZNIE poprawnym JSON-em (bez komentarzy i bez ```), po polsku, według schematu:
 {{
@@ -221,3 +221,139 @@ def build_chat_prompt(analysis: dict, question: str, history: list[dict]) -> str
     hist = "\n".join(f"{'Użytkownik' if h['rola'] == 'user' else 'Asystent'}: {h['tekst']}" for h in history[-8:]) or "—"
     return CHAT_PROMPT.format(summary=summary, timeline=beats_as_text(analysis.get("os_czasu", [])),
                               history=hist, question=question.strip()[:2000])
+
+
+# ---------------- streszczenie etapami (lokalne modele 4–8B) ----------------
+# Pomiar (docs/modele.md): małe modele z JEDNYM wielkim promptem gubią większość faktów (4–5 z 14).
+# Dlatego lokalnie: (1) wyciągnięcie faktów fragment po fragmencie, (2) opis całości na podstawie faktów.
+
+def compact_timeline(beats: list[dict]) -> str:
+    """Zwięzła oś czasu: MOWA i NAPISY w całości, z obrazu tylko scena + czynności (bez listy obiektów)."""
+    lines = []
+    for b in beats:
+        w = b["widac"]
+        parts = []
+        heard = (b.get("slychac") or {}).get("tekst")
+        if heard:
+            parts.append(f"MOWA: {heard}")
+        if b.get("napisy"):
+            parts.append(f"NAPISY: {b['napisy']}")
+        if w.get("zrodlo") == "obraz":
+            seen = w.get("scena", "")
+            if w.get("czynnosci"):
+                seen += " (" + ", ".join(w["czynnosci"]) + ")"
+            if seen:
+                parts.append(f"OBRAZ: {seen}")
+        if parts:
+            lines.append(f"[{_sec(b['start'])}s] " + " | ".join(parts))
+    return "\n".join(lines)
+
+
+def _sec(t: float) -> str:
+    return f"{float(t):.0f}"
+
+
+EXTRACT_PROMPT = """Czytasz zapis fragmentu filmu (czas w sekundach w nawiasach). Źródła:
+MOWA = co mówi autor (najważniejsze), NAPISY = tekst z ekranu (dokładne liczby i nazwy), OBRAZ = opis kadru (mało pewny).
+{meta}
+Wypisz po polsku WSZYSTKO, co widz ma zrobić albo zapamiętać. Przejdź linia po linii — każda linia z MOWA zwykle
+zawiera czynność albo poradę. Zachowaj KAŻDĄ liczbę z jednostką (temperatury, czasy, ilości, rozmiary, serie, powtórzenia).
+Nie dodawaj niczego, czego nie ma w zapisie. Ewidentne błędy rozpoznawania mowy popraw tylko, jeśli NAPISY albo kontekst
+jasno wskazują poprawne słowo; w razie wątpliwości pomiń. Źródło: "mowa", "obraz" albo "mowa+obraz" (NAPISY to "obraz").
+
+Odpowiedz WYŁĄCZNIE JSON-em:
+{{"typ": "przepis|trening|poradnik|wyklad|inne",
+ "kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "..."}}],
+ "skladniki": [{{"nazwa": "...", "ilosc": "ilość albo brak danych", "zrodlo": "..."}}],
+ "cwiczenia": [{{"nazwa": "...", "serie": "...", "powtorzenia": "...", "t": sekundy, "technika": "...", "zrodlo": "..."}}],
+ "sprzet": ["..."], "wskazowki": ["porada / wyjaśnienie dlaczego"], "bledy": ["czego unikać"],
+ "fakty": ["inne ważne informacje z filmu (dla wykładów, rozmów, recenzji)"]}}
+Puste listy dla tego, czego w filmie nie ma.
+
+ZAPIS:
+{timeline}
+"""
+
+PRESENT_PROMPT = """Jesteś asystentem, który obejrzał film za użytkownika. Masz zapis filmu i listę faktów już z niego
+wyciągniętych. Napisz po polsku opis całości. Niczego nie zmyślaj; to, co nie wynika z zapisu, oznacz jako szacunek.
+{meta}
+
+FAKTY Z FILMU (JSON):
+{facts}
+
+ZAPIS (czas w sekundach):
+{timeline}
+
+Odpowiedz WYŁĄCZNIE JSON-em:
+{{"tytul": "krótki tytuł (3–6 słów)", "tytul_akcent": "puenta (2–4 słowa)",
+ "teza": "jedno zdanie: o co chodzi i co z tego wynika",
+ "streszczenie": ["akapit 1 (konkretnie, z liczbami)", "akapit 2"],
+ "najwazniejsze": [{{"t": sekundy, "tytul": "...", "opis": "1–2 zdania", "zrodlo": "mowa|obraz|mowa+obraz"}}],
+ "momenty": [{{"t": sekundy, "tekst": "co się dzieje"}}],
+ "cytaty": [{{"t": sekundy, "tekst": "dosłownie z MOWA, w oryginale", "tlumaczenie": "po polsku, jeśli oryginał nie jest po polsku"}}],
+ "rozdzialy": [{{"start": sekundy, "end": sekundy, "tytul": "...", "opis": "1–2 zdania"}}],
+ "wnioski": ["dla wykładu/rozmowy: najważniejsze wnioski"],
+ "szczera_ocena": "2–3 zdania: co wartościowe, czego brakuje",
+ "czego_nie_wiadomo": ["czego film nie mówi, a widz chciałby wiedzieć"],
+ "pytania": ["3–5 pytań, które widz mógłby zadać"]}}
+Liczby: 3–5 „najwazniejsze”, 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie mówi), 2–5 „rozdzialy”.
+"""
+
+
+def _chunks(text: str, limit: int) -> list[str]:
+    out, cur, n = [], [], 0
+    for line in text.splitlines():
+        if cur and n + len(line) > limit:
+            out.append("\n".join(cur))
+            cur, n = [], 0
+        cur.append(line)
+        n += len(line) + 1
+    if cur:
+        out.append("\n".join(cur))
+    return out
+
+
+def _loads(raw: str) -> dict:
+    raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip())
+    try:
+        d = json.loads(raw)
+    except json.JSONDecodeError:
+        i, j = raw.find("{"), raw.rfind("}")
+        try:
+            d = json.loads(raw[i:j + 1]) if 0 <= i < j else {}
+        except json.JSONDecodeError:
+            d = {}
+    return d if isinstance(d, dict) else {}
+
+
+def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda s: None,
+                   chunk_chars: int = 6000) -> dict | None:
+    """Streszczenie w dwóch etapach. `engine.complete(prompt, as_json=True)` — Ollama albo Claude."""
+    meta_line = f"Metadane: {meta}" if meta else ""
+    ext: dict = {"kroki": [], "skladniki": [], "cwiczenia": [], "sprzet": [], "wskazowki": [], "bledy": [], "fakty": []}
+    types: list[str] = []
+    parts = _chunks(timeline, chunk_chars)
+    for i, part in enumerate(parts, 1):
+        if len(parts) > 1:
+            log(f"        fakty: fragment {i}/{len(parts)}")
+        d = _loads(engine.complete(EXTRACT_PROMPT.format(meta=meta_line, timeline=part), as_json=True))
+        if _str(d.get("typ")).lower() in TYPES:
+            types.append(_str(d.get("typ")).lower())
+        for k in ext:
+            for x in _lst(d.get(k)):
+                if x and x not in ext[k]:
+                    ext[k].append(x)
+    typ = max(set(types), key=types.count) if types else "inne"
+    facts_json = json.dumps({"typ": typ, **ext}, ensure_ascii=False)
+    # do drugiego etapu: zapis skrócony do rozsądnej długości (fakty są już kompletne)
+    short = timeline if len(timeline) <= 9000 else "\n".join(_chunks(timeline, 9000)[0].splitlines()) + "\n[…]"
+    p = _loads(engine.complete(PRESENT_PROMPT.format(meta=meta_line, facts=facts_json, timeline=short), as_json=True))
+    def texts(xs) -> list[str]:
+        return [x if isinstance(x, str) else _str((x or {}).get("tekst") or (x or {}).get("nazwa")) for x in xs]
+
+    merged = {**p, "typ": typ, "co_masz_zrobic": {
+        "skladniki": ext["skladniki"], "kroki": ext["kroki"], "sprzet": ext["sprzet"], "czas": _str(p.get("czas")),
+        "cwiczenia": ext["cwiczenia"], "wskazowki": texts(ext["wskazowki"]), "bledy": texts(ext["bledy"]),
+        "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7]}}
+    merged["co_masz_zrobic"]["sprzet"] = texts(ext["sprzet"])
+    return parse_summary(json.dumps(merged, ensure_ascii=False), duration)

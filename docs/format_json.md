@@ -18,14 +18,15 @@ Wszystkie czasy są w sekundach (liczby), od początku filmu.
 | `narzedzie` | `{nazwa, wersja}` | |
 | `utworzono` | string ISO 8601 | z lokalną strefą czasową |
 | `zrodlo` | obiekt | `rodzaj` (`plik`/`link`), `wejscie`, `url`, `tytul`, `autor`, `plik`, `sha256`, `dlugosc_s`, `szerokosc`, `wysokosc`, `audio`, `film` (nazwa pliku w folderze wyników albo pełna ścieżka; od 0.5) |
-| `ustawienia` | obiekt | użyte silniki: `whisper`, `jezyk`, `obraz`, `streszczenie`, `limit_kadrow`, `pokrycie_co_s`, `uwagi_techniczne` (lista, od 0.2.2) |
-| `transkrypcja` | `{jezyk, segmenty: [{start, end, text}]}` | |
+| `ustawienia` | obiekt | użyte silniki: `whisper`, `jezyk`, `obraz`, `streszczenie`, `limit_kadrow`, `pokrycie_co_s`, `uwagi_techniczne` (lista, od 0.2.2), `tlumaczenia` (lista kodów, od 0.7) |
+| `transkrypcja` | `{jezyk, jezyk_nazwa, segmenty: [{start, end, text}], tlumaczenia}` | `segmenty` — ZAWSZE oryginał, w języku mowy (kod Whispera, 100 języków); `jezyk_nazwa` po polsku (od 0.7) |
+| `transkrypcja.tlumaczenia` | `{kod: {silnik, segmenty: [{start, end, text}], nieprzetlumaczone}}` | od 0.7. Te same segmenty i czasy co oryginał; `text: null` = linii nie udało się przetłumaczyć (nigdy zgadywany tekst). Domyślnie: oryginał angielski → `pl`; polski → `en`; inny → `pl` i `en` |
 | `kadry` | lista | `{t, file, reasons, score, vision}` — `reasons` ⊂ `zmiana_sceny`, `aktywnosc`, `pokrycie`; `vision` = obiekt poniżej albo `null` |
 | `os_czasu` | lista beatów | patrz niżej |
 | `streszczenie` | `{silnik, markdown, dane}` albo `null` | `dane` = streszczenie strukturalne `vidsum.summary/1` (niżej, od 0.5) albo `null` |
 | `napisy_ekranowe` | lista `{start, end, text, score}` | napisy odczytane z ekranu przez OCR (od 0.4) |
 | `luki` | lista stringów | ograniczenia analizy (np. odstęp między kadrami, brak audio) |
-| `czasy` | obiekt | czasy etapów w sekundach |
+| `czasy` | obiekt | czasy etapów w sekundach (`tlumaczenie_s` od 0.7) |
 
 ## `vision` (opis jednego kadru)
 `scena` (string), `czynnosci` (lista), `obiekty` (lista), `tekst_na_ekranie` (lista — tylko napisy dodane do filmu), `napisy_na_przedmiotach` (lista — etykiety, opakowania, sprzęt; od 0.2.2), `cialo` (string), `pewnosc` (`wysoka`/`srednia`/`niska`).

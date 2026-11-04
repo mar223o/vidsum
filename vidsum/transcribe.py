@@ -33,25 +33,44 @@ class WhisperEngine:
         self.hotwords = hotwords            # słowa-podpowiedzi: tytuł, napisy z ekranu (nazwy, marki)
         self.coverage_hints: list[tuple[float, float]] = []   # gdzie na ekranie były napisy (OCR)
         self.recovered = 0                  # ile zdań odzyskano drugim przebiegiem
+        self.cuda_download = False          # pobierz biblioteki CUDA, jeśli jest karta NVIDIA, a ich brak
+        self._resolved: tuple[str, str | None] | None = None
 
-    def resolve_device(self) -> tuple[str, str | None]:
+    def resolve_device(self, log=None) -> tuple[str, str | None]:
         """Zwraca (urządzenie, uwaga). GPU tylko wtedy, gdy biblioteki CUDA da się NAPRAWDĘ załadować.
 
         Na Windows brak cuBLAS/cuDNN potrafi nie rzucić wyjątku, tylko zawiesić albo zamknąć
-        proces w kodzie natywnym — dlatego sprawdzamy biblioteki przed użyciem GPU.
+        proces w kodzie natywnym — dlatego sprawdzamy biblioteki przed użyciem GPU. Gdy jest karta
+        NVIDIA, a bibliotek brak, pobieramy je jednorazowo (cuda_download=True; zob. vidsum/cuda.py).
         """
-        if self.device != "auto":
-            return self.device, None
-        try:
-            import ctranslate2
-            if ctranslate2.get_cuda_device_count() <= 0:
-                return "cpu", None
-        except Exception:
+        if self._resolved:
+            return self._resolved
+        self._resolved = self._resolve(log or (lambda s: None))
+        return self._resolved
+
+    def _resolve(self, log) -> tuple[str, str | None]:
+        if self.device == "cpu":
+            return "cpu", None
+        from . import cuda
+        cuda.activate()
+        if self.device == "cuda":
+            return "cuda", None
+        if cuda.gpu_count() <= 0:
             return "cpu", None
         missing = _missing_cuda_libs()
+        fail = None
+        if missing and self.cuda_download:
+            try:
+                cuda.ensure(log)
+                cuda.activate()
+                missing = _missing_cuda_libs()
+            except Exception as e:      # brak sieci / miejsca — analiza idzie dalej na CPU
+                fail = f"{type(e).__name__}: {str(e)[:120]}"
+                log(f"        ! biblioteki CUDA: {fail}")
         if missing:
-            return "cpu", (f"Whisper na CPU — brak bibliotek CUDA ({', '.join(missing)}). "
-                           "Model obrazu w Ollamie nadal używa GPU.")
+            why = f"nie udało się pobrać bibliotek CUDA ({fail})" if fail else f"brak bibliotek CUDA ({', '.join(missing)})"
+            return "cpu", (f"Whisper na CPU — {why}. Model obrazu w Ollamie nadal używa GPU. "
+                           "Biblioteki można pobrać poleceniem: VidSum --pobierz-cuda")
         return "cuda", None
 
     def transcribe(self, wav: Path, language: str | None = None) -> Transcript:
@@ -155,7 +174,7 @@ def _missing_cuda_libs() -> list[str]:
     import ctypes
     import os
     if os.name == "nt":
-        groups = [["cublas64_12.dll"], ["cudnn_ops64_9.dll", "cudnn64_9.dll"]]
+        groups = [["cublas64_12.dll"], ["cublasLt64_12.dll"], ["cudnn_ops64_9.dll", "cudnn64_9.dll"]]
         loader = ctypes.WinDLL  # type: ignore[attr-defined]
     else:
         groups = [["libcublas.so.12"], ["libcudnn_ops.so.9", "libcudnn.so.9"]]

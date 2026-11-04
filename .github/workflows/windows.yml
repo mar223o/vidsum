@@ -156,6 +156,21 @@ jobs:
             if (($out | Where-Object { $_ -notmatch '^\{' }).Count -gt 0) { throw "MCP: śmieci na stdout ($f)" }
           }
 
+      # ---------------- faza 7: biblioteki CUDA dla Whispera na GPU ----------------
+      - name: Pamięć podręczna bibliotek CUDA
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\VidSum\cuda
+          key: cuda-cublas12.8.4.1-cudnn9.10.2.21
+      - name: "Pobranie i załadowanie bibliotek CUDA (VidSum.exe --pobierz-cuda; runner nie ma karty NVIDIA)"
+        run: |
+          & "$PWD\dist\VidSum\VidSum.exe" --pobierz-cuda
+          if ($LASTEXITCODE -ne 0) { throw "biblioteki CUDA nie dają się załadować" }
+          Get-ChildItem "$env:LOCALAPPDATA\VidSum\cuda" | ForEach-Object { Write-Host ("  {0,-45} {1,8:N0} MB" -f $_.Name, ($_.Length / 1MB)) }
+          # ten sam test w wariancie z Pythonem (biblioteki już pobrane — tylko ładowanie)
+          & "$PWD\portable\VidSum\VidSum.cmd" --pobierz-cuda
+          if ($LASTEXITCODE -ne 0) { throw "B: biblioteki CUDA nie dają się załadować" }
+
       - name: ZIP + sha256 (oba warianty)
         run: |
           $ver = (& "dist\VidSum\VidSum.exe" --version).Split(" ")[1]

@@ -14,9 +14,10 @@ from typing import Callable
 
 from . import __version__
 from .analysis import FrameInfo, build_beats, build_summary_prompt, ts
-from .summary import build_json_prompt, parse_summary, to_markdown
+from .summary import build_json_prompt, compact_timeline, parse_summary, staged_summary, to_markdown
 from .fetch import resolve
-from .llm import ClaudeCode, LLMError, Ollama
+from .languages import DEFAULT_TRANSLATIONS, base as lang_base, name_pl, normalize, translation_targets
+from .llm import DEFAULT_TEXT_MODEL, ClaudeCode, LLMError, Ollama
 from .media import (choose_frames, extract_audio, extract_frame, frame_signature, hamming, plan_for, probe,
                     scene_scores)
 from .transcribe import SidecarEngine, Transcript, WhisperEngine
@@ -27,15 +28,18 @@ SCHEMA = "vidsum.analysis/1"
 @dataclass
 class Options:
     out_root: Path = Path("vidsum_wyniki")
-    language: str | None = None                # None = wykryj; "pl" / "en"
+    language: str | None = None                # None = wykryj; kod Whispera (99 języków), np. "pl", "en", "de"
     whisper_model: str = "large-v3-turbo"     # pomiar: PL 5,5% WER (small: 12,3%)
     whisper_device: str = "auto"
     whisper_root: str | None = None
     transcript_file: Path | None = None        # gotowe napisy zamiast Whispera
     vision: str = "ollama"                     # "ollama" | "brak"
     vision_model: str = "qwen3-vl:4b-instruct"
-    summary: str = "auto"                      # "auto" | "ollama" | "claude" | "brak"
-    summary_model: str | None = None           # domyślnie ten sam co vision_model
+    summary: str = "auto"                      # "auto" = lokalny model (jak "ollama") | "claude" (dodatek) | "brak"
+    text_model: str = DEFAULT_TEXT_MODEL       # lokalny model tekstowy: streszczenie, czat, tłumaczenia
+    summary_model: str | None = None           # (zgodność wstecz) nadpisuje text_model
+    translate: list = field(default_factory=lambda: list(DEFAULT_TRANSLATIONS))   # tłumaczenia (bez oryginału)
+    cuda_download: bool = True                 # karta NVIDIA bez bibliotek CUDA → pobierz je (jednorazowo)
     ollama_host: str | None = None
     max_frames: int | None = None
     cookies_from_browser: str | None = None
@@ -65,6 +69,7 @@ def _sha256(p: Path) -> str:
 
 def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     t0 = time.time()
+    opt.language = normalize(opt.language)          # nieznany kod → czytelny błąd od razu
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp = opt.out_root / "_pobrane"
     src = resolve(inp, tmp, opt.cookies_from_browser)
@@ -110,7 +115,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         tr.engine = f"napisy serwisu ({src.subtitles_kind})"
         sfx = src.subtitles.suffixes            # np. pobrane_ID.en-orig.vtt → "en"
         if not tr.language and len(sfx) > 1:
-            tr.language = sfx[-2].strip(".").split("-")[0]
+            tr.language = lang_base(sfx[-2].strip("."))
         tr_box["tr"] = tr
         log(f"  [1/4] mowa z napisów serwisu ({src.subtitles_kind}) — bez Whispera")
     else:
@@ -123,7 +128,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             hot = hotwords(ocr_lines, src.title)
         engine = WhisperEngine(opt.whisper_model, opt.whisper_device, download_root=opt.whisper_root, hotwords=hot)
         engine.coverage_hints = [(l.start, l.end) for l in ocr_lines]
-        device, _ = engine.resolve_device()
+        engine.cuda_download = opt.cuda_download
+        device, _ = engine.resolve_device(log)
         log(f"  [1/4] transkrypcja (Whisper {opt.whisper_model}, {device}; za pierwszym razem pobieranie modelu)…")
 
         def run_whisper() -> None:
@@ -215,47 +221,76 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
 
     beats = build_beats(frames, tr.segments, info.duration, ocr_lines)
     meta = {"tytuł": src.title, "autor": src.uploader, "długość": ts(info.duration),
-            "język mowy": tr.language}
+            "język mowy": f"{name_pl(tr.language)} ({tr.language})" if tr.language else None}
     prompt = build_summary_prompt(beats, meta, gaps)             # wersja do wklejenia na claude.ai
     (out / "prompt_dla_claude.md").write_text(prompt, encoding="utf-8")
     json_prompt = build_json_prompt(beats, meta, gaps)           # wersja dla programu (dane do widoku)
 
-    # 4) STRESZCZENIE
+    # 4) STRESZCZENIE + TŁUMACZENIA — samodzielnie, lokalnym modelem tekstowym (Claude tylko jako dodatek)
     t = time.time()
     summary_md, summary_engine, summary_data = None, None, None
-    summary_mode = opt.summary
-    if summary_mode == "auto":
-        # Claude (subskrypcja Pro) daje dużo lepsze streszczenia niż mały model lokalny;
-        # bierzemy go, jeśli jest zainstalowany i nie grozi płatnym API.
-        try:
-            ClaudeCode(allow_api_key=opt.allow_api_key).check()
-            summary_mode = "claude"
-        except LLMError:
-            summary_mode = "ollama"
-    if summary_mode != "brak":
-        log(f"  [4/4] streszczenie ({summary_mode})…")
+    summary_mode = "ollama" if opt.summary == "auto" else opt.summary
+    targets = translation_targets(tr.language, opt.translate) if tr.segments else []
+    translations: dict = {}
+    text_engine, text_name = None, None
+    if summary_mode != "brak" or targets:
         if vision_engine:
-            # zwolnij model obrazu: streszczenie ładuje model z innym kontekstem,
-            # a dwie kopie naraz nie mieszczą się w 8 GB
+            # zwolnij model obrazu: model tekstowy ma inny kontekst, a dwa naraz nie mieszczą się w 8 GB
             vision_engine.unload()
         try:
             if summary_mode == "claude":
-                eng = ClaudeCode(allow_api_key=opt.allow_api_key)
-                summary_engine = "claude-code"
+                text_engine, text_name = ClaudeCode(allow_api_key=opt.allow_api_key), "claude-code"
             else:
-                eng = Ollama(opt.summary_model or opt.vision_model, opt.ollama_host)
-                summary_engine = f"ollama:{eng.model}"
-            raw = eng.complete(json_prompt, as_json=True)
-            summary_data = parse_summary(raw, info.duration)
-            summary_md = to_markdown(summary_data) if summary_data else raw
+                text_engine = Ollama(opt.summary_model or opt.text_model, opt.ollama_host)
+                text_name = f"ollama:{text_engine.model}"
+                text_engine.ensure(log)                # pierwszy raz: pobranie modelu (jednorazowo)
+        except LLMError as e:
+            gaps.append(f"Model tekstowy niedostępny ({e}) — bez streszczenia i tłumaczeń.")
+            log(f"        ! {e}")
+            text_engine = None
+    if text_engine and summary_mode != "brak":
+        log(f"  [4/4] streszczenie ({text_name})…")
+        try:
+            if summary_mode == "claude":          # duży model: jeden prompt z pełną osią czasu
+                raw = text_engine.complete(json_prompt, as_json=True)
+                summary_data = parse_summary(raw, info.duration)
+            else:                                  # lokalny 4–8B: etapami (pomiar: dużo więcej faktów, docs/modele.md)
+                raw = ""
+                meta_txt = "; ".join(f"{k}: {v}" for k, v in meta.items() if v not in (None, ""))
+                summary_data = staged_summary(text_engine, compact_timeline(beats), meta_txt, info.duration, log)
+            summary_md = to_markdown(summary_data) if summary_data else (raw or None)
+            summary_engine = text_name
             if not summary_data:
-                log("        ! model nie zwrócił poprawnych danych — zapisuję tekst")
+                log("        ! model nie zwrócił poprawnych danych")
+                gaps.append("Model tekstowy nie zwrócił poprawnego streszczenia — zostaje oś czasu i transkrypcja.")
         except LLMError as e:
             gaps.append(f"Streszczenie nie powstało: {e}")
             log(f"        ! {e}")
+    timings["streszczenie_s"] = round(time.time() - t, 1)
+
+    t = time.time()
+    if text_engine and targets:
+        from .translate import translate_segments
+        seg_dicts = [asdict(s) for s in tr.segments]
+        for lang in targets:
+            log(f"        tłumaczenie transkrypcji: {tr.language} → {lang} ({len(seg_dicts)} segmentów)…")
+            try:
+                segs, failed = translate_segments(text_engine, seg_dicts, tr.language, lang, log)
+            except LLMError as e:
+                gaps.append(f"Tłumaczenie na {name_pl(lang)} nie powstało: {e}")
+                continue
+            translations[lang] = {"silnik": text_name, "segmenty": segs, "nieprzetlumaczone": failed}
+            if failed:
+                gaps.append(f"Tłumaczenie na {name_pl(lang)}: {failed} z {len(segs)} linii bez tłumaczenia "
+                            "(model nie zwrócił poprawnej odpowiedzi) — w tych miejscach tylko oryginał.")
+    elif targets and not text_engine:
+        pass                                          # luka już opisana wyżej
+    if targets:
+        timings["tlumaczenie_s"] = round(time.time() - t, 1)
+    if text_engine and isinstance(text_engine, Ollama):
+        text_engine.unload()
     if vision_engine:
         vision_engine.unload()
-    timings["streszczenie_s"] = round(time.time() - t, 1)
     timings["razem_s"] = round(time.time() - t0, 1)
     if speech_thread:
         timings["mowa_rownolegle"] = True
@@ -282,11 +317,13 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                    "sha256": src_sha, "dlugosc_s": round(info.duration, 2),
                    "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio,
                    "film": film_ref},
-        "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto",
+        "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets,
                        "obraz": f"ollama:{opt.vision_model}" if vision_engine else "brak",
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,
                        "pokrycie_co_s": plan.base_interval, "uwagi_techniczne": tech_notes},
-        "transkrypcja": {"jezyk": tr.language, "segmenty": [asdict(s) for s in tr.segments]},
+        # oryginał ZAWSZE w języku mowy; tłumaczenia obok, z tymi samymi czasami segmentów
+        "transkrypcja": {"jezyk": tr.language, "jezyk_nazwa": name_pl(tr.language) if tr.language else None,
+                         "segmenty": [asdict(s) for s in tr.segments], "tlumaczenia": translations},
         "napisy_ekranowe": [asdict(l) for l in ocr_lines],
         "kadry": [asdict(f) for f in frames],
         "os_czasu": beats,
@@ -295,14 +332,16 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         "czasy": timings,
     }
     (out / "analiza.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out / "transkrypcja.srt").write_text(_srt(tr), encoding="utf-8")
+    (out / "transkrypcja.srt").write_text(_srt(tr.segments), encoding="utf-8")
+    for lang, tdata in translations.items():           # napisy w innych językach (pusta linia = brak tłumaczenia)
+        (out / f"transkrypcja.{lang}.srt").write_text(_srt(tdata["segmenty"]), encoding="utf-8")
     (out / "raport.md").write_text(_report_md(result), encoding="utf-8")
     log(f"  ✔ gotowe w {_dur(timings['razem_s'])} — {_timing_line(timings)}")
     return out
 
 
 _STAGES = [("pobieranie_s", "pobieranie"), ("ocr_s", "napisy (OCR)"), ("transkrypcja_s", "mowa"), ("kadry_s", "kadry"),
-           ("obraz_s", "opis obrazu"), ("streszczenie_s", "streszczenie")]
+           ("obraz_s", "opis obrazu"), ("streszczenie_s", "streszczenie"), ("tlumaczenie_s", "tłumaczenie")]
 
 
 def _dur(sec: float) -> str:
@@ -316,11 +355,12 @@ def _timing_line(c: dict) -> str:
     return " · ".join(parts) + note
 
 
-def _srt(tr: Transcript) -> str:
+def _srt(segments: list) -> str:
     def f(t: float) -> str:
         ms = int(round(t * 1000))
         return f"{ms // 3600000:02d}:{ms % 3600000 // 60000:02d}:{ms % 60000 // 1000:02d},{ms % 1000:03d}"
-    return "\n".join(f"{i}\n{f(s.start)} --> {f(s.end)}\n{s.text}\n" for i, s in enumerate(tr.segments, 1))
+    rows = [s if isinstance(s, dict) else asdict(s) for s in segments]
+    return "\n".join(f"{i}\n{f(s['start'])} --> {f(s['end'])}\n{s['text'] or ''}\n" for i, s in enumerate(rows, 1))
 
 
 def _report_md(r: dict) -> str:
@@ -354,6 +394,10 @@ def _report_md(r: dict) -> str:
             L.append(f"**Napisy na ekranie** _(OCR)_: {b['napisy']}  ")
         L.append(f"**Mowa** _(z mowy)_: {b['slychac']['tekst'] or 'brak danych'}")
         L.append("")
-    L += ["## Pełna transkrypcja", ""]
-    L += [f"`{ts(s['start'])}` {s['text']}" + "  " for s in r["transkrypcja"]["segmenty"]] or ["brak danych"]
+    tr = r["transkrypcja"]
+    L += [f"## Pełna transkrypcja (oryginał: {tr.get('jezyk_nazwa') or 'język nieznany'})", ""]
+    L += [f"`{ts(s['start'])}` {s['text']}" + "  " for s in tr["segmenty"]] or ["brak danych"]
+    for lang, t in (tr.get("tlumaczenia") or {}).items():
+        L += ["", f"## Tłumaczenie: {name_pl(lang)} _(maszynowe, {t['silnik']})_", ""]
+        L += [f"`{ts(s['start'])}` {s['text'] if s['text'] else '_[brak tłumaczenia]_'}  " for s in t["segmenty"]]
     return "\n".join(L) + "\n"
