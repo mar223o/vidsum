@@ -1,0 +1,84 @@
+Jesteś asystentem, który ogląda film za użytkownika i mówi mu konkretnie, co z niego wynika.
+Dostajesz oś czasu filmu z niezależnych źródeł:
+- OBRAZ — automatyczne opisy kadrów z małego lokalnego modelu (bywają nieprecyzyjne: myli narzędzia i nazwy),
+- NAPISY — tekst odczytany z ekranu (OCR; zwykle dokładny w nazwach, liczbach i ilościach),
+- MOWA — automatyczna transkrypcja (mogą być literówki; może być po angielsku).
+
+Odpowiedz WYŁĄCZNIE poprawnym JSON-em (bez komentarzy i bez ```), po polsku, według schematu:
+{
+ "typ": "przepis" | "trening" | "poradnik" | "wyklad" | "inne",
+ "tytul": "krótki tytuł po polsku (3–6 słów)",
+ "tytul_akcent": "druga, krótka część tytułu (2–4 słowa) — puenta",
+ "teza": "jedno zdanie: o co chodzi w filmie i co z niego wynika",
+ "streszczenie": ["akapit 1", "akapit 2", "akapit 3 (opcjonalnie)"],
+ "co_masz_zrobic": {
+   "skladniki": [{"nazwa": "...", "ilosc": "... albo brak danych", "zrodlo": "mowa|obraz|mowa+obraz|szacunek"}],
+   "kroki": [{"t": sekundy, "tekst": "...", "zrodlo": "..."}],
+   "sprzet": ["..."],
+   "czas": "podany czas albo szacunek z dopiskiem (szacunek)",
+   "cwiczenia": [{"nazwa": "...", "serie": "...", "powtorzenia": "... albo czas", "t": sekundy, "technika": "...", "zrodlo": "..."}],
+   "wskazowki": ["..."],
+   "bledy": ["błędy, których unikać"],
+   "wnioski": ["dla wykładu/poradnika/innych: 3–7 najważniejszych wniosków lub działań"]
+ },
+ "najwazniejsze": [{"t": sekundy, "tytul": "krótki tytuł", "opis": "1–2 zdania", "zrodlo": "..."}],
+ "momenty": [{"t": sekundy, "tekst": "co się dzieje — jedno zdanie"}],
+ "cytaty": [{"t": sekundy, "tekst": "dosłownie z MOWA", "tlumaczenie": "po polsku, jeśli oryginał nie jest po polsku, inaczej pusty"}],
+ "rozdzialy": [{"start": sekundy, "end": sekundy, "tytul": "...", "opis": "1–3 zdania", "momenty": [{"t": sekundy, "tekst": "..."}]}],
+ "szczera_ocena": "2–4 zdania (szacunek): czy warto, co wartościowe, czego brakuje, co wątpliwe",
+ "czego_nie_wiadomo": ["..."],
+ "pytania": ["5 pytań, które widz mógłby zadać o ten film"]
+}
+
+Zasady (obowiązkowe):
+1. Wypełnij tylko pola pasujące do typu (przepis → skladniki/kroki/sprzet/czas; trening → cwiczenia/wskazowki/bledy;
+   poradnik → kroki; inne → wnioski). Pozostałe zostaw jako puste listy / pusty tekst.
+2. Czasy "t", "start", "end" to liczby sekund z osi czasu. Kolejność chronologiczna.
+3. Niczego nie zmyślaj. Brak informacji → „brak danych”. Wnioski spoza danych oznacz źródłem "szacunek".
+4. Mowa jest pewniejsza niż opisy kadrów; NAPISY są pewniejsze w nazwach i liczbach niż MOWA.
+5. 3–5 pozycji „najwazniejsze”, 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie mówi), 2–6 „rozdzialy”.
+
+Metadane: tytuł: The Perfect French Fry; autor: Fallow; długość: 00:58; język mowy: en
+Ograniczenia analizy: Kadry co najwyżej co 10 s — krótkie czynności między kadrami mogły zostać pominięte.
+
+OŚ CZASU:
+[00:00–00:07] OBRAZ: Dwie ręce trzymają kawałki ziemniaków z kruszonymi krawędziami nad misą z frytkami.; czynności: trzymanie, podnoszenie; obiekty: frytki, miseczka, ręce, stół z drewna; napisy w filmie: to super crispy fries; pewność: wysoka
+    MOWA: This is it. This is the perfect French fry. The secret to super crispy fries. Start with the grilled potatoes. This particular potato variety is a very high starch content
+[00:07–00:12] OBRAZ: Ręce kroją ziemniak na drewnianej desce do krojenia.; czynności: krojenie; obiekty: zimniak, nóż, deska do krojenia, ręce; napisy w filmie: variety has a very; ciało: Ręce trzymają ziemniak i nóż, kroją go na desce.; pewność: wysoka
+    MOWA: and a very low water content, perfect for crispiness.
+[00:12–00:16] OBRAZ: Kucharz w kuchni przetwarza ziemniaki na drewnianej desce.; czynności: krojenie, wycinanie końcówek; obiekty: człowiek, nóż, deska do krojenia, ziemniak, kuchnia przemysłowa, kabina wentylacyjna, przyrząd kuchenny; napisy w filmie: trim the ends and sides; ciało: Kucharz wchodzi w ruch, trzyma nóż i wycina końcówki ziemniaka, patrzy w dół na deskę.; pewność: wysoka
+    MOWA: Peel, trim the ends and sides and cut them off lengthways into uniform fries, roughly one centimeter squared.
+[00:16–00:18] OBRAZ: Kucharz przygotowuje ziemniaki na drewnianej desce do krojenia.; obiekty: ziemniak, deska do krojenia, narzędzie kuchenne, kuchnia, osoba; napisy w filmie: roughly one centimetre; pewność: niska
+    MOWA: Soak them in cold water to remove any excess starch
+[00:18–00:20] OBRAZ: Kucharz w kuchni przemysłowej trzyma misę z wodą i produktami, gotowy do zanurzenia ich w wodzie.; czynności: trzymanie misy, przygotowanie do zanurzenia; obiekty: kucharz, misę metalową, deska kuchenna z drewna, kuchnia przemysłowa, krawędź kuchennego sprzętu, woda, produkt (niezidentyfikowany); napisy w filmie: soak them in cold water; ciało: kucharz stoi, trzyma misę w lewej ręce, prawą ręką przygotowuje się do wykonania kroku; pewność: wysoka
+    MOWA: —
+[00:20–00:20] OBRAZ: Osoba w kuchni wyciąga z miski wodnej ziemniaki w kawałkach i pokazuje wodę z wyciągniętymi rękami.; czynności: wyciąganie wody z miski, pokazanie wody w dłoniach; obiekty: miska metalowa, ziemniaki w kawałkach, woda, dłonie, przyrząd kuchenny, kawałek drewna; napisy w filmie: any excess starch; ciało: Osoba trzyma ręce otwarte w kształcie serca, wyciągając je z miski.; pewność: wysoka
+    MOWA: and wash them a few times until the water runs perfectly clear.
+[00:20–00:22] OBRAZ: Ręce myją wodą z kranu warzywa w misce w kuchennym zlewie.; czynności: mycie, wlewanie wody, trzymanie miski, wstrzymanie wody; obiekty: kran, zlew, miska, warzywa, woda; napisy w filmie: and wash them; ciało: Ręce trzymają miske i mieszają warzywa w wodzie.; pewność: wysoka
+    MOWA: —
+[00:22–00:26] OBRAZ: Kucharz w kuchni przemysłowej trzyma misę z wodą i warzywami na drewnianej desce.; czynności: trzymanie misy, wstrzymywanie ruchu wody; obiekty: kucharz, apron, koszulka, misę, deska kuchenna, woda, warzywa, kuchnia przemysłowa, kanał wentylacyjny, przyrząd kuchenny; napisy w filmie: until the water runs; ciało: kucharz stoi, trzyma misę w dłoniach, patrzy w nią; pewność: wysoka
+    MOWA: Bring a pot of water to the boil at baking soda,
+[00:26–00:27] OBRAZ: Ręka trzyma łyżkę nad zlewem w garnku na naczyniu kuchennym.; czynności: trzymanie łyżki, wskazanie wnętrza garnka; obiekty: garnko, łyżka, rękawica, naczynie kuchenne, przyrząd kuchenny; napisy w filmie: which is going; ciało: rękawica trzyma łyżkę nad zlewem w garnku; pewność: wysoka
+    MOWA: which is going to help them to fluff and break down
+[00:27–00:30] OBRAZ: { "scena": "Kucharz w kuchni profesjonalnej dodaje coś do dużej garnku na indukcyjnej płytce.", "czynnosci": [ "wyrzucający coś z łyżki do garnka" ], "obiekty": [ "kucharz", "garnk; pewność: niska
+    MOWA: and salt, which is going to season them. then boil the fries until just tender. They should break without snapping.
+[00:30–00:33] OBRAZ: Ręce włożone w zlew z wodą, w której kropli się frytki.; czynności: włożenie frytek do wody, wstrzymanie rąk w wodzie; obiekty: frytki, zlew, woda, ręce; napisy w filmie: then boil the fries; pewność: wysoka
+    MOWA: Drain just lightly with potato starch. This is going to add a beautiful crispy layer and then
+[00:33–00:42] OBRAZ: Kucharz w fartuchu dodaje mąkę ziemniaczaną do misy z wyciętymi ziemniakami.; czynności: wyrzucający mąkę ziemniaczaną, trzymający misę; obiekty: miska metalowa, ziemniaki wycięte, mąka ziemniaczana, fartuch, koszulka; napisy w filmie: potato starch; ciało: cząstki ciała widoczne: ręce, ramiona, górna część ciała, fartuch; pewność: wysoka
+    MOWA: place them into the fridge or freezer to completely cool. Heat oil in a pot. We've got some duck fat too for flavour. And once it reaches around about 140 degrees, we're going to drop in our fries and
+[00:42–00:44] OBRAZ: { "scena": "Kucharz w kuchni dodaje coś do dużej garnku na indukcyjnej płytce.", "czynnosci": [ "dodawanie", "mieszanie" ], "obiekty": [ "garnku", "płytka indukcyjna", "ręk; pewność: niska
+    MOWA: —
+[00:44–00:47] OBRAZ: Kucharz w kuchni przygotowuje potrawę, dodając składnik do garnka na naczyniu.; czynności: dodawanie składnika do garnka; obiekty: kucharz, garnka, naczynie kuchenne, sprzęt kuchenny, tekst na ekranie; napisy w filmie: we're going to; ciało: kucharz trzyma składnik w dłoniach i wchodzi go do garnka; pewność: wysoka
+    MOWA: par fry them or blanch them, stirring constantly for ruffled edges.
+[00:47–00:49] OBRAZ: Kucharz w kuchni mieszający zawartość dużej miski z metalową siecią do podnoszenia.; czynności: mieszanie, podnoszenie sieci; obiekty: miska, sieć do podnoszenia, kucharz, zawartość miski; napisy w filmie: stirring constantly for; ciało: nie widoczne; pewność: wysoka
+    MOWA: Remove them, lay them in a tray and freeze or chill again.
+[00:49–00:50] OBRAZ: Kucharz w fartuchu trzyma w rękach zgrabnie ułożone kawałki ziemniaków, gotowe do wyłożenia na kratkę.; czynności: trzymanie ziemniaków, podnoszenie ziemniaków; obiekty: ziemniaki, frytki, narzędzie kuchenne, fartuch, kuchnia, kratka; napisy w filmie: lay them in a tray; ciało: cząstka ciała nie widoczna, tylko ręka i fragment fartucha; pewność: wysoka
+    MOWA: —
+[00:50–00:53] OBRAZ: Widoczne są kawałki ziemniaków wypiekanych na kratce w metalowej półce.; obiekty: ziemniaki, kratka, półka, naczynie; napisy w filmie: or chill again; pewność: wysoka
+    MOWA: For the final fry, heat the oil up to 190 degrees.
+[00:53–00:54] OBRAZ: Kucharz w kuchni smaży ziemniaki w dużej patelni na indukcyjnej plastry.; czynności: wyciąganie ziemniaków z oleju, podnoszenie ziemniaków z patelni; obiekty: kucharz, patelnia, olej, ziemniaki, narzędzie kuchenne, przyrząd kuchenny, kuchnia, aparat kuchenny; napisy w filmie: fry until golden; ciało: kucharz trzyma narzędzie kuchenne i podnosi ziemniaki z patelni, patrząc na nie; pewność: wysoka
+    MOWA: Fry until golden and crispy. Finish with a sprinkle of molding chocolate.
+[00:54–00:56] OBRAZ: Osoba w kuchni podnosi z miski z papierem i ziemniakami narzędzie kuchenne.; czynności: podnosi narzędzie kuchenne, wyciąga ziemniaki z miski; obiekty: miska, papier, ziemniaki, narzędzie kuchenne, rękaw, rękawica; napisy w filmie: finish with a; ciało: rękaw; pewność: wysoka
+    MOWA: —
+[00:56–00:58] OBRAZ: Zdjęcie przedstawia proces podawania ziemniaków frytkowych z miski na talerz.; czynności: wyrzucając ziemniaki frytkowe z miski na talerz; obiekty: miska, talerz, ziemniaki frytkowe, stół; napisy w filmie: extra crunch; pewność: wysoka
+    MOWA: That's a crotch.

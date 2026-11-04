@@ -1,0 +1,302 @@
+{
+ "schema": "vidsum.summary/1",
+ "typ": "przepis",
+ "tytul": "Idealne chrupiące frytki",
+ "tytul_akcent": "w kilku krokach",
+ "teza": "Chrupiące frytki uzyskasz dzięki skrobiowym ziemniakom, płukaniu, blanszowaniu z sodą i solą, mące ziemniaczanej oraz dwukrotnemu smażeniu (140°C, potem 190°C).",
+ "streszczenie": [
+  "Autor zaczyna od ziemniaka o wysokiej zawartości skrobi i niskiej zawartości wody, który po obraniu i przycięciu jest krojony w równe słupki o boku około 1 cm. Frytki moczy się w zimnej wodzie i płucze kilka razy, aż woda będzie przezroczysta.",
+  "Następnie frytki gotuje się we wrzącej wodzie z sodą i solą, aż będą ledwo miękkie (łamią się bez trzasku). Po lekkim odsączeniu obtacza się je w mące ziemniaczanej i schładza w lodówce lub zamrażarce.",
+  "Smażenie odbywa się w dwóch etapach: najpierw w oleju (z dodatkiem tłuszczu z kaczki) o temp. ok. 140°C, z ciągłym mieszaniem, potem po ponownym schłodzeniu w 190°C do złotego koloru. Na koniec frytki się posypuje (w mowie niewyraźnie, prawdopodobnie solą)."
+ ],
+ "co_masz_zrobic": {
+  "skladniki": [
+   {
+    "nazwa": "Ziemniaki o wysokiej zawartości skrobi (np. odmiana mączysta)",
+    "ilosc": "brak danych",
+    "zrodlo": "mowa"
+   },
+   {
+    "nazwa": "Zimna woda (do moczenia i płukania)",
+    "ilosc": "brak danych",
+    "zrodlo": "mowa+obraz"
+   },
+   {
+    "nazwa": "Soda oczyszczona (do wody do gotowania)",
+    "ilosc": "brak danych",
+    "zrodlo": "mowa"
+   },
+   {
+    "nazwa": "Sól (do wody do gotowania)",
+    "ilosc": "brak danych",
+    "zrodlo": "mowa"
+   },
+   {
+    "nazwa": "Mąka ziemniaczana",
+    "ilosc": "brak danych (lekko, cienka warstwa)",
+    "zrodlo": "mowa+obraz"
+   },
+   {
+    "nazwa": "Olej do smażenia",
+    "ilosc": "brak danych",
+    "zrodlo": "mowa"
+   },
+   {
+    "nazwa": "Tłuszcz z kaczki (dla smaku)",
+    "ilosc": "brak danych",
+    "zrodlo": "mowa"
+   },
+   {
+    "nazwa": "Posypka na koniec (w mowie niewyraźnie; prawdopodobnie sól)",
+    "ilosc": "brak danych",
+    "zrodlo": "szacunek"
+   }
+  ],
+  "kroki": [
+   {
+    "t": 3.0,
+    "tekst": "Wybierz ziemniaki o wysokiej zawartości skrobi i niskiej zawartości wody.",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 12.0,
+    "tekst": "Obierz ziemniaki, przytnij końce i boki, pokrój w równe słupki o boku ok. 1 cm.",
+    "zrodlo": "mowa+obraz"
+   },
+   {
+    "t": 16.0,
+    "tekst": "Zanurz frytki w zimnej wodzie, by usunąć nadmiar skrobi.",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 20.0,
+    "tekst": "Płucz kilka razy, aż woda będzie zupełnie przezroczysta.",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 26.0,
+    "tekst": "Zagotuj wodę z sodą i solą (soda pomaga rozpulchnić i rozłożyć powierzchnię, sól doprawia).",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 28.0,
+    "tekst": "Gotuj frytki, aż będą ledwo miękkie – mają się łamać, nie trzaskając.",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 30.0,
+    "tekst": "Lekko odsącz i obtocz w mące ziemniaczanej (da chrupiącą warstwę).",
+    "zrodlo": "mowa+obraz"
+   },
+   {
+    "t": 35.0,
+    "tekst": "Umieść frytki w lodówce lub zamrażarce, by całkowicie wystygły.",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 38.0,
+    "tekst": "Rozgrzej olej (z tłuszczem z kaczki) do ok. 140°C.",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 44.0,
+    "tekst": "Wrzuć frytki i smaż wstępnie/blanszuj, ciągle mieszając, by uzyskać „falbaniaste” krawędzie.",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 47.0,
+    "tekst": "Wyjmij frytki, rozłóż na tacy i ponownie schłodź lub zamroź.",
+    "zrodlo": "mowa+obraz"
+   },
+   {
+    "t": 50.0,
+    "tekst": "Rozgrzej olej do 190°C do ostatecznego smażenia.",
+    "zrodlo": "mowa"
+   },
+   {
+    "t": 53.0,
+    "tekst": "Smaż do złotego koloru i chrupkości, na koniec posyp (prawdopodobnie solą).",
+    "zrodlo": "mowa+obraz"
+   }
+  ],
+  "sprzet": [
+   "Nóż",
+   "Deska do krojenia",
+   "Miska",
+   "Garnek do gotowania",
+   "Garnek lub frytownica do oleju",
+   "Sitko/łyżka cedzakowa (sieć do wyjmowania)",
+   "Taca/blacha do schładzania"
+  ],
+  "czas": "brak danych (zawiera etapy schładzania; całość zajmie prawdopodobnie kilka godzin (szacunek))",
+  "cwiczenia": [],
+  "wskazowki": [],
+  "bledy": [],
+  "wnioski": []
+ },
+ "najwazniejsze": [
+  {
+   "t": 3.0,
+   "tytul": "Odpowiedni ziemniak",
+   "opis": "Kluczem są ziemniaki o dużej zawartości skrobi i niskiej wody, co daje chrupkość.",
+   "zrodlo": "mowa"
+  },
+  {
+   "t": 20.0,
+   "tytul": "Płukanie ze skrobi",
+   "opis": "Moczenie i płukanie w zimnej wodzie, aż woda będzie przezroczysta.",
+   "zrodlo": "mowa+obraz"
+  },
+  {
+   "t": 26.0,
+   "tytul": "Soda i sól w wodzie",
+   "opis": "Soda pomaga rozpulchnić i rozłożyć powierzchnię frytek, sól je doprawia.",
+   "zrodlo": "mowa"
+  },
+  {
+   "t": 30.0,
+   "tytul": "Mąka ziemniaczana",
+   "opis": "Lekko odsączone frytki obtacza się w mące ziemniaczanej dla chrupiącej warstwy.",
+   "zrodlo": "mowa+obraz"
+  },
+  {
+   "t": 38.0,
+   "tytul": "Dwa etapy smażenia",
+   "opis": "Najpierw ok. 140°C z mieszaniem, potem po schłodzeniu 190°C do złotego koloru.",
+   "zrodlo": "mowa"
+  }
+ ],
+ "momenty": [
+  {
+   "t": 0.0,
+   "tekst": "Prezentacja „idealnej frytki” i sekretu superchrupiących frytek."
+  },
+  {
+   "t": 12.0,
+   "tekst": "Obieranie, przycinanie i krojenie ziemniaków w słupki ok. 1 cm."
+  },
+  {
+   "t": 20.0,
+   "tekst": "Płukanie frytek w zimnej wodzie do przezroczystości."
+  },
+  {
+   "t": 26.0,
+   "tekst": "Gotowanie w wodzie z sodą i solą."
+  },
+  {
+   "t": 33.0,
+   "tekst": "Dodanie mąki ziemniaczanej i schładzanie."
+  },
+  {
+   "t": 44.0,
+   "tekst": "Pierwsze smażenie w ok. 140°C z ciągłym mieszaniem."
+  },
+  {
+   "t": 50.0,
+   "tekst": "Drugie smażenie w 190°C."
+  },
+  {
+   "t": 56.0,
+   "tekst": "Podanie gotowych frytek."
+  }
+ ],
+ "cytaty": [
+  {
+   "t": 0.0,
+   "tekst": "This is it. This is the perfect French fry.",
+   "tlumaczenie": "To jest to. To jest idealna frytka."
+  },
+  {
+   "t": 16.0,
+   "tekst": "Soak them in cold water to remove any excess starch",
+   "tlumaczenie": "Namocz je w zimnej wodzie, by usunąć nadmiar skrobi."
+  },
+  {
+   "t": 30.0,
+   "tekst": "This is going to add a beautiful crispy layer",
+   "tlumaczenie": "To doda pięknej, chrupiącej warstwy."
+  }
+ ],
+ "rozdzialy": [
+  {
+   "start": 0.0,
+   "end": 16.0,
+   "tytul": "Ziemniak i krojenie",
+   "opis": "Wybór skrobiowego ziemniaka oraz obranie, przycięcie i pokrojenie w równe słupki ok. 1 cm.",
+   "momenty": [
+    {
+     "t": 3.0,
+     "tekst": "Ziemniak o dużej zawartości skrobi i niskiej wody."
+    },
+    {
+     "t": 12.0,
+     "tekst": "Krojenie w równe słupki."
+    }
+   ]
+  },
+  {
+   "start": 16.0,
+   "end": 26.0,
+   "tytul": "Moczenie i płukanie",
+   "opis": "Frytki są moczone w zimnej wodzie i płukane do przezroczystej wody.",
+   "momenty": [
+    {
+     "t": 20.0,
+     "tekst": "Płukanie aż woda będzie czysta."
+    }
+   ]
+  },
+  {
+   "start": 26.0,
+   "end": 38.0,
+   "tytul": "Gotowanie i mąka",
+   "opis": "Gotowanie z sodą i solą do ledwo miękkości, odsączenie, obtoczenie w mące ziemniaczanej i schłodzenie.",
+   "momenty": [
+    {
+     "t": 30.0,
+     "tekst": "Odsączenie i mąka ziemniaczana."
+    }
+   ]
+  },
+  {
+   "start": 38.0,
+   "end": 50.0,
+   "tytul": "Pierwsze smażenie",
+   "opis": "Smażenie w ok. 140°C z ciągłym mieszaniem, potem wyłożenie na tacę i ponowne schłodzenie.",
+   "momenty": [
+    {
+     "t": 47.0,
+     "tekst": "Wyjęcie i schłodzenie na tacy."
+    }
+   ]
+  },
+  {
+   "start": 50.0,
+   "end": 58.0,
+   "tytul": "Finalne smażenie",
+   "opis": "Smażenie w 190°C do złotego koloru, posypanie i podanie.",
+   "momenty": [
+    {
+     "t": 53.0,
+     "tekst": "Smażenie do złotego koloru."
+    }
+   ]
+  }
+ ],
+ "szczera_ocena": "Film jest bardzo zwięzły, ale zawiera pełną, sensowną technikę trójetapowego przygotowania frytek (moczenie, gotowanie z sodą, dwukrotne smażenie). Brakuje ilości (soda, sól, mąka, czas gotowania i smażenia, rodzaj ziemniaka) oraz czasów schładzania, więc trzeba je dobrać samemu (szacunek). Końcowa posypka jest w transkrypcji niewyraźna.",
+ "czego_nie_wiadomo": [
+  "Ilości soli, sody i mąki ziemniaczanej",
+  "Czas gotowania i czasy smażenia",
+  "Dokładna odmiana ziemniaka",
+  "Ilość oleju i tłuszczu z kaczki",
+  "Czym frytki są posypane na końcu (transkrypcja niewyraźna)",
+  "Jak długo schładzać frytki"
+ ],
+ "pytania": [
+  "Jaką odmianę ziemniaka wybrać do frytek?",
+  "Ile sody i soli dodać do wody do gotowania?",
+  "Jak długo gotować frytki przed schłodzeniem?",
+  "Czy można pominąć tłuszcz z kaczki i użyć samego oleju?",
+  "Jak długo schładzać frytki między smażeniami?"
+ ]
+}

@@ -1,0 +1,79 @@
+# Pomiar lokalnych modeli tekstowych (faza 6). Każdy model w osobnym zadaniu (4 rdzenie, 16 GB RAM, bez GPU).
+# Wyniki: podsumowanie zadania + gałąź „wyniki-pomiarow” (plik bench/llm.json i surowe odpowiedzi).
+name: pomiar-modeli-tekstowych
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [tests/bench/llm_bench.py, tests/bench/data/**, .github/workflows/llm-bench.yml]
+permissions:
+  contents: write
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - qwen3:8b
+          - qwen3:4b
+          - qwen3-vl:4b-instruct
+          - gemma3:4b
+          - llama3.1:8b
+          - granite3.3:8b
+          - SpeakLeash/bielik-4.5b-v3.0-instruct:Q8_0
+          - SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          sudo systemctl stop ollama 2>/dev/null || true
+          nohup ollama serve > ollama.log 2>&1 &
+          for i in $(seq 30); do curl -sf localhost:11434/api/tags && break; sleep 1; done
+          ollama --version
+      - name: Pomiar
+        run: python tests/bench/llm_bench.py "${{ matrix.model }}" --wyniki wyniki
+      - name: Nazwa artefaktu
+        id: n
+        run: echo "n=$(echo '${{ matrix.model }}' | tr '/:' '__')" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "llm-${{ steps.n.outputs.n }}", path: wyniki/}
+  zestawienie:
+    needs: model
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {path: wyniki, pattern: "llm-*", merge-multiple: true}
+      - name: Tabela
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, glob
+          rows = []
+          for f in sorted(glob.glob("wyniki/*.json")):
+              d = json.load(open(f, encoding="utf-8"))
+              if "model" not in d: continue
+              s = d["streszczenie"]
+              rows.append((s["wynik"], d))
+          print("| model | wynik | fakty | zmyślenia | JSON | kroki | czas streszcz. | chrF tłum. |")
+          print("|---|---|---|---|---|---|---|---|")
+          for w, d in sorted(rows, key=lambda x: -x[0]):
+              s = d["streszczenie"]
+              print(f"| {d['model']} | {w} | {s['fakty']}/{s.get('fakty_z', 14)} | {', '.join(s['zmyslenia']) or '—'} | "
+                    f"{'tak' if s['json_ok'] else 'NIE'} | {s.get('kroki', 0)} | {d['streszczenie_s']} s | {d['tlumaczenia_chrf_srednio']} |")
+          PY
+          cat "$GITHUB_STEP_SUMMARY"
+      - name: Zapis na gałąź wyniki-pomiarow
+        run: |
+          git config user.name "vidsum-bench"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin wyniki-pomiarow || true
+          git switch wyniki-pomiarow 2>/dev/null || git switch --orphan wyniki-pomiarow
+          mkdir -p bench/llm && cp -r wyniki/* bench/llm/
+          git add bench && git commit -m "Pomiar modeli tekstowych ${GITHUB_SHA::7}" && git push origin wyniki-pomiarow

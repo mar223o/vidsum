@@ -34,6 +34,10 @@ _FOREIGN = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf
 _LOWER = {"wysoka": "srednia", "srednia": "niska", "niska": "niska"}
 
 
+# Domyślny lokalny model TEKSTOWY (streszczenie, czat, tłumaczenia) — wybrany pomiarem, zob. docs/modele.md
+DEFAULT_TEXT_MODEL = "qwen3:8b"
+
+
 class LLMError(RuntimeError):
     pass
 
@@ -89,6 +93,7 @@ class Ollama:
         if not self.host.startswith("http"):
             self.host = "http://" + self.host
         self.timeout = timeout
+        self._think_ok = True
 
     def _post(self, path: str, body: dict) -> dict:
         req = urllib.request.Request(self.host + path, data=json.dumps(body).encode("utf-8"),
@@ -104,12 +109,7 @@ class Ollama:
             raise LLMError(f"Ollama nie odpowiedziała w {self.timeout:.0f} s ({type(e).__name__}).") from e
 
     def check(self) -> None:
-        req = urllib.request.Request(self.host + "/api/tags")
-        try:
-            with urllib.request.urlopen(req, timeout=10) as r:
-                names = [m["name"] for m in json.loads(r.read().decode("utf-8")).get("models", [])]
-        except Exception as e:
-            raise LLMError(f"Ollama nie odpowiada pod {self.host}: {e}") from e
+        names = self.installed()
         want = self.model if ":" in self.model else self.model + ":latest"
         if want not in names:
             raise LLMError(f"Brak modelu '{self.model}' w Ollamie. Uruchom: ollama pull {self.model}")
@@ -130,17 +130,68 @@ class Ollama:
             d["pewnosc"] = "niska"
             return _clean_vision(d)
 
-    def complete(self, prompt: str, as_json: bool = False) -> str:
+    def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None) -> str:
         # kontekst dopasowany do promptu (~3 znaki/token + zapas na odpowiedź) — mniej RAM/VRAM
         need = len(prompt) // 3 + 1500
         num_ctx = min(32768, max(4096, -(-need // 2048) * 2048))
-        r = self._post("/api/chat", {"model": self.model, "stream": False, "keep_alive": "5m",
-                                     # limit długości + kara za powtórzenia: mały model potrafi się zapętlić
-                                     "options": {"temperature": 0.2, "num_ctx": num_ctx,
-                                                 "num_predict": 3000 if as_json else 1200, "repeat_penalty": 1.15},
-                                     **({"format": "json"} if as_json else {}),
-                                     "messages": [{"role": "user", "content": prompt}]})
+        body = {"model": self.model, "stream": False, "keep_alive": "5m",
+                # limit długości + kara za powtórzenia: mały model potrafi się zapętlić
+                "options": {"temperature": 0.2, "num_ctx": num_ctx,
+                            "num_predict": max_tokens or (3000 if as_json else 1200), "repeat_penalty": 1.15},
+                **({"format": "json"} if as_json else {}),
+                "messages": [{"role": "user", "content": prompt}]}
+        if self._think_ok:
+            # modele „myślące” (qwen3) bez myślenia: kilka razy szybciej, a w tym zadaniu nie gorzej
+            body["think"] = False
+        try:
+            r = self._post("/api/chat", body)
+        except LLMError as e:
+            if "think" not in str(e).lower() or not self._think_ok:
+                raise
+            self._think_ok = False            # starsza Ollama / model bez tej opcji
+            body.pop("think", None)
+            r = self._post("/api/chat", body)
         return r.get("message", {}).get("content", "").strip()
+
+    def installed(self) -> list[str]:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(self.host + "/api/tags"), timeout=10) as r:
+                return [m["name"] for m in json.loads(r.read().decode("utf-8")).get("models", [])]
+        except Exception as e:
+            raise LLMError(f"Ollama nie odpowiada pod {self.host}: {e}") from e
+
+    def has_model(self) -> bool:
+        want = self.model if ":" in self.model else self.model + ":latest"
+        return want in self.installed()
+
+    def pull(self, log=print) -> None:
+        """Pobiera model do Ollamy (jednorazowo), z postępem w logu co ~10%."""
+        req = urllib.request.Request(self.host + "/api/pull", data=json.dumps({"model": self.model}).encode("utf-8"),
+                                     headers={"Content-Type": "application/json"})
+        last = -10
+        try:
+            with urllib.request.urlopen(req, timeout=3600) as r:
+                for line in r:
+                    if not line.strip():
+                        continue
+                    d = json.loads(line.decode("utf-8"))
+                    if d.get("error"):
+                        raise LLMError(f"Pobieranie modelu {self.model}: {d['error']}")
+                    if d.get("total") and d.get("completed") is not None:
+                        pct = int(100 * d["completed"] / d["total"])
+                        if pct >= last + 10:
+                            last = pct
+                            log(f"        pobieranie {self.model}: {pct}% z {d['total'] / 1e9:.1f} GB")
+        except urllib.error.URLError as e:
+            raise LLMError(f"Nie mogę pobrać modelu {self.model}: {e}") from e
+        except (TimeoutError, OSError) as e:
+            raise LLMError(f"Przerwane pobieranie modelu {self.model} ({type(e).__name__}).") from e
+
+    def ensure(self, log=print) -> None:
+        """Model jest w Ollamie albo zostaje pobrany (aplikacja ma działać bez ręcznego `ollama pull`)."""
+        if not self.has_model():
+            log(f"        model {self.model} nie jest pobrany — pobieram (jednorazowo)…")
+            self.pull(log)
 
     def unload(self) -> None:
         try:
@@ -169,7 +220,7 @@ class ClaudeCode:
             raise LLMError("Ustawiona jest zmienna ANTHROPIC_API_KEY — Claude Code naliczałby płatne API zamiast "
                            "subskrypcji Pro. Usuń zmienną albo użyj --allow-api-key.")
 
-    def complete(self, prompt: str, as_json: bool = False) -> str:
+    def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None) -> str:
         self.check()
         proc = run([self.exe, "-p", "Wykonaj zadanie opisane na wejściu. Odpowiedz tylko wynikiem.",
                     "--output-format", "text"], input_text=prompt, timeout=self.timeout)
