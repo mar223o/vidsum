@@ -89,7 +89,7 @@ jobs:
           Get-ChildItem "$P\vidsum" -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
           New-Item -ItemType Directory -Force "$P\bin" | Out-Null
           Copy-Item ffbin\* "$P\bin\"
-          Copy-Item packaging\VidSum.cmd, packaging\CZYTAJ_MNIE.txt, docs\licencje.md, docs\format_json.md $P
+          Copy-Item packaging\VidSum.cmd, "packaging\VidSum Start.cmd", packaging\CZYTAJ_MNIE.txt, docs\licencje.md, docs\format_json.md $P
           Copy-Item -Recurse skill "$P\skill"
           $sig = Get-AuthenticodeSignature "$P\python\python.exe"
           Write-Host "Podpis python.exe: $($sig.Status) — $($sig.SignerCertificate.Subject)"
@@ -142,6 +142,32 @@ jobs:
               Get-Process python, VidSum -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             }
           }
+
+      - name: "Start bez okna konsoli (VidSum Start) i wyłączanie przyciskiem „Zakończ”"
+        run: |
+          $runs = @(
+            @{ name = "A"; file = "$PWD\dist\VidSum\VidSum Start.exe" },
+            @{ name = "B"; file = "$PWD\portable\VidSum\VidSum Start.cmd" }
+          )
+          foreach ($r in $runs) {
+            Start-Process $r.file
+            $ok = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              Start-Sleep 1
+              try { if ((Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing -TimeoutSec 2).Content -match "VidSum") { $ok = $true; break } } catch {}
+            }
+            if (-not $ok) { throw "$($r.name): VidSum Start nie uruchomił interfejsu" }
+            $proc = Get-CimInstance Win32_Process | Where-Object { $_.Name -match "VidSum Start|pythonw" }
+            Write-Host "$($r.name): działa w tle jako: $(($proc | ForEach-Object { $_.Name }) -join ', ')"
+            $tok = (Get-Content "$env:LOCALAPPDATA\VidSum\token.txt" -Raw).Trim()
+            Invoke-RestMethod -Method Post "http://127.0.0.1:8765/api/zakoncz" -Headers @{"X-Token"=$tok} | Out-Null
+            Start-Sleep 3
+            $alive = $true
+            try { Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing -TimeoutSec 2 | Out-Null } catch { $alive = $false }
+            if ($alive) { throw "$($r.name): „Zakończ” nie wyłączył programu" }
+            Write-Host "$($r.name): wyłączony przyciskiem Zakończ ✔"
+          }
+          Get-Content "$env:LOCALAPPDATA\VidSum\vidsum.log" -Tail 5
 
       - name: Test dymny serwera MCP (oba warianty)
         run: |

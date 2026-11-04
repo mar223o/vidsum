@@ -15,4 +15,7 @@ import sys
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="VidSum", console=True,
           icon=None, upx=False,   # bez UPX — kompresja .exe to częsty powód fałszywych alarmów
           version="version_info.txt" if sys.platform == "win32" else None)
-coll = COLLECT(exe, a.binaries, a.datas, name="VidSum", upx=False)
+# drugi plik startowy BEZ okna konsoli (to klika użytkownik); VidSum.exe zostaje dla wiersza poleceń i MCP
+exe_start = EXE(pyz, a.scripts, [], exclude_binaries=True, name="VidSum Start", console=False,
+                icon=None, upx=False, version="version_info.txt" if sys.platform == "win32" else None)
+coll = COLLECT(exe, exe_start, a.binaries, a.datas, name="VidSum", upx=False)

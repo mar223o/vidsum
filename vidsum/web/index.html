@@ -68,6 +68,11 @@ label.f{display:grid;gap:4px;font-size:12.5px;color:var(--muted)}
 .st{font-size:11.5px;padding:1px 8px;border-radius:99px;border:1px solid currentColor}
 .st.trwa{color:var(--warn)}.st.gotowe{color:var(--ok)}.st.blad{color:var(--bad)}.st.w_kolejce{color:var(--muted)}
 .timer{font:600 12px var(--mono);color:var(--muted);white-space:nowrap}.stage{font-size:12px;color:var(--warn)}
+.parts{display:flex;gap:6px;flex-wrap:wrap}.parts button{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer}
+.parts button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.part{max-height:260px;overflow:auto;font-size:13.5px;line-height:1.5;background:var(--bg);border-radius:8px;padding:8px 12px}
+.part div{display:flex;gap:10px}.part code{color:var(--muted);flex:none}
+.quit{margin-left:6px;font-size:12px}
 pre.log{margin:0;font:12px/1.45 var(--mono);color:var(--muted);background:var(--bg);border-radius:8px;padding:8px 10px;max-height:130px;overflow:auto;white-space:pre-wrap}
 .section-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:34px 0 12px}
 .section-h h2{font:400 26px var(--serif);margin:0}
@@ -179,6 +184,7 @@ blockquote.pull::before{content:"“";position:absolute;left:0;top:10px;color:va
   <nav><a href="#/" data-nav="home" data-i="nav_home"></a><a href="#/biblioteka" data-nav="lib" data-i="nav_lib"></a></nav>
   <div class="chips" id="chips"></div>
   <div class="seg lang"><button data-l="pl">PL</button><button data-l="en">EN</button></div>
+  <button class="btn quit" id="quit" data-i="quit"></button>
 </header>
 <main id="app"></main>
 <div class="toast" id="toast"></div>
@@ -197,6 +203,8 @@ const I18N = {
    lib_sub:"Wszystkie analizy z tego komputera.",search:"Szukaj w tytułach i tezach…",lib_empty:"Biblioteka jest pusta.",
    w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",uploading:"Wysyłanie",open:"Otwórz",
    stage_0:"pobieranie / start",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",
+   part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",
+   quit:"Zakończ",quit_q:"Wyłączyć VidSum? Trwająca analiza zostanie przerwana.",quit_done:"VidSum wyłączony. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
    t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_poradnik:"Kroki",t_todo_inne:"Wnioski",
    t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_tr:"Transkrypcja",t_fr:"Kadry",
@@ -226,6 +234,8 @@ const I18N = {
    lib_sub:"Every analysis on this computer.",search:"Search titles and theses…",lib_empty:"Library is empty.",
    w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",uploading:"Uploading",open:"Open",
    stage_0:"download / start",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",
+   part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",
+   quit:"Quit",quit_q:"Quit VidSum? A running analysis will be stopped.",quit_done:"VidSum stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
    t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_poradnik:"Steps",t_todo_inne:"Takeaways",
    t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_tr:"Transcript",t_fr:"Frames",
@@ -308,8 +318,38 @@ function jobRow(j){
     ${j.status==="trwa" ? `<span class="stage">${j.stage ? j.stage+"/4 · "+t("stage_"+j.stage) : t("stage_0")}</span>` : ""}
     <span class="st ${j.status}">${t(j.status)}</span>
     ${j.status==="gotowe" ? `<a class="btn" href="#/wynik/${j.id}">${t("open")}</a>` : ""}</div>
+    ${partsHtml(j)}
     ${j.status==="trwa"||j.status==="blad"||j.status==="w_kolejce" ? `<pre class="log">${esc(j.log.slice(-5).join("\n")||"…")}</pre>` : ""}</div>`;
 }
+/* podgląd gotowych etapów w trakcie analizy — tylko na żądanie (zwinięte) */
+const openParts = new Set(), partCache = {};
+function partLabel(k){ return k.startsWith("tlumaczenie_") ? t("part_tl")+" ("+k.slice(12).toUpperCase()+")" : t("part_"+k); }
+function partsHtml(j){
+  const ks = j.czesciowe || [];
+  if (!ks.length) return "";
+  const btns = ks.map(k => `<button data-part="${j.id}:${k}" class="${openParts.has(j.id+":"+k)?"on":""}">${esc(partLabel(k))}</button>`).join("");
+  const panels = ks.filter(k => openParts.has(j.id+":"+k)).map(k => {
+    let d = (partCache[j.id]||{})[k];
+    if (!d) return `<div class="part">…</div>`;
+    if (k === "transkrypcja") d = d.segmenty;
+    const rows = (d||[]).map(x => `<div><code>${fmt(x.t ?? x.start)}</code><span>${esc(x.text ?? x.scena ?? "")}</span></div>`).join("");
+    return `<div class="part">${rows || "—"}</div>`;
+  }).join("");
+  return `<div class="parts">${btns}</div>${panels}`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-part]");
+  if (!b) return;
+  const key = b.dataset.part, id = key.split(":")[0];
+  openParts.has(key) ? openParts.delete(key) : openParts.add(key);
+  if (openParts.has(key)) { try { partCache[id] = await api(`/api/zadania/${id}/czesciowe`); } catch {} }
+  renderHome();
+});
+$("#quit").addEventListener("click", async () => {
+  if (jobs.some(j => j.status === "trwa") && !confirm(t("quit_q"))) return;
+  try { await api("/api/zakoncz", {method:"POST"}); } catch {}
+  document.body.innerHTML = `<main style="padding:60px;text-align:center;font-size:18px">${esc(t("quit_done"))}</main>`;
+});
 function card(j){
   const c = j.card || {};
   return `<div class="vcard" data-open="${j.id}">
@@ -544,6 +584,8 @@ $("#app").addEventListener("submit", e => { if (e.target.id === "askf") { e.prev
 /* ---------- start ---------- */
 async function poll(){
   try { jobs = await api("/api/zadania"); } catch { return; }
+  for (const id of new Set([...openParts].map(k => k.split(":")[0])))     // otwarte podglądy — świeże dane
+    if (jobs.some(j => j.id === id && j.status === "trwa")) { try { partCache[id] = await api(`/api/zadania/${id}/czesciowe`); } catch {} }
   const h = location.hash || "#/";
   if (h === "#/" || h === "") renderHome(); else if (h.startsWith("#/biblioteka") && !document.activeElement?.matches("#libq")) renderLib();
 }

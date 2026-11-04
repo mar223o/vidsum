@@ -95,10 +95,25 @@ class WhisperEngine:
         try:
             beam = self.beam_size or 5      # dokładność ważniejsza niż szybkość (turbo: beam 5 ≈ ten sam czas)
 
+            batched = None
+            if device == "cuda":
+                # GPU: kilka fragmentów mowy naraz (BatchedInferencePipeline) — kilka razy szybciej przy tej samej dokładności
+                from faster_whisper import BatchedInferencePipeline
+                batched = BatchedInferencePipeline(model)
+
             def decode(chunk, offset: float, hot) -> tuple[list[Segment], object]:
-                segs, info = model.transcribe(chunk, language=language, vad_filter=True, word_timestamps=True,
-                                              beam_size=beam, condition_on_previous_text=False,
-                                              hotwords=hot or None)
+                nonlocal batched
+                kw = dict(language=language, vad_filter=True, word_timestamps=True, beam_size=beam,
+                          condition_on_previous_text=False, hotwords=hot or None)
+                if batched is not None:
+                    try:
+                        segs, info = batched.transcribe(chunk, batch_size=8, **kw)
+                        segs = list(segs)
+                    except Exception:            # starsza karta / za mało VRAM — zwykły tryb
+                        batched = None
+                        segs, info = model.transcribe(chunk, **kw)
+                else:
+                    segs, info = model.transcribe(chunk, **kw)
                 res = []
                 for s in segs:
                     if not s.text.strip():

@@ -609,3 +609,13 @@ def test_staged_summary_survives_repeat_limit():
             return json.dumps({"teza": "Frytki."})
     d = staged_summary(Eng(), "[1s] MOWA: fry at 190", "", 10.0)
     assert d["co_masz_zrobic"]["kroki"][0]["tekst"] == "Smaż w 190°C" and d["teza"] == "Frytki."
+
+
+def test_pipeline_emits_partial_results(tmp_path, ollama):
+    got = {}
+    from vidsum.pipeline import Options, analyze
+    opt = Options(out_root=tmp_path, transcript_file=NAPISY, ocr=False, ollama_host=ollama, vision_model="fake-vl",
+                  text_model="fake-txt", on_partial=lambda k, d: got.setdefault(k, d))
+    analyze(str(FILM), opt, log=lambda m: None)
+    assert list(got)[:2] == ["transkrypcja", "kadry"] and "tlumaczenie_en" in got
+    assert got["transkrypcja"]["segmenty"][0]["text"] and got["kadry"][0]["scena"] == "deska i nóż"

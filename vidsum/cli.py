@@ -17,6 +17,12 @@ def _models_dir() -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if sys.stdout is None or sys.stderr is None:
+        # uruchomienie bez okna (VidSum Start.exe / pythonw): komunikaty do pliku dziennika zamiast konsoli
+        from .gui import app_dir
+        logf = open(app_dir() / "vidsum.log", "a", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stdout or logf
+        sys.stderr = sys.stderr or logf
     for s in (sys.stdout, sys.stderr):  # polskie znaki w konsoli Windows
         try:
             s.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]

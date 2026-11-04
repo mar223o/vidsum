@@ -2,8 +2,11 @@ VidSum — analiza filmów (mowa + obraz)
 =======================================
 
 START
-  Kliknij dwukrotnie VidSum.exe. Otworzy się czarne okno (to serwer — nie zamykaj go)
-  i strona w przeglądarce. Zamknięcie czarnego okna wyłącza program.
+  Kliknij dwukrotnie „VidSum Start” (VidSum Start.exe albo VidSum Start.cmd).
+  Program działa W TLE — bez czarnego okna — i otwiera stronę w przeglądarce.
+  Wyłączasz go przyciskiem „Zakończ” w prawym górnym rogu strony.
+  Ponowne kliknięcie „VidSum Start”, gdy program już działa, tylko otwiera stronę.
+  Dziennik (gdyby coś nie działało): %LOCALAPPDATA%\VidSum\vidsum.log
 
 WYMAGANE OSOBNO
   Ollama + model obrazu (jednorazowo, w PowerShell):
@@ -11,11 +14,12 @@ WYMAGANE OSOBNO
       ollama pull qwen3-vl:4b-instruct
 
 OPCJONALNIE
-  Claude Code zalogowany kontem Pro — wtedy streszczenia pisze Claude (dużo lepsze).
-  Bez niego: przycisk „Kopiuj prompt dla Claude” i wklej na claude.ai.
+  Program streszcza sam (lokalny model). Claude to dodatek: Claude Code zalogowany kontem Pro
+  i w Ustawieniach streszczenie = claude, albo przycisk „Kopiuj prompt dla Claude”.
 
 PIERWSZE URUCHOMIENIE
-  Program pobierze model mowy Whisper (small ≈ 480 MB) do %LOCALAPPDATA%\VidSum\modele.
+  Program pobierze (jednorazowo): model mowy Whisper (~1,6 GB), model tekstowy gemma3:4b do Ollamy (~2,5 GB)
+  i — jeśli masz kartę NVIDIA — biblioteki CUDA (~1,3 GB) do %LOCALAPPDATA%\VidSum.
   Wyniki trafiają do Dokumenty\VidSum (zmienisz w Ustawieniach).
 
 WIERSZ POLECEŃ

@@ -47,6 +47,7 @@ class Options:
     prefer_subtitles: bool = True              # napisy z YouTube zamiast Whispera, jeśli są
     ocr: bool = True                           # gęsty OCR napisów na ekranie (+ podpowiedzi słów dla Whispera)
     move_source: bool = False                  # przenieś plik źródłowy do folderu wyników (wysłane z UI)
+    on_partial: Callable | None = None         # wyniki etapów od razu, gdy gotowe (podgląd w UI): (rodzaj, dane)
     extra: dict = field(default_factory=dict)
 
 
@@ -65,6 +66,14 @@ def _sha256(p: Path) -> str:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _emit(opt: Options, kind: str, data) -> None:
+    if opt.on_partial:
+        try:
+            opt.on_partial(kind, data)
+        except Exception:
+            pass
 
 
 def analyze(inp: str, opt: Options, log: Log = print) -> Path:
@@ -94,6 +103,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             from .ocr import ensure_models, read_captions
             mdir = ensure_models(Path(opt.whisper_root) if opt.whisper_root else out.parent / "_modele", log)
             ocr_lines = read_captions(src.path, info.duration, mdir, log)
+            if ocr_lines:
+                _emit(opt, "napisy", [asdict(l) for l in ocr_lines])
         except Exception as e:     # OCR to dodatek — jego awaria nie zatrzymuje analizy
             pre_notes.append(f"OCR napisów niedostępny ({type(e).__name__}: {str(e)[:100]}).")
             log(f"        ! OCR: {e}")
@@ -107,6 +118,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     speech_job = None
     if opt.transcript_file:
         tr_box["tr"] = SidecarEngine(opt.transcript_file).transcribe(language=opt.language)
+        _emit(opt, "transkrypcja", {"jezyk": tr_box["tr"].language, "segmenty": [asdict(x) for x in tr_box["tr"].segments]})
     elif not info.has_audio:
         tr_box["tr"] = Transcript(None, "brak", [])
         gaps.append("Brak ścieżki dźwiękowej — wszystko pochodzi tylko z obrazu.")
@@ -117,6 +129,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         if not tr.language and len(sfx) > 1:
             tr.language = lang_base(sfx[-2].strip("."))
         tr_box["tr"] = tr
+        _emit(opt, "transkrypcja", {"jezyk": tr.language, "segmenty": [asdict(x) for x in tr.segments]})
         log(f"  [1/4] mowa z napisów serwisu ({src.subtitles_kind}) — bez Whispera")
     else:
         wav = extract_audio(src.path, out / "_audio.wav")
@@ -135,6 +148,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         def run_whisper() -> None:
             try:
                 tr_box["tr"] = engine.transcribe(wav, opt.language)
+                _emit(opt, "transkrypcja", {"jezyk": tr_box["tr"].language,
+                                            "segmenty": [asdict(x) for x in tr_box["tr"].segments]})
                 if engine.recovered:
                     tr_box["tr"].note = ((tr_box["tr"].note + " ") if tr_box["tr"].note else "") + \
                         f"Odzyskano {engine.recovered} zdań pominiętych przez Whispera (drugi przebieg bez podpowiedzi)."
@@ -148,7 +163,13 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             # start dopiero PO wycięciu kadrów: ffmpeg i Whisper na CPU naraz spowalniały się nawzajem
             # (na komputerze testowym kadry 96 s zamiast kilku); opis kadrów idzie na GPU, więc tam nakładanie się opłaca
             speech_job = run_whisper
-        else:                       # Whisper na GPU: po kolei, bo 8 GB VRAM nie zmieści obu modeli
+        elif device == "cuda":
+            # Whisper na GPU od razu, RÓWNOLEGLE z wycinaniem kadrów (ffmpeg na CPU); przed opisem kadrów
+            # czekamy na koniec — dwa modele naraz nie zmieszczą się w 8 GB VRAM
+            tr_box["t0"] = time.time()
+            speech_thread = threading.Thread(target=run_whisper, daemon=True)
+            speech_thread.start()
+        else:
             run_whisper()
 
     # 2) KADRY
@@ -180,6 +201,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         speech_thread = threading.Thread(target=speech_job, daemon=True)
         speech_thread.start()
 
+    if speech_thread and not speech_job and opt.vision == "ollama":     # GPU: zwolnij kartę przed modelem obrazu
+        log("        czekam na transkrypcję (GPU)…")
+        speech_thread.join()
+
     # 3) OBRAZ
     t = time.time()
     vision_engine = None
@@ -200,13 +225,14 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 log(f"        {i}/{len(frames)} {ts(f.t)} ! błąd: {str(err)[:90]}")
             else:
                 log(f"        {i}/{len(frames)} {ts(f.t)} {f.vision.get('scena', '')[:70]}")
+        _emit(opt, "kadry", [{"t": f.t, "file": f.file, "scena": (f.vision or {}).get("scena", "")} for f in frames])
         if failed:
             gaps.append(f"Nie udało się opisać kadrów: {', '.join(failed)} — w tych miejscach obraz = brak danych.")
     else:
         gaps.append("Analiza obrazu wyłączona — kadry zapisane, ale bez opisów.")
     timings["obraz_s"] = round(time.time() - t, 1)
 
-    if speech_thread:
+    if speech_thread and speech_thread.is_alive():
         log("        czekam na transkrypcję…")
         speech_thread.join()
     if "err" in tr_box:
@@ -260,6 +286,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 gaps.append(f"Tłumaczenie na {name_pl(lang)} nie powstało: {e}")
                 continue
             translations[lang] = {"silnik": text_name, "segmenty": segs, "nieprzetlumaczone": failed}
+            _emit(opt, "tlumaczenie_" + lang, segs)
             if failed:
                 gaps.append(f"Tłumaczenie na {name_pl(lang)}: {failed} z {len(segs)} linii bez tłumaczenia "
                             "(model nie zwrócił poprawnej odpowiedzi) — w tych miejscach tylko oryginał.")

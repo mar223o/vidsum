@@ -62,6 +62,7 @@ class Job:
         self.started: float | None = None
         self.finished: float | None = None
         self.stage = ""                 # np. "2/4 kadry"
+        self.partial: dict = {}         # gotowe etapy w trakcie analizy (podgląd): transkrypcja, napisy, kadry…
 
     def card(self) -> dict:
         """Dane do karty w Bibliotece (z analiza.json, w pamięci podręcznej)."""
@@ -84,7 +85,7 @@ class Job:
         end = self.finished or time.time()
         return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-200:],
                 "error": self.error, "out": str(self.out) if self.out else None, "created": self.created,
-                "stage": self.stage,
+                "stage": self.stage, "czesciowe": list(self.partial) if self.status == "trwa" else [],
                 "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card()}
 
 
@@ -107,6 +108,7 @@ class Worker:
             job = self.q.get()
             job.status = "trwa"
             job.started = time.time()
+            job.opt.on_partial = job.partial.__setitem__
 
             def log(msg: str, job=job) -> None:
                 for line in str(msg).splitlines():
@@ -380,6 +382,10 @@ def make_handler(app: App):
             m = re.fullmatch(r"/api/zadania/(\w+)/film", u.path)
             if m:
                 return self._video(m.group(1))
+            m = re.fullmatch(r"/api/zadania/(\w+)/czesciowe", u.path)
+            if m:
+                job = app.worker.jobs.get(m.group(1))
+                return self._json(job.partial if job else {}, 200 if job else 404)
             m = re.fullmatch(r"/api/zadania/(\w+)/czat", u.path)
             if m:
                 p = self._job_file(m.group(1), "czat.json")
@@ -398,6 +404,11 @@ def make_handler(app: App):
                 return
             if u.path == "/api/ustawienia":
                 return self._json(app.save_settings(self._body()))
+            if u.path == "/api/zakoncz":
+                # program działa w tle (bez okna) — wyłącza się przyciskiem w interfejsie
+                self._json({"ok": True})
+                threading.Timer(0.3, lambda: os._exit(0)).start()
+                return
             if u.path == "/api/wyslij":
                 # surowe bajty pliku w treści żądania (strumieniowo na dysk — filmy 40 min mają setki MB)
                 name = urllib.parse.unquote(self.headers.get("X-Filename") or "film.mp4")
@@ -500,7 +511,7 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
         srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     url = f"http://127.0.0.1:{srv.server_address[1]}/?t={app.token}"
     print(f"VidSum {__version__} — interfejs: {url}")
-    print("Zamknij to okno, aby wyłączyć program.")
+    print("Program działa w tle; wyłączysz go przyciskiem „Zakończ” w interfejsie.")
     if open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:

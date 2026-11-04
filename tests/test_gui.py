@@ -214,3 +214,49 @@ def test_fixed_port_persistent_token_single_instance(tmp_path):
     finally:
         p1.kill()
         p1.wait(timeout=10)
+
+
+def test_partial_results_and_quit(server, monkeypatch):
+    """Podgląd gotowych etapów w trakcie analizy + wyłączanie programu przyciskiem (działa bez okna)."""
+    base, app = server
+    import vidsum.gui as g
+    gate = threading.Event()
+    real = g.analyze
+
+    def slow_analyze(src, opt, log):
+        opt.on_partial("transkrypcja", {"jezyk": "pl", "segmenty": [{"start": 1.0, "end": 2.0, "text": "Cześć"}]})
+        gate.wait(10)                                   # „opis obrazu” jeszcze trwa
+        return real(src, opt, log)
+    monkeypatch.setattr(g, "analyze", slow_analyze)
+    _, job = req(base, "/api/link", data=json.dumps({"zrodlo": str(DATA / "bez_audio.mp4")}).encode(), method="POST")
+    for _ in range(50):
+        _, jobs = req(base, "/api/zadania")
+        j = next(x for x in jobs if x["id"] == job["id"])
+        if j["czesciowe"]:
+            break
+        time.sleep(0.1)
+    assert j["status"] == "trwa" and j["czesciowe"] == ["transkrypcja"]
+    _, part = req(base, f"/api/zadania/{job['id']}/czesciowe")
+    assert part["transkrypcja"]["segmenty"][0]["text"] == "Cześć"
+    gate.set()
+    assert wait_done(base, job["id"])["czesciowe"] == []          # po zakończeniu — pełny wynik zamiast podglądu
+
+    exits = []
+    monkeypatch.setattr(g.os, "_exit", lambda code: exits.append(code))
+    _, r = req(base, "/api/zakoncz", method="POST", data=b"")
+    time.sleep(0.6)
+    assert r["ok"] and exits == [0]
+    with pytest.raises(urllib.error.HTTPError) as e:              # bez klucza nie da się wyłączyć
+        req(base, "/api/zakoncz", method="POST", data=b"", token=False)
+    assert e.value.code == 403
+
+
+def test_windowless_start_logs_to_file(tmp_path):
+    """Bez okna konsoli (pythonw / VidSum Start.exe) sys.stdout to None — komunikaty idą do vidsum.log."""
+    import subprocess
+    code = ("import sys; sys.stdout = None; sys.stderr = None\n"
+            "from vidsum.cli import main\n"
+            "try:\n    main(['--version'])\nexcept SystemExit:\n    pass\n")
+    env = dict(os.environ, LOCALAPPDATA=str(tmp_path))
+    subprocess.run([sys.executable, "-c", code], env=env, cwd=Path(__file__).parent.parent, timeout=60, check=True)
+    assert "VidSum" in (tmp_path / "VidSum" / "vidsum.log").read_text(encoding="utf-8")
