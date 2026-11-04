@@ -20,7 +20,7 @@ from .languages import DEFAULT_TRANSLATIONS, base as lang_base, name_pl, normali
 from .llm import DEFAULT_TEXT_MODEL, ClaudeCode, LLMError, Ollama
 from .media import (choose_frames, extract_audio, extract_frame, frame_signature, hamming, plan_for, probe,
                     scene_scores)
-from .transcribe import Segment, SidecarEngine, Transcript, WhisperEngine
+from .transcribe import SidecarEngine, Transcript, WhisperEngine
 
 SCHEMA = "vidsum.analysis/1"
 
@@ -276,14 +276,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             else:                                  # lokalny 4–8B: etapami (pomiar: dużo więcej faktów, docs/modele.md)
                 raw = ""
                 meta_txt = "; ".join(f"{k}: {v}" for k, v in meta.items() if v not in (None, ""))
-                # mały model gubi fakty, gdy jednocześnie tłumaczy i streszcza — jeśli mowa nie jest po polsku,
-                # a mamy jej polskie tłumaczenie, streszcza z polskiej wersji (oryginał zostaje w wynikach)
+                # z mowy w ORYGINALE: pomiar (docs/modele.md, runda 3) — streszczanie z polskiego tłumaczenia
+                # nie dało więcej faktów, a przenosiło błędy rozpoznawania mowy dalej („grilled” → „grillowane”)
                 src_beats = beats
-                pl = translations.get("pl")
-                if pl and lang_base(tr.language) != "pl":
-                    pl_segs = [Segment(x["start"], x["end"], x["text"] or o.text) for x, o in zip(pl["segmenty"], tr.segments)]
-                    src_beats = build_beats(frames, pl_segs, info.duration, ocr_lines)
-                    meta_txt += "; MOWA poniżej to polskie tłumaczenie maszynowe z oryginału"
                 summary_data = staged_summary(text_engine, compact_timeline(src_beats), meta_txt, info.duration, log)
             summary_md = to_markdown(summary_data) if summary_data else (raw or None)
             summary_engine = text_name

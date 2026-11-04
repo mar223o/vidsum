@@ -575,8 +575,8 @@ def test_staged_summary_merges_facts_and_chunks():
     assert c["wskazowki"] == ["nie przypal"]
 
 
-def test_english_speech_summarized_from_polish_translation(tmp_path, ollama):
-    """Oryginał EN zostaje w transkrypcji; lokalne streszczenie dostaje polskie tłumaczenie mowy."""
+def test_english_speech_original_kept_and_translated(tmp_path, ollama):
+    """Oryginał EN zostaje w transkrypcji i trafia do streszczenia; tłumaczenie tylko na polski."""
     srt = tmp_path / "en.srt"
     srt.write_text("1\n00:00:01,000 --> 00:00:04,000\nHeat the oil to 190 degrees\n\n"
                    "2\n00:00:09,000 --> 00:00:12,000\nFry until golden\n", encoding="utf-8")
@@ -589,8 +589,8 @@ def test_english_speech_summarized_from_polish_translation(tmp_path, ollama):
     assert list(tr["tlumaczenia"]) == ["pl"]                                       # en → tylko pl
     extract = [c["messages"][0]["content"] for c in FakeOllama.calls
                if c.get("messages") and "ZAPIS:" in c["messages"][0]["content"] and "FAKTY Z FILMU" not in c["messages"][0]["content"]]
-    assert extract and "MOWA: EN: Heat the oil to 190 degrees" in extract[0]      # (atrapa „tłumaczy” dopisując EN:)
-    assert "polskie tłumaczenie maszynowe" in extract[0]
+    assert extract and "MOWA: Heat the oil to 190 degrees" in extract[0]           # streszczenie z oryginału
+    assert tr["tlumaczenia"]["pl"]["segmenty"][0]["text"] == "EN: Heat the oil to 190 degrees"   # (atrapa dopisuje „EN: ”)
 
 
 def test_staged_summary_survives_repeat_limit():

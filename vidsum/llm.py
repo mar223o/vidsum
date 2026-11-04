@@ -35,7 +35,7 @@ _LOWER = {"wysoka": "srednia", "srednia": "niska", "niska": "niska"}
 
 
 # Domyślny lokalny model TEKSTOWY (streszczenie, czat, tłumaczenia) — wybrany pomiarem, zob. docs/modele.md
-DEFAULT_TEXT_MODEL = "qwen3:8b"
+DEFAULT_TEXT_MODEL = "gemma3:4b"
 
 
 class LLMError(RuntimeError):

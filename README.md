@@ -50,7 +50,7 @@ Jeśli `Activate.ps1` jest zablokowany: `Set-ExecutionPolicy -Scope CurrentUser 
 | `--tlumacz pl,en` | pl,en | tłumaczenia transkrypcji; **oryginał zostaje zawsze**. Angielski → +polski, polski → +angielski, inny → +polski i +angielski. `brak` = bez tłumaczeń |
 | `--whisper` | `large-v3-turbo` | `small` szybszy, ale ok. 2× więcej błędów po polsku |
 | `--model-obrazu` | `qwen3-vl:4b-instruct` | opis kadrów (Ollama) |
-| `--model-tekstowy` | `{TM}` | lokalny model do streszczenia, czatu i tłumaczeń; pobiera się sam przy pierwszym użyciu |
+| `--model-tekstowy` | `gemma3:4b` | lokalny model do streszczenia, czatu i tłumaczeń; pobiera się sam przy pierwszym użyciu |
 | `--streszczenie auto/ollama/claude/brak` | auto | `auto` = lokalny model (program działa samodzielnie); `claude` = dodatek przez Claude Code |
 | `--obraz brak` | — | bez modelu wizyjnego (same kadry + mowa) |
 | `--max-kadrow N` | 20 / 45 / 100 | zależnie od długości filmu |
@@ -63,7 +63,7 @@ Polecenia jednorazowe:
 - `VidSum --pobierz-cuda` — biblioteki NVIDIA (cuBLAS 12 + cuDNN 9, ok. 1,3 GB do pobrania, 1,7 GB na dysku
   w `%LOCALAPPDATA%\VidSum\cuda`) dla Whispera na karcie graficznej. Program robi to też sam przy pierwszej analizie,
   jeśli wykryje kartę NVIDIA. Usunięcie folderu = odinstalowanie.
-- `VidSum --pobierz-model [nazwa]` — model tekstowy do Ollamy (domyślnie `{TM}`).
+- `VidSum --pobierz-model [nazwa]` — model tekstowy do Ollamy (domyślnie `gemma3:4b`).
 
 ## Streszczenie przez Claude (dodatek, nieobowiązkowy)
 Program streszcza sam, lokalnym modelem. Claude można użyć zamiast niego:

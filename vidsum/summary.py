@@ -84,6 +84,22 @@ def _str(x) -> str:
     return "" if x is None else str(x).strip()
 
 
+def _zr(x) -> str:
+    """Źródło do jednego z dozwolonych: mowa | obraz | mowa+obraz | szacunek (NAPISY/OCR to obraz)."""
+    z = _str(x).lower().replace(" ", "")
+    if not z:
+        return ""
+    z = re.sub(r"napisy|ocr|ekran|tekst", "obraz", z)
+    has_m, has_o = "mow" in z, "obraz" in z
+    if has_m and has_o:
+        return "mowa+obraz"
+    if has_m:
+        return "mowa"
+    if has_o:
+        return "obraz"
+    return "szacunek" if "szac" in z else ""
+
+
 def _lst(x) -> list:
     return x if isinstance(x, list) else []
 
@@ -117,21 +133,21 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
                         ([_str(d.get("streszczenie"))] if isinstance(d.get("streszczenie"), str) else []),
         "co_masz_zrobic": {
             "skladniki": [{"nazwa": _str(x.get("nazwa")), "ilosc": _str(x.get("ilosc")) or "brak danych",
-                           "zrodlo": _str(x.get("zrodlo"))} for x in _lst(cmz.get("skladniki")) if isinstance(x, dict)],
-            "kroki": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")), "zrodlo": _str(x.get("zrodlo"))}
+                           "zrodlo": _zr(x.get("zrodlo"))} for x in _lst(cmz.get("skladniki")) if isinstance(x, dict)],
+            "kroki": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")), "zrodlo": _zr(x.get("zrodlo"))}
                       for x in _lst(cmz.get("kroki")) if isinstance(x, dict) and _str(x.get("tekst"))],
             "sprzet": [_str(x) for x in _lst(cmz.get("sprzet")) if _str(x)],
             "czas": _str(cmz.get("czas")),
             "cwiczenia": [{"nazwa": _str(x.get("nazwa")), "serie": _str(x.get("serie")),
                            "powtorzenia": _str(x.get("powtorzenia")), "t": clamp(x.get("t")),
-                           "technika": _str(x.get("technika")), "zrodlo": _str(x.get("zrodlo"))}
+                           "technika": _str(x.get("technika")), "zrodlo": _zr(x.get("zrodlo"))}
                           for x in _lst(cmz.get("cwiczenia")) if isinstance(x, dict) and _str(x.get("nazwa"))],
             "wskazowki": [_str(x) for x in _lst(cmz.get("wskazowki")) if _str(x)],
             "bledy": [_str(x) for x in _lst(cmz.get("bledy")) if _str(x)],
             "wnioski": [_str(x) for x in _lst(cmz.get("wnioski")) if _str(x)],
         },
         "najwazniejsze": [{"t": clamp(x.get("t")), "tytul": _str(x.get("tytul")), "opis": _str(x.get("opis")),
-                           "zrodlo": _str(x.get("zrodlo"))}
+                           "zrodlo": _zr(x.get("zrodlo"))}
                           for x in _lst(d.get("najwazniejsze")) if isinstance(x, dict) and _str(x.get("tytul"))],
         "momenty": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst"))}
                     for x in _lst(d.get("momenty")) if isinstance(x, dict) and _str(x.get("tekst"))],
@@ -258,13 +274,13 @@ MOWA = co mówi autor (najważniejsze), NAPISY = tekst z ekranu (dokładne liczb
 {meta}
 Wypisz po polsku WSZYSTKO, co widz ma zrobić albo zapamiętać. Przejdź linia po linii — każda linia z MOWA zwykle
 zawiera czynność albo poradę. Zachowaj KAŻDĄ liczbę z jednostką (temperatury, czasy, ilości, rozmiary, serie, powtórzenia).
-Nie dodawaj niczego, czego nie ma w zapisie. Ewidentne błędy rozpoznawania mowy popraw tylko, jeśli NAPISY albo kontekst
+Nie dodawaj niczego, czego nie ma w zapisie — nie szacuj ilości, nie dopisuj nazw ani odmian. Ewidentne błędy rozpoznawania mowy popraw tylko, jeśli NAPISY albo kontekst
 jasno wskazują poprawne słowo; w razie wątpliwości pomiń. Źródło: "mowa", "obraz" albo "mowa+obraz" (NAPISY to "obraz").
 
 Odpowiedz WYŁĄCZNIE JSON-em:
 {{"typ": "przepis|trening|poradnik|wyklad|inne",
  "kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "..."}}],
- "skladniki": [{{"nazwa": "...", "ilosc": "ilość albo brak danych", "zrodlo": "..."}}],
+ "skladniki": [{{"nazwa": "...", "ilosc": "ilość TYLKO jeśli padła w filmie, inaczej brak danych", "zrodlo": "..."}}],
  "cwiczenia": [{{"nazwa": "...", "serie": "...", "powtorzenia": "...", "t": sekundy, "technika": "...", "zrodlo": "..."}}],
  "sprzet": ["..."], "wskazowki": ["porada / wyjaśnienie dlaczego"], "bledy": ["czego unikać"],
  "fakty": ["inne ważne informacje z filmu (dla wykładów, rozmów, recenzji)"]}}
