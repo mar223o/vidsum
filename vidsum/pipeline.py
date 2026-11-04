@@ -14,7 +14,7 @@ from typing import Callable
 
 from . import __version__
 from .analysis import FrameInfo, build_beats, build_summary_prompt, ts
-from .summary import build_json_prompt, compact_timeline, parse_summary, staged_summary, to_markdown
+from .summary import build_json_prompt, compact_timeline, parse_summary, staged_summary, to_markdown, verify_quotes
 from .fetch import resolve
 from .languages import DEFAULT_TRANSLATIONS, base as lang_base, name_pl, normalize, translation_targets
 from .llm import DEFAULT_TEXT_MODEL, ClaudeCode, LLMError, Ollama
@@ -389,6 +389,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 # nie dało więcej faktów, a przenosiło błędy rozpoznawania mowy dalej („grilled” → „grillowane”)
                 src_beats = beats
                 summary_data = staged_summary(text_engine, compact_timeline(src_beats), meta_txt, info.duration, log)
+            if summary_data:
+                bad = verify_quotes(summary_data, [asdict(x) for x in tr.segments])
+                if bad:
+                    log(f"        usunięto {bad} cytat(y), których nie ma w transkrypcji")
             summary_md = to_markdown(summary_data) if summary_data else (raw or None)
             summary_engine = text_name
             if not summary_data:

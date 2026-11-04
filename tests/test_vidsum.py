@@ -665,3 +665,16 @@ def test_gpu_order_whisper_first_then_hotword_pass(tmp_path, ollama, monkeypatch
     assert "transkrypcja_poprawka_s" in r["czasy"] and r["napisy_ekranowe"]
     assert [k for k, _ in got].count("transkrypcja") == 2       # podgląd: najpierw szybka, potem poprawiona
     assert (out / "przebieg.log").read_text(encoding="utf-8").count("kadr") >= 2
+
+
+def test_quotes_must_be_in_transcript_and_type_fields():
+    """Regresja z prawdziwego filmu: zmyślony cytat i „ćwiczenia” w przepisie."""
+    from vidsum.summary import parse_summary, verify_quotes
+    segs = [{"text": "We've got some duck fat too for flavor. And once it"}, {"text": "reaches around about 140°, we're going"}]
+    d = parse_summary(json.dumps({"typ": "przepis", "teza": "x", "cytaty": [
+        {"t": 1, "tekst": "Duck fat adds a deep flavor to the fries."},
+        {"t": 2, "tekst": "We've got some duck fat too for flavour"},
+        {"t": 3, "tekst": "once it reaches around about 140°"}],
+        "co_masz_zrobic": {"cwiczenia": [{"nazwa": "Smażenie", "t": 1}]}}), 60)
+    assert d["co_masz_zrobic"]["cwiczenia"] == []
+    assert verify_quotes(d, segs) == 1 and [q["t"] for q in d["cytaty"]] == [2.0, 3.0]

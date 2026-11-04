@@ -162,6 +162,12 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
         "czego_nie_wiadomo": [_str(x) for x in _lst(d.get("czego_nie_wiadomo")) if _str(x)],
         "pytania": [_str(x) for x in _lst(d.get("pytania")) if _str(x)][:6],
     }
+    # tylko pola pasujące do typu (pomiar na komputerze testowym: gemma wpisała „ćwiczenia” do przepisu na frytki)
+    c = out["co_masz_zrobic"]
+    if out["typ"] == "przepis":
+        c["cwiczenia"] = []
+    elif out["typ"] == "trening":
+        c["skladniki"] = []
     for k in ("najwazniejsze", "momenty", "cytaty"):
         out[k].sort(key=lambda x: x["t"])
     out["co_masz_zrobic"]["kroki"].sort(key=lambda x: x["t"])
@@ -401,3 +407,35 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     merged["co_masz_zrobic"]["sprzet"] = texts(ext["sprzet"])
     has_facts = any(ext[k] for k in ("kroki", "skladniki", "cwiczenia", "wskazowki", "fakty"))
     return parse_summary(json.dumps(merged, ensure_ascii=False), duration, allow_partial=has_facts)
+
+
+def _norm_words(t: str) -> list[str]:
+    return re.findall(r"\w+", t.lower())
+
+
+def verify_quotes(summary: dict, segments: list[dict]) -> int:
+    """Cytat musi naprawdę paść w filmie: ≥80% jego słów po kolei w transkrypcji (w oknie). Zmyślone usuwamy.
+
+    Pomiar na komputerze testowym: mały model „zacytował” zdanie, którego w filmie nie było. Zwraca liczbę usuniętych."""
+    words = _norm_words(" ".join(s.get("text") or "" for s in segments))
+    text = " ".join(words)
+    kept, removed = [], 0
+    for q in summary.get("cytaty", []):
+        qw = _norm_words(q.get("tekst", ""))
+        if not qw:
+            removed += 1
+            continue
+        if " ".join(qw) in text:
+            kept.append(q)
+            continue
+        best = 0
+        n = len(qw)
+        for i in range(max(1, len(words) - n + 1)):
+            win = set(words[i:i + n + 3])
+            best = max(best, sum(1 for w in qw if w in win) / n)
+        if best >= 0.8:
+            kept.append(q)
+        else:
+            removed += 1
+    summary["cytaty"] = kept
+    return removed
