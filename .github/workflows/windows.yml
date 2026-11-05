@@ -252,4 +252,4 @@ jobs:
           $files = @($env:ZIP_A, "$env:ZIP_A.sha256", $env:ZIP_B, "$env:ZIP_B.sha256")
           gh release view $env:GITHUB_REF_NAME 2>$null
           if ($LASTEXITCODE -eq 0) { gh release upload $env:GITHUB_REF_NAME @files --clobber }
-          else { gh release create $env:GITHUB_REF_NAME @files --title "VidSum $env:GITHUB_REF_NAME" --notes-file RAPORT_FAZA2.md }
+          else { gh release create $env:GITHUB_REF_NAME @files --title "VidSum $env:GITHUB_REF_NAME" --notes-file $(if (Test-Path "RAPORT_$($env:GITHUB_REF_NAME.TrimStart('v')).md") { "RAPORT_$($env:GITHUB_REF_NAME.TrimStart('v')).md" } else { "RAPORT_FAZA2.md" }) }
