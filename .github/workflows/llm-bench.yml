@@ -2,10 +2,7 @@
 # Wyniki: podsumowanie zadania + gałąź „wyniki-pomiarow” (plik bench/llm.json i surowe odpowiedzi).
 name: pomiar-modeli-tekstowych
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [tests/bench/llm_bench.py, tests/bench/data/**, .github/workflows/llm-bench.yml]
+  workflow_dispatch:      # tylko ręcznie (oszczędność minut)
 permissions:
   contents: write
 jobs:

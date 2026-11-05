@@ -1,8 +1,9 @@
 name: Windows — testy i budowa VidSum
 
+# Budowa Windows tylko przy wydaniu (tag v*) albo ręcznie: minuty Windows w prywatnym repozytorium liczą się x2
+# (na komputerze testowym 90% limitu zużyte w listopadzie). Zwykłe zmiany sprawdza tani test na Linuksie (testy.yml).
 on:
   push:
-    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 

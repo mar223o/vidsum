@@ -1,0 +1,20 @@
+# Szybkie testy na Linuksie przy każdej zmianie (minuty Linuksa liczą się x1, Windows x2).
+name: testy
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  testy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: sudo apt-get install -y -qq ffmpeg > /dev/null
+      - run: pip install -q -r requirements.txt pytest
+      - run: python -m pytest -q -rs
