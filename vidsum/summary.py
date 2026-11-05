@@ -296,7 +296,7 @@ ZAPIS:
 {timeline}
 """
 
-PRESENT_PROMPT = """Jesteś asystentem, który obejrzał film za użytkownika. Masz zapis filmu i listę faktów już z niego
+PRESENT_HEAD = """Jesteś asystentem, który obejrzał film za użytkownika. Masz zapis filmu i listę faktów już z niego
 wyciągniętych. Napisz po polsku opis całości. Niczego nie zmyślaj; to, co nie wynika z zapisu, oznacz jako szacunek.
 {meta}
 
@@ -307,18 +307,45 @@ ZAPIS (czas w sekundach):
 {timeline}
 
 Odpowiedz WYŁĄCZNIE JSON-em:
-{{"tytul": "krótki tytuł (3–6 słów)", "tytul_akcent": "puenta (2–4 słowa)",
+"""
+# opis całości w DWÓCH częściach — przy równoległej Ollamie liczą się naraz (każda część to połowa tekstu do napisania)
+PRESENT_A = """{{"tytul": "krótki tytuł (3–6 słów)", "tytul_akcent": "puenta (2–4 słowa)",
  "teza": "jedno zdanie: o co chodzi i co z tego wynika",
  "streszczenie": ["akapit 1 (konkretnie, z liczbami)", "akapit 2"],
  "najwazniejsze": [{{"t": sekundy, "tytul": "...", "opis": "1–2 zdania", "zrodlo": "mowa|obraz|mowa+obraz"}}],
- "momenty": [{{"t": sekundy, "tekst": "co się dzieje"}}],
+ "szczera_ocena": "2–3 zdania: co wartościowe, czego brakuje",
+ "czego_nie_wiadomo": ["czego film nie mówi, a widz chciałby wiedzieć"]}}
+Liczby: 3–5 „najwazniejsze”.
+"""
+PRESENT_B = """{{"momenty": [{{"t": sekundy, "tekst": "co się dzieje"}}],
  "cytaty": [{{"t": sekundy, "tekst": "dosłownie z MOWA, w oryginale", "tlumaczenie": "po polsku, jeśli oryginał nie jest po polsku"}}],
  "rozdzialy": [{{"start": sekundy, "end": sekundy, "tytul": "...", "opis": "1–2 zdania"}}],
  "wnioski": ["dla wykładu/rozmowy: najważniejsze wnioski"],
- "szczera_ocena": "2–3 zdania: co wartościowe, czego brakuje",
- "czego_nie_wiadomo": ["czego film nie mówi, a widz chciałby wiedzieć"],
  "pytania": ["3–5 pytań, które widz mógłby zadać"]}}
-Liczby: 3–5 „najwazniejsze”, 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie mówi), 2–5 „rozdzialy”.
+Liczby: 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie mówi), 3–6 „rozdzialy” obejmujących cały film po kolei.
+"""
+PRESENT_FULL = PRESENT_A.split("}}\nLiczby")[0] + ",\n" + PRESENT_B[2:].split("\nLiczby")[0] + """
+Liczby: 3–5 „najwazniejsze”, 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie mówi), 3–6 „rozdzialy” obejmujących cały film po kolei.
+"""
+PRESENT_PROMPT = PRESENT_HEAD + PRESENT_FULL
+
+FILL_PROMPT = """Czytasz fragmenty filmu (czas w sekundach), które POMINIĘTO przy wypisywaniu kroków. Źródła:
+MOWA = co mówi autor, NAPISY = tekst z ekranu (dokładne liczby i nazwy), OBRAZ = opis kadru (mało pewny).
+{meta}
+Kroki już wypisane:
+{done}
+
+Dopisz po polsku TYLKO to, czego na tej liście brakuje: czynności z tych fragmentów oraz KAŻDĄ liczbę z jednostką
+(temperatury, czasy, ilości, rozmiary, serie, powtórzenia), która jeszcze nie występuje w krokach. Jeśli czynność już jest
+na liście, ale bez liczby — podaj ją ponownie razem z liczbą. Nie powtarzaj kroków, które są kompletne. Nie zmyślaj.
+Odpowiedz WYŁĄCZNIE JSON-em:
+{{"kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "mowa|obraz|mowa+obraz"}}],
+ "skladniki": [{{"nazwa": "...", "ilosc": "ilość TYLKO jeśli padła, inaczej brak danych", "zrodlo": "..."}}],
+ "wskazowki": ["..."]}}
+Puste listy, jeśli niczego nie brakuje.
+
+FRAGMENTY:
+{timeline}
 """
 
 
@@ -365,19 +392,90 @@ def _try(engine, prompt: str, log) -> str:
     return ""
 
 
+_LINE_T = re.compile(r"^\[(\d+)s\]")
+_NUM = re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?")
+
+
+def _line_content(line: str) -> str:
+    """MOWA + NAPISY jednej linii zapisu (bez opisu kadru i bez znacznika czasu)."""
+    parts = [p.strip() for p in line.split(" | ")]
+    parts[0] = _LINE_T.sub("", parts[0]).strip()
+    return " ".join(p.split(":", 1)[1] for p in parts if p.startswith(("MOWA:", "NAPISY:")))
+
+
+def _t(x) -> float | None:
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def missing_lines(timeline: str, ext: dict) -> list[str]:
+    """Linie zapisu, z których nie powstał żaden krok, albo których liczby nie trafiły do kroków/składników.
+
+    Pomiar na komputerze testowym: przy jednym przebiegu mały model raz wypisał 11 kroków, raz 2 (bez 140°C i 190°C).
+    Sprawdzamy to mechanicznie, a brakujące fragmenty model czyta jeszcze raz."""
+    lines = [l for l in timeline.splitlines() if _LINE_T.match(l)]
+    starts = [float(_LINE_T.match(l).group(1)) for l in lines]
+    step_t = [t for t in (_t(k.get("t")) for k in ext.get("kroki", []) if isinstance(k, dict)) if t is not None]
+    have = " ".join(json.dumps(ext.get(k, []), ensure_ascii=False) for k in ("kroki", "skladniki", "cwiczenia", "wskazowki"))
+    have_nums = set(_NUM.findall(have))
+    out = []
+    for i, line in enumerate(lines):
+        content = _line_content(line)
+        if len(re.findall(r"\w+", content)) < 3:
+            continue
+        a, b = starts[i], starts[i + 1] if i + 1 < len(starts) else starts[i] + 30
+        covered = any(a - 1 <= t < b + 1 for t in step_t)
+        lost_num = any(n not in have_nums for n in _NUM.findall(content))
+        if not covered or lost_num:
+            out.append(line)
+    return out
+
+
+def _same_step(a: str, b: str) -> bool:
+    wa, wb = set(_norm_words(a)), set(_norm_words(b))
+    return bool(wa and wb) and len(wa & wb) / min(len(wa), len(wb)) >= 0.6
+
+
+def _split_even(text: str, n: int) -> list[str]:
+    lines = text.splitlines()
+    size = -(-len(text) // n)
+    return _chunks(text, max(size, max((len(l) for l in lines), default=1)))
+
+
 def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda s: None,
-                   chunk_chars: int = 6000, trace: list | None = None) -> dict | None:
-    """Streszczenie w dwóch etapach. `engine.complete(prompt, as_json=True)` — Ollama albo Claude."""
+                   chunk_chars: int = 6000, trace: list | None = None, parallel: int | None = None) -> dict | None:
+    """Streszczenie etapami. `engine.complete(prompt, as_json=True)` — Ollama albo Claude.
+
+    1) fakty z fragmentów zapisu (fragmenty równolegle, gdy Ollama obsługuje kilka zapytań naraz),
+    2) kontrola kompletności: fragmenty bez kroku albo z liczbą, której nie ma w krokach → dopisanie,
+    3) opis całości (dwie części równolegle albo jedna)."""
+    from concurrent.futures import ThreadPoolExecutor
+    par = max(1, int(parallel if parallel is not None else getattr(engine, "parallel", 1)))
     meta_line = f"Metadane: {meta}" if meta else ""
     ext: dict = {"kroki": [], "skladniki": [], "cwiczenia": [], "sprzet": [], "wskazowki": [], "bledy": [], "fakty": []}
     types: list[str] = []
-    parts = _chunks(timeline, chunk_chars)
-    for i, part in enumerate(parts, 1):
-        if len(parts) > 1:
-            log(f"        fakty: fragment {i}/{len(parts)}")
-        raw = _try(engine, EXTRACT_PROMPT.format(meta=meta_line, timeline=part), log)
+
+    def record(stage: str, prompt: str, raw: str) -> None:
         if trace is not None:
-            trace.append(raw)
+            trace.append({"etap": stage, "odpowiedz": raw, "prompt_znakow": len(prompt)})
+
+    # równoległa Ollama: zapis dzielimy na tyle części, ile zapytań idzie naraz (min. ~1500 znaków na część)
+    n_par = min(par, max(1, len(timeline) // 1500))
+    parts = _split_even(timeline, n_par) if n_par > 1 and len(timeline) <= chunk_chars * n_par else _chunks(timeline, chunk_chars)
+    if len(parts) > 1:
+        log(f"        fakty: {len(parts)} fragmenty" + (f" ({min(par, len(parts))} naraz)" if par > 1 else ""))
+
+    def extract(part: str) -> str:
+        pr = EXTRACT_PROMPT.format(meta=meta_line, timeline=part)
+        raw = _try(engine, pr, log)
+        record("fakty", pr, raw)
+        return raw
+
+    with ThreadPoolExecutor(max_workers=min(par, len(parts))) as pool:
+        raws = list(pool.map(extract, parts))
+    for raw in raws:
         d = _loads(raw)
         if _str(d.get("typ")).lower() in TYPES:
             types.append(_str(d.get("typ")).lower())
@@ -386,17 +484,66 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
                 if x and x not in ext[k]:
                     ext[k].append(x)
     typ = max(set(types), key=types.count) if types else "inne"
+
+    # 2) kontrola kompletności (instrukcje: przepis, poradnik, trening)
+    if typ in ("przepis", "poradnik", "trening"):
+        miss = missing_lines(timeline, ext)
+        if miss:
+            log(f"        kontrola kompletności: {len(miss)} fragment(y) bez kroku albo z pominiętą liczbą — dopisuję")
+            done = "\n".join(f"- [{_str(k.get('t'))}s] {_str(k.get('tekst'))}" for k in ext["kroki"] if isinstance(k, dict)) or "—"
+            pr = FILL_PROMPT.format(meta=meta_line, done=done, timeline="\n".join(miss))
+            raw = _try(engine, pr, log)
+            record("uzupelnienie", pr, raw)
+            d = _loads(raw)
+            added = 0
+            for k in _lst(d.get("kroki")):
+                if not isinstance(k, dict) or not _str(k.get("tekst")):
+                    continue
+                txt = _str(k.get("tekst"))
+                same = [i for i, o in enumerate(ext["kroki"]) if isinstance(o, dict) and _same_step(txt, _str(o.get("tekst")))]
+                new_nums = set(_NUM.findall(txt))
+                if same:
+                    old = ext["kroki"][same[0]]
+                    if new_nums - set(_NUM.findall(_str(old.get("tekst")))):
+                        ext["kroki"][same[0]] = {**old, "tekst": txt}     # ten sam krok, ale teraz z liczbą
+                        added += 1
+                    continue
+                ext["kroki"].append(k)
+                added += 1
+            for key in ("skladniki", "wskazowki"):
+                for x in _lst(d.get(key)):
+                    name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
+                    olds = [_str(o.get("nazwa")) if isinstance(o, dict) else _str(o) for o in ext[key]]
+                    if name and not any(_same_step(name, o) for o in olds):
+                        ext[key].append(x)
+                        added += 1
+            log(f"        kontrola kompletności: dopisano {added}")
+    ext["kroki"].sort(key=lambda k: _t(k.get("t")) if isinstance(k, dict) and _t(k.get("t")) is not None else 1e9)
+
     facts_json = json.dumps({"typ": typ, **ext}, ensure_ascii=False)
-    # do drugiego etapu: zapis skrócony do rozsądnej długości (fakty są już kompletne)
+    # do opisu całości: zapis skrócony do rozsądnej długości (fakty są już kompletne)
     short = timeline if len(timeline) <= 9000 else "\n".join(_chunks(timeline, 9000)[0].splitlines()) + "\n[…]"
-    p: dict = {}
-    for _ in (1, 2):                                   # jedna ponowna próba, gdy odpowiedź nie jest poprawnym JSON-em
-        raw = _try(engine, PRESENT_PROMPT.format(meta=meta_line, facts=facts_json, timeline=short), log)
-        if trace is not None:
-            trace.append(raw)
-        p = _loads(raw)
-        if p.get("teza") or p.get("streszczenie") or p.get("najwazniejsze"):
-            break
+    head = PRESENT_HEAD.format(meta=meta_line, facts=facts_json, timeline=short)
+
+    def present(tail: str, need: tuple, stage: str) -> dict:
+        got: dict = {}
+        for _ in (1, 2):                           # jedna ponowna próba, gdy odpowiedź nie jest poprawnym JSON-em
+            pr = head + tail.format()
+            raw = _try(engine, pr, log)
+            record(stage, pr, raw)
+            got = _loads(raw)
+            if any(got.get(k) for k in need):
+                break
+        return got
+
+    if par > 1:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            fa = pool.submit(present, PRESENT_A, ("teza", "streszczenie", "najwazniejsze"), "opis_a")
+            fb = pool.submit(present, PRESENT_B, ("momenty", "rozdzialy", "cytaty"), "opis_b")
+            p = {**fb.result(), **fa.result()}
+    else:
+        p = present(PRESENT_FULL, ("teza", "streszczenie", "najwazniejsze"), "opis")
+
     def texts(xs) -> list[str]:
         return [x if isinstance(x, str) else _str((x or {}).get("tekst") or (x or {}).get("nazwa")) for x in xs]
 

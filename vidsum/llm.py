@@ -87,6 +87,14 @@ def salvage_json(txt: str) -> dict:
     return d
 
 
+def ollama_parallel() -> int:
+    """Ile zapytań naraz obsługuje Ollama (zmienna OLLAMA_NUM_PARALLEL ustawiona przez użytkownika; 1–4)."""
+    try:
+        return max(1, min(4, int(os.environ.get("OLLAMA_NUM_PARALLEL") or 1)))
+    except ValueError:
+        return 1
+
+
 class Ollama:
     def __init__(self, model: str, host: str | None = None, timeout: float = 600):
         self.model = model
@@ -95,6 +103,8 @@ class Ollama:
             self.host = "http://" + self.host
         self.timeout = timeout
         self._think_ok = True
+        self.parallel = ollama_parallel()
+
 
     def _post(self, path: str, body: dict) -> dict:
         req = urllib.request.Request(self.host + path, data=json.dumps(body).encode("utf-8"),
@@ -132,12 +142,15 @@ class Ollama:
             return _clean_vision(d)
 
     def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None) -> str:
-        # kontekst dopasowany do promptu (~3 znaki/token + zapas na odpowiedź) — mniej RAM/VRAM
+        # STAŁY kontekst 8192 (większy tylko dla bardzo długich promptów): Ollama przeładowuje model, gdy kolejne
+        # zapytania mają różne num_ctx — przy równoległym tłumaczeniu i streszczeniu to kosztowało sekundy
         need = len(prompt) // 3 + 1500
-        num_ctx = min(32768, max(4096, -(-need // 2048) * 2048))
+        num_ctx = 8192 if need <= 8192 else min(32768, -(-need // 4096) * 4096)
+        # JSON (streszczenie, tłumaczenie): temperatura 0 — ten sam film daje to samo streszczenie
+        # (na komputerze testowym przy 0.2 raz 11 kroków, raz 2); rozmowa (czat) zostaje lekko swobodniejsza
         body = {"model": self.model, "stream": False, "keep_alive": "5m",
                 # limit długości + kara za powtórzenia: mały model potrafi się zapętlić
-                "options": {"temperature": 0.2, "num_ctx": num_ctx,
+                "options": {"temperature": 0 if as_json else 0.2, "num_ctx": num_ctx, "seed": 7,
                             "num_predict": max_tokens or (3000 if as_json else 1200), "repeat_penalty": 1.15},
                 **({"format": "json"} if as_json else {}),
                 "messages": [{"role": "user", "content": prompt}]}

@@ -558,6 +558,10 @@ def test_staged_summary_merges_facts_and_chunks():
 
         def complete(self, prompt, as_json=False):
             self.prompts.append(prompt)
+            if "FRAGMENTY:\n" in prompt:                                       # kontrola kompletności
+                self.fill = prompt
+                return json.dumps({"kroki": [{"t": 30, "tekst": "Rozgrzej olej do 190°C", "zrodlo": "obraz"},
+                                             {"t": 0, "tekst": "krok od 0", "zrodlo": "mowa"}]})
             if "ZAPIS:\n" in prompt and "FAKTY Z FILMU" not in prompt:       # etap 1, porcja
                 first = int(prompt.split("ZAPIS:\n")[1].split("s]")[0].strip("["))
                 return json.dumps({"typ": "przepis", "kroki": [{"t": first, "tekst": f"krok od {first}", "zrodlo": "mowa"}],
@@ -569,12 +573,51 @@ def test_staged_summary_merges_facts_and_chunks():
 
     e = Eng()
     d = staged_summary(e, tl, "tytuł: test", 60.0, chunk_chars=120)
-    assert len(e.prompts) >= 3                                                 # ≥2 porcje + opis
+    assert len(e.prompts) >= 4                                                 # ≥2 porcje + uzupełnienie + opis
     c = d["co_masz_zrobic"]
     assert d["typ"] == "przepis" and d["tytul"] == "Frytki"
-    assert [k["t"] for k in c["kroki"]] == sorted(k["t"] for k in c["kroki"]) and len(c["kroki"]) == len(e.prompts) - 1
+    assert [k["t"] for k in c["kroki"]] == sorted(k["t"] for k in c["kroki"])
+    # kontrola kompletności: 190 z NAPISÓW nie było w krokach → dopisane; powtórzony „krok od 0” — nie
+    assert "190°C" in e.fill and any("190" in k["tekst"] for k in c["kroki"])
+    assert sum(1 for k in c["kroki"] if k["tekst"] == "krok od 0") == 1
     assert c["skladniki"] == [{"nazwa": "ziemniaki", "ilosc": "brak danych", "zrodlo": "mowa"}]   # bez dubli z porcji
     assert c["wskazowki"] == ["nie przypal"]
+
+
+def test_missing_lines_and_parallel_presentation():
+    """Brakujące fragmenty (bez kroku lub z pominiętą liczbą) i opis całości w dwóch częściach naraz."""
+    import threading
+    from vidsum.summary import missing_lines, staged_summary
+    tl = ("[0s] MOWA: Start with agria potatoes today.\n[10s] MOWA: Heat the oil up to 190 degrees.\n"
+          "[20s] MOWA: Extra crunch.\n[30s] MOWA: Fry until golden and crispy.")
+    miss = missing_lines(tl, {"kroki": [{"t": 1, "tekst": "Użyj ziemniaków agria"}, {"t": 11, "tekst": "Rozgrzej olej"},
+                                         {"t": 31, "tekst": "Smaż na złoto"}]})
+    assert miss == ["[10s] MOWA: Heat the oil up to 190 degrees."]        # „Extra crunch.” za krótkie
+    assert missing_lines(tl, {"kroki": [{"t": 1, "tekst": "a"}, {"t": 11, "tekst": "olej 190"}, {"t": 31, "tekst": "b"}]}) == []
+
+    class Eng:
+        parallel = 3
+
+        def __init__(self):
+            self.live, self.peak, self.lock = 0, 0, threading.Lock()
+
+        def complete(self, prompt, as_json=False):
+            import time as _t
+            with self.lock:
+                self.live += 1
+                self.peak = max(self.peak, self.live)
+            _t.sleep(0.2)
+            with self.lock:
+                self.live -= 1
+            if "FAKTY Z FILMU" in prompt and '"momenty"' in prompt.split("JSON-em:")[-1]:
+                return json.dumps({"momenty": [{"t": 1, "tekst": "m"}], "rozdzialy": [{"start": 0, "end": 40, "tytul": "R", "opis": "o"}]})
+            if "FAKTY Z FILMU" in prompt:
+                return json.dumps({"tytul": "T", "teza": "Teza.", "streszczenie": ["A."]})
+            return json.dumps({"typ": "inne", "fakty": ["f"]})
+
+    e = Eng()
+    d = staged_summary(e, tl * 3, "", 40.0)
+    assert e.peak >= 2 and d["teza"] == "Teza." and d["rozdzialy"] and d["momenty"]
 
 
 def test_english_speech_original_kept_and_translated(tmp_path, ollama):
