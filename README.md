@@ -100,3 +100,7 @@ Claude Code (PowerShell):
 ```powershell
 claude mcp add vidsum -- "C:\Users\Jan\Programy\VidSum\VidSum.cmd" --mcp
 ```
+
+## Pomiar opisu kadrów
+
+`vidsum --pomiar-kadrow "folder analizy"` — te same kadry opisane trzema sposobami (czas, tokeny, opisy obok siebie) → `pomiar_kadrow.md`.

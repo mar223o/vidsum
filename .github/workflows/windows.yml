@@ -229,20 +229,22 @@ jobs:
           if ($bad) { throw "Defender coś wykrył" }
 
       - uses: actions/upload-artifact@v4
+        continue-on-error: true      # limit miejsca na artefakty nie może blokować wydania (Release)
         with:
           name: VidSum-windows-x64-exe
           path: |
             ${{ env.ZIP_A }}
             ${{ env.ZIP_A }}.sha256
-          retention-days: 30
+          retention-days: 7
 
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: VidSum-windows-x64-python
           path: |
             ${{ env.ZIP_B }}
             ${{ env.ZIP_B }}.sha256
-          retention-days: 30
+          retention-days: 7
 
       - name: Release (tylko przy tagu v*)
         if: startsWith(github.ref, 'refs/tags/v')

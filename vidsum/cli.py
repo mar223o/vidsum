@@ -47,6 +47,17 @@ def main(argv: list[str] | None = None) -> int:
         print("✔ biblioteki CUDA załadowane" if not miss else f"✖ nie da się załadować: {', '.join(miss)}")
         print(f"  karty NVIDIA widoczne: {cuda.gpu_count()}")
         return 1 if miss else 0
+    if args[:1] == ["--pomiar-kadrow"]:        # pomiar sposobów opisu kadrów na tej karcie graficznej
+        from .vision_bench import run as bench
+        if len(args) < 2:
+            print("Użycie: VidSum.exe --pomiar-kadrow \"folder analizy\"", file=sys.stderr)
+            return 2
+        try:
+            bench(Path(args[1]))
+        except Exception as e:
+            print(f"✖ {e}", file=sys.stderr)
+            return 1
+        return 0
     if args[:1] == ["--pobierz-model"]:         # lokalny model tekstowy do Ollamy (jednorazowo)
         from .llm import LLMError, Ollama
         try:

@@ -20,6 +20,11 @@
 - Stały kontekst modeli (obraz 3072, tekst 8192): Ollama nie przeładowuje modelu między zapytaniami.
 - W logu: czas wczytania modelu obrazu i tekstowego, faktyczna równoległość opisu kadrów.
 
+**Pomiar opisu kadrów na własnej karcie**
+- `VidSum.exe --pomiar-kadrow "folder analizy"` opisuje kadry gotowej analizy trzema sposobami (jak teraz;
+  ze schematem JSON ograniczającym długość list; 2 kadry w jednym zapytaniu) i zapisuje `pomiar_kadrow.md`
+  (czas, tokeny, opisy obok siebie, zgodność słów). Na tej podstawie wybierzemy szybszy sposób bez utraty jakości.
+
 ## Pomiar streszczenia (tests/bench/summary_bench.py, gemma3:4b, CPU w GitHub Actions, oś czasu frytek z 0.7.5)
 
 Fakty z 16 (140 °C, 190 °C, soda, sól, zimna woda, płukanie, skrobia, odmiana Agria, sól Maldon, kaczy tłuszcz,

@@ -75,6 +75,10 @@ class FakeOllama(http.server.BaseHTTPRequestHandler):
             import re as _re
             lines = _re.findall(r"^(\d+)\. (.*)$", msg["content"].split("LINES:")[1], _re.M)
             content = json.dumps({n: "EN: " + t for n, t in lines})
+        elif msg.get("images") and len(msg["images"]) == 2:
+            one = {"scena": "deska i nóż", "czynnosci": ["krojenie"], "obiekty": ["nóż"], "tekst_na_ekranie": [],
+                   "napisy_na_przedmiotach": [], "cialo": "", "pewnosc": "srednia"}
+            content = json.dumps({"kadr_1": one, "kadr_2": {**one, "scena": "patelnia"}})
         elif msg.get("images"):
             content = json.dumps({"scena": "deska i nóż", "czynnosci": ["krojenie"], "obiekty": ["cebula", "nóż"],
                                   "tekst_na_ekranie": "Krok 1", "cialo": None, "pewnosc": "srednia"})
@@ -829,3 +833,21 @@ def test_free_vram_without_nvidia_smi(monkeypatch):
     from vidsum.cuda import free_vram_mb
     monkeypatch.setattr(shutil, "which", lambda name: None)
     assert free_vram_mb() is None
+
+
+def test_vision_bench_three_modes(tmp_path, ollama, monkeypatch):
+    """--pomiar-kadrow: te same kadry trzema sposobami, wynik w folderze analizy."""
+    monkeypatch.setenv("OLLAMA_NUM_PARALLEL", "2")
+    rc = main(["--bez-ocr", str(FILM), "-o", str(tmp_path / "w"), "--ollama", ollama, "--model-obrazu", "fake-vl",
+               "--streszczenie", "brak", "--tlumacz", "brak"])
+    assert rc == 0
+    folder = _only_dir(tmp_path / "w")
+    from vidsum.vision_bench import run
+    monkeypatch.setenv("OLLAMA_HOST", ollama)
+    FakeOllama.calls = []
+    out = run(folder, model="fake-vl", host=ollama, log=lambda s: None)
+    r = json.loads((folder / "pomiar_kadrow.json").read_text(encoding="utf-8"))
+    n = len(json.loads((folder / "analiza.json").read_text(encoding="utf-8"))["kadry"])
+    assert set(r) == {"teraz", "schemat", "2w1"} and all(len(v["opisy"]) == n for v in r.values())
+    assert any(isinstance(c.get("format"), dict) and "kadr_1" in c["format"]["properties"] for c in FakeOllama.calls)
+    assert "| 2w1 |" in out.read_text(encoding="utf-8") and r["schemat"]["zgodnosc_slow_z_teraz"] == 1.0
