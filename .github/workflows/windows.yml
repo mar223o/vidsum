@@ -307,5 +307,15 @@ jobs:
           $files = @($env:SETUP, "$env:SETUP.sha256", $env:ZIP_C, "$env:ZIP_C.sha256", $env:META_C, "$env:META_C.sha256",
                      $env:ZIP_A, "$env:ZIP_A.sha256", $env:ZIP_B, "$env:ZIP_B.sha256")
           gh release view $env:GITHUB_REF_NAME 2>$null
-          if ($LASTEXITCODE -eq 0) { gh release upload $env:GITHUB_REF_NAME @files --clobber }
+          if ($LASTEXITCODE -eq 0) {
+            # po jednym pliku, z ponowieniem: duże pliki wysyłane naraz kończyły się „HTTP 408 Upload body timed out”
+            foreach ($f in $files) {
+              $ok = $false
+              for ($i = 1; $i -le 4 -and -not $ok; $i++) {
+                gh release upload $env:GITHUB_REF_NAME $f --clobber
+                if ($LASTEXITCODE -eq 0) { $ok = $true } else { Write-Host "ponawiam $f ($i)"; Start-Sleep (15 * $i) }
+              }
+              if (-not $ok) { throw "nie udało się wysłać $f" }
+            }
+          }
           else { gh release create $env:GITHUB_REF_NAME @files --title "VidSum $env:GITHUB_REF_NAME" --notes-file $(if (Test-Path "RAPORT_$($env:GITHUB_REF_NAME.TrimStart('v')).md") { "RAPORT_$($env:GITHUB_REF_NAME.TrimStart('v')).md" } else { "RAPORT_FAZA2.md" }) }
