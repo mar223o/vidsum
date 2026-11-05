@@ -24,7 +24,8 @@ Odpowiedz jako JSON z kluczami:
 "pewnosc": "wysoka" | "srednia" | "niska".
 Zasady: nazwij przedmiot konkretnie tylko, gdy jest wyraźnie widoczny (nóż to nie nożyce, ziemniak to nie ciasto);
 gdy nie masz pewności, użyj nazwy ogólnej (np. „narzędzie kuchenne”, „produkt”) i ustaw "pewnosc" na "niska".
-Jeśli czegoś nie da się rozpoznać, zostaw pustą listę zamiast zgadywać."""
+Jeśli czegoś nie da się rozpoznać, zostaw pustą listę zamiast zgadywać.
+Krótko: "scena" do 15 słów, najwyżej 6 "obiekty" i 4 "czynnosci" (szybkość — kadrów jest wiele)."""
 
 VISION_KEYS = {"scena": "", "czynnosci": [], "obiekty": [], "tekst_na_ekranie": [], "napisy_na_przedmiotach": [],
                "cialo": "", "pewnosc": "niska"}
@@ -118,7 +119,7 @@ class Ollama:
         b64 = base64.b64encode(Path(image).read_bytes()).decode("ascii")
         r = self._post("/api/chat", {
             "model": self.model, "stream": False, "format": "json", "keep_alive": "5m",
-            "options": {"temperature": 0, "num_predict": 600},
+            "options": {"temperature": 0, "num_predict": 400},
             "messages": [{"role": "user", "content": VISION_PROMPT.format(t=t_label), "images": [b64]}],
         })
         txt = r.get("message", {}).get("content", "")
@@ -192,6 +193,14 @@ class Ollama:
         if not self.has_model():
             log(f"        model {self.model} nie jest pobrany — pobieram (jednorazowo)…")
             self.pull(log)
+
+    def preload(self) -> None:
+        """Wczytuje model do pamięci karty z wyprzedzeniem (pusty prompt) — na komputerze testowym samo wczytanie
+        modelu obrazu zajmowało ~20 s przed pierwszym kadrem; tak dzieje się to w tle, w czasie OCR/kadrów."""
+        try:
+            self._post("/api/generate", {"model": self.model, "keep_alive": "10m"})
+        except LLMError:
+            pass
 
     def unload(self) -> None:
         try:

@@ -732,3 +732,14 @@ def test_youtube_auto_captions_replaced_by_whisper_on_gpu(tmp_path, monkeypatch,
 def test_power_throttling_disabled_on_windows():
     from vidsum.tools import disable_power_throttling
     assert disable_power_throttling() is True
+
+
+def test_vision_model_preloaded_before_frames(tmp_path, ollama):
+    """Model obrazu wczytuje się w tle (pusty /api/generate) zanim przyjdzie pierwszy kadr."""
+    main(["--bez-ocr", str(FILM), "-o", str(tmp_path), "--napisy", str(NAPISY), "--ollama", ollama,
+          "--model-obrazu", "fake-vl", "--max-kadrow", "4", "--streszczenie", "brak", "--tlumacz", "brak"])
+    idx_pre = next(i for i, c in enumerate(FakeOllama.calls) if c.get("keep_alive") == "10m" and "messages" not in c)
+    idx_img = next(i for i, c in enumerate(FakeOllama.calls) if c.get("messages") and c["messages"][0].get("images"))
+    assert idx_pre < idx_img
+    img = FakeOllama.calls[idx_img]
+    assert img["options"]["num_predict"] == 400

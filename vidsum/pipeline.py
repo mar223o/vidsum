@@ -138,6 +138,17 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         device, _ = engine.resolve_device(log)
         caps_then_whisper = auto_caps and device == "cuda"
 
+    # model obrazu wczytuje się do karty W TLE, w czasie OCR i wycinania kadrów
+    preload_thread = None
+    if opt.vision == "ollama":
+        def preload() -> None:
+            if need_whisper and device == "cuda" and speech_thread:
+                speech_thread.join()       # najpierw Whisper na karcie (oba naraz mogłyby nie zmieścić się w 8 GB)
+            Ollama(opt.vision_model, opt.ollama_host).preload()
+        preload_job = preload
+    else:
+        preload_job = None
+
     # 0) NAPISY NA EKRANIE (OCR)
     ocr_thread = None
     if opt.ocr:
@@ -221,6 +232,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         else:
             run_whisper()
 
+    if preload_job:
+        preload_thread = threading.Thread(target=preload_job, daemon=True)
+        preload_thread.start()
+
     # 2) KADRY
     t = time.time()
     log("  [2/4] wykrywanie zmian scen i wybór kadrów…")
@@ -259,6 +274,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if opt.vision == "ollama":
         vision_engine = Ollama(opt.vision_model, opt.ollama_host)
         vision_engine.check()
+        if preload_thread and preload_thread.is_alive():
+            log("        model obrazu jeszcze się wczytuje…")
+            preload_thread.join()
         log(f"  [3/4] opis kadrów ({opt.vision_model})…")
         failed: list[str] = []
         done = [0]
