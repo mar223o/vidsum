@@ -89,6 +89,17 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     opt.language = normalize(opt.language)          # nieznany kod → czytelny błąd od razu
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp = opt.out_root / "_pobrane"
+    # od 0.7.7: link → model obrazu wczytuje się do karty JUŻ W CZASIE POBIERANIA filmu (na komputerze testowym wczytanie ~11 s,
+    # a kadry były gotowe wcześniej i czekały na model)
+    early: dict = {}
+    early_thread = None
+    if opt.vision == "ollama" and re.match(r"https?://", str(inp).strip(), re.I):
+        def early_preload() -> None:
+            t_l = time.time()
+            Ollama(opt.vision_model, opt.ollama_host).preload()
+            early["s"] = round(time.time() - t_l, 1)
+        early_thread = threading.Thread(target=early_preload, daemon=True)
+        early_thread.start()
     src = resolve(inp, tmp, opt.cookies_from_browser)
     t_fetch = round(time.time() - t0, 1)
     name = _safe_name(src.title or src.path.stem)
@@ -151,6 +162,20 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         preload_job = preload
     else:
         preload_job = None
+    if early_thread:
+        if need_whisper and device == "cuda":
+            # Whisper (1. przebieg) na karcie obok modelu obrazu tylko, gdy jest miejsce; inaczej zwolnij kartę
+            # i wczytaj model obrazu po Whisperze (jak w 0.7.6)
+            early_thread.join()
+            from .cuda import free_vram_mb
+            free = free_vram_mb()
+            if free is None or free < 2500:
+                Ollama(opt.vision_model, opt.ollama_host).unload()
+                early_thread = None
+            else:
+                preload_job = None
+        else:
+            preload_job = None                 # wczytuje się już od startu
 
     # 0) NAPISY NA EKRANIE (OCR)
     # od 0.7.6: OCR startuje PO wycięciu kadrów — wcześniej oba naraz walczyły o procesor i kadry czekały ~18 s
@@ -246,6 +271,14 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if preload_job:
         preload_thread = threading.Thread(target=preload_job, daemon=True)
         preload_thread.start()
+    elif early_thread:
+        preload_thread = early_thread
+
+        def note_early() -> None:              # czas wczytania do logu, gdy się skończy
+            early_thread.join()
+            timings["obraz_wczytanie_s"] = early.get("s", 0.0)
+            log(f"        model obrazu wczytany do karty ({early.get('s', 0.0):.1f} s, od startu, w czasie pobierania)")
+        threading.Thread(target=note_early, daemon=True).start()
 
     # 2) KADRY
     t = time.time()
@@ -627,7 +660,10 @@ _STAGES = [("pobieranie_s", "pobieranie"), ("ocr_s", "napisy (OCR)"), ("transkry
 
 def _dur(sec: float) -> str:
     sec = float(sec or 0)
-    return f"{int(sec // 60)} min {sec % 60:.0f} s" if sec >= 60 else f"{sec:.1f} s"
+    if sec < 60:
+        return f"{sec:.1f} s"
+    whole = int(round(sec))                       # 119,5 s → „2 min 0 s”, nie „1 min 60 s”
+    return f"{whole // 60} min {whole % 60} s"
 
 
 def _timing_line(c: dict) -> str:

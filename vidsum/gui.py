@@ -495,10 +495,43 @@ def _running_instance(port: int) -> bool:
         return False
 
 
+def _replace_older(port: int, token: str) -> bool:
+    """Działa INNA wersja VidSum (np. stara po aktualizacji) i nic nie analizuje → zamknij ją, żeby otworzyła się ta.
+
+    Na komputerze testowym „VidSum Start” z nowej wersji otwierał stronę starej, która dalej działała w tle."""
+    import json as _json
+    import urllib.request
+    base = f"http://127.0.0.1:{port}"
+
+    def get(path: str):
+        req = urllib.request.Request(base + path, headers={"X-Token": token})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return _json.loads(r.read().decode("utf-8"))
+    try:
+        if get("/api/status").get("wersja") == __version__:
+            return False
+        if any(j.get("status") == "trwa" for j in get("/api/zadania")):
+            print("Działa starsza wersja VidSum i właśnie analizuje — zostawiam ją (zamknij ją po analizie).")
+            return False
+        req = urllib.request.Request(base + "/api/zakoncz", data=b"{}", method="POST",
+                                     headers={"X-Token": token, "Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=3).read()
+    except Exception:
+        return False
+    for _ in range(50):                    # do 5 s na zwolnienie portu
+        time.sleep(0.1)
+        if not _running_instance(port):
+            print("Zamknięto starszą wersję VidSum.")
+            return True
+    return False
+
+
 def serve(port: int = 0, open_browser: bool = True, token: str | None = None, results: Path | None = None) -> None:
     token = token or _persistent_token()
     want = port or DEFAULT_PORT
-    if not port and _running_instance(want):
+    if not port and _running_instance(want) and _replace_older(want, token):
+        pass                               # stara wersja zamknięta — uruchamiamy tę
+    elif not port and _running_instance(want):
         url = f"http://127.0.0.1:{want}/?t={token}"
         print(f"VidSum już działa — otwieram: {url}")
         if open_browser:
