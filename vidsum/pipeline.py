@@ -323,17 +323,21 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     tr = tr_box["tr"]
     timings["transkrypcja_s"] = tr_box.get("s", round(time.time() - t_speech, 1))
     use_hot = bool(ocr_lines) and not small_model
-    if wav and device == "cuda" and tr.segments and (use_hot or caps_then_whisper):
+    hot2 = ""
+    if use_hot and tr.segments:
+        from .ocr import hotwords_targeted
+        hot2 = hotwords_targeted(ocr_lines, src.title, " ".join(x.text for x in tr.segments))
+    if wav and device == "cuda" and tr.segments and (hot2 or caps_then_whisper):
         # druga, dokładniejsza transkrypcja: podpowiedzi słów z napisów na ekranie (nazwy, liczby) —
         # pomiar: WER 5,5% → 0–1,4% po polsku. Na GPU to kilka sekund.
         t = time.time()
         if vision_engine:
             vision_engine.unload()                 # karta dla Whispera
-        log("  [1/4] dokładna transkrypcja Whisperem (GPU)" + (" z podpowiedziami z napisów na ekranie" if use_hot else "") + "…")
-        from .ocr import hotwords
-        eng2 = WhisperEngine(opt.whisper_model, "cuda", download_root=opt.whisper_root,
-                             hotwords=hotwords(ocr_lines, src.title) if use_hot else None)
-        eng2.coverage_hints = [(l.start, l.end) for l in ocr_lines] if use_hot else []
+        log("  [1/4] dokładna transkrypcja Whisperem (GPU)" + (" z podpowiedziami z napisów na ekranie" if hot2 else "") + "…")
+        if hot2:
+            log(f"        podpowiedzi z napisów: {hot2[:150]}")
+        eng2 = WhisperEngine(opt.whisper_model, "cuda", download_root=opt.whisper_root, hotwords=hot2 or None)
+        eng2.coverage_hints = [(l.start, l.end) for l in ocr_lines] if hot2 else []
         try:
             tr2 = eng2.transcribe(wav, tr.language)
             if tr2.segments:

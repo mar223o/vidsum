@@ -168,6 +168,31 @@ def fix_polish(text: str) -> str:
     return text.translate(_PL_FIX)
 
 
+def hotwords_targeted(lines: list[OcrLine], title: str | None, reference: str, limit: int = 60) -> str:
+    """Podpowiedź do DRUGIEJ transkrypcji: tylko napisy z ekranu zawierające słowa, których pierwsza wersja
+    nie ma (to zwykle źle usłyszane nazwy/liczby), każdy jako zdanie z wielkiej litery i kropką.
+
+    Pomiar na prawdziwym filmie (frytki): pełna lista napisów małymi literami → Whisper pisał BEZ interpunkcji
+    i wielkich liter; same słowa → „Maldon” poprawione, „Agria” nie; ta wersja → oba poprawione i interpunkcja jest.
+    """
+    known = {w.lower() for w in re.findall(r"[\w°'’]+", reference)}
+    picked: list[str] = []
+    count = 0
+    for l in lines:
+        text = fix_polish(l.text).strip(" -–")
+        new = [w for w in re.findall(r"[^\W_][\w°'’-]*", text) if len(w) >= 3 and w.lower() not in known]
+        if not new or text in picked:
+            continue
+        picked.append(text)
+        count += len(text.split())
+        if count >= limit:
+            break
+    if not picked:
+        return ""
+    head = [title.strip().rstrip(".") + "."] if title else []
+    return " ".join(head + [t[:1].upper() + t[1:].rstrip(".!?") + "." for t in picked])
+
+
 def hotwords(lines: list[OcrLine], title: str | None = None, limit: int = 80) -> str:
     """Podpowiedź dla Whispera: tytuł + napisy z ekranu jako NATURALNY tekst (wielkie litery, interpunkcja).
 

@@ -743,3 +743,14 @@ def test_vision_model_preloaded_before_frames(tmp_path, ollama):
     assert idx_pre < idx_img
     img = FakeOllama.calls[idx_img]
     assert img["options"]["num_predict"] == 400
+
+
+def test_targeted_hotwords_from_real_fries_ocr():
+    """Regresja (0.7.3): podpowiedź z samych napisów małymi literami wyłączała interpunkcję w transkrypcji."""
+    from vidsum.ocr import OcrLine, hotwords_targeted
+    lines = [OcrLine(0, 1, "this is it", .9), OcrLine(4.5, 6, "start with agria potatoes", .96),
+             OcrLine(52, 53, "heat the oil up to 190°C", .93), OcrLine(55, 56, "sprinkle of maldon salt", .96)]
+    first = "This is it. Start with the grill potatoes. Heat the oil up to 190. Finish with a sprinkle of molden."
+    h = hotwords_targeted(lines, "The Perfect French Fry", first)
+    assert h == "The Perfect French Fry. Start with agria potatoes. Heat the oil up to 190°C. Sprinkle of maldon salt."
+    assert hotwords_targeted(lines[:1], None, first) == ""                 # nic nowego → bez drugiego przebiegu z podpowiedzią
