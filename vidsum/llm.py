@@ -31,6 +31,7 @@ Krótko: "scena" do 15 słów, najwyżej 6 "obiekty" i 4 "czynnosci" (szybkość
 # Stała wartość (ta sama przy wczytaniu i przy kadrach — inaczej Ollama przeładowuje model) i mniejsza niż domyślna:
 # przy kilku zapytaniach naraz zostaje miejsce na karcie dla Whispera, który liczy w tym czasie poprawkę mowy.
 VISION_CTX = 3072
+TEXT_CTX = 8192
 
 VISION_KEYS = {"scena": "", "czynnosci": [], "obiekty": [], "tekst_na_ekranie": [], "napisy_na_przedmiotach": [],
                "cialo": "", "pewnosc": "niska"}
@@ -150,7 +151,7 @@ class Ollama:
         # STAŁY kontekst 8192 (większy tylko dla bardzo długich promptów): Ollama przeładowuje model, gdy kolejne
         # zapytania mają różne num_ctx — przy równoległym tłumaczeniu i streszczeniu to kosztowało sekundy
         need = len(prompt) // 3 + 1500
-        num_ctx = 8192 if need <= 8192 else min(32768, -(-need // 4096) * 4096)
+        num_ctx = TEXT_CTX if need <= TEXT_CTX else min(32768, -(-need // 4096) * 4096)
         # JSON (streszczenie, tłumaczenie): temperatura 0 — ten sam film daje to samo streszczenie
         # (na komputerze testowym przy 0.2 raz 11 kroków, raz 2); rozmowa (czat) zostaje lekko swobodniejsza
         body = {"model": self.model, "stream": False, "keep_alive": "5m",
@@ -212,11 +213,11 @@ class Ollama:
             log(f"        model {self.model} nie jest pobrany — pobieram (jednorazowo)…")
             self.pull(log)
 
-    def preload(self) -> None:
+    def preload(self, num_ctx: int = VISION_CTX) -> None:
         """Wczytuje model do pamięci karty z wyprzedzeniem (pusty prompt) — na komputerze testowym samo wczytanie
         modelu obrazu zajmowało ~20 s przed pierwszym kadrem; tak dzieje się to w tle, w czasie OCR/kadrów."""
         try:
-            self._post("/api/generate", {"model": self.model, "keep_alive": "10m", "options": {"num_ctx": VISION_CTX}})
+            self._post("/api/generate", {"model": self.model, "keep_alive": "10m", "options": {"num_ctx": num_ctx}})
         except LLMError:
             pass
 

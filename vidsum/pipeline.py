@@ -144,7 +144,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         def preload() -> None:
             if need_whisper and device == "cuda" and speech_thread:
                 speech_thread.join()       # najpierw Whisper na karcie (oba naraz mogłyby nie zmieścić się w 8 GB)
+            t_l = time.time()
             Ollama(opt.vision_model, opt.ollama_host).preload()
+            timings["obraz_wczytanie_s"] = round(time.time() - t_l, 1)
+            log(f"        model obrazu wczytany do karty ({time.time() - t_l:.1f} s)")
         preload_job = preload
     else:
         preload_job = None
@@ -456,6 +459,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 text_engine = Ollama(opt.summary_model or opt.text_model, opt.ollama_host)
                 text_name = f"ollama:{text_engine.model}"
                 text_engine.ensure(log)                # pierwszy raz: pobranie modelu (jednorazowo)
+                t_l = time.time()
+                from .llm import TEXT_CTX
+                text_engine.preload(TEXT_CTX)
+                timings["tekst_wczytanie_s"] = round(time.time() - t_l, 1)
+                log(f"        model tekstowy wczytany ({time.time() - t_l:.1f} s)")
         except LLMError as e:
             gaps.append(f"Model tekstowy niedostępny ({e}) — bez streszczenia i tłumaczeń.")
             log(f"        ! {e}")

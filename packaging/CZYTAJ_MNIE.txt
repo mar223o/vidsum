@@ -13,6 +13,11 @@ WYMAGANE OSOBNO
       winget install Ollama.Ollama
       ollama pull qwen3-vl:4b-instruct
 
+SZYBCIEJ (zalecane, jednorazowo w PowerShell, potem Ollama: ikona lamy → Quit i uruchomić ponownie):
+      setx OLLAMA_NUM_PARALLEL 3
+      setx OLLAMA_FLASH_ATTENTION 1
+  Ollama liczy wtedy kilka zapytań naraz (tłumaczenie razem ze streszczeniem, części streszczenia naraz).
+
 OPCJONALNIE
   Program streszcza sam (lokalny model). Claude to dodatek: Claude Code zalogowany kontem Pro
   i w Ustawieniach streszczenie = claude, albo przycisk „Kopiuj prompt dla Claude”.
