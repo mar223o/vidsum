@@ -204,7 +204,7 @@ def test_end_to_end_ollama(tmp_path, ollama):
     assert dane["rozdzialy"][0]["end"] <= r["zrodlo"]["dlugosc_s"]               # czasy przycięte do długości
     assert "### Składniki" in r["streszczenie"]["markdown"] and "200 ml" in r["streszczenie"]["markdown"]
     imgs = [c for c in FakeOllama.calls if c.get("messages") and c["messages"][0].get("images")]
-    assert len(imgs) == len(r["kadry"]) and imgs[0]["format"] == "json"
+    assert len(imgs) == len(r["kadry"]) and imgs[0]["format"]["properties"]["obiekty"]["maxItems"] == 6   # schemat (0.7.7)
     assert any(c.get("keep_alive") == 0 for c in FakeOllama.calls)          # zwolnienie VRAM
     prompt = (out / "prompt_dla_claude.md").read_text(encoding="utf-8")
     assert "[mowa]" in prompt and "brak danych" in prompt and "Teraz wlewamy" in prompt

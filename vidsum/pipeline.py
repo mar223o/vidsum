@@ -433,6 +433,29 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     timings["transkrypcja_s"] = tr_box.get("s", round(time.time() - t_speech, 1))
     # druga, dokładniejsza transkrypcja: podpowiedzi słów z napisów na ekranie (nazwy, liczby) —
     # pomiar: WER 5,5% → 0–1,4% po polsku. Na GPU to kilka sekund.
+    # od 0.7.7: model tekstowy wczytuje się do karty RÓWNOLEGLE z poprawką mowy (Whisper) — na komputerze testowym samo
+    # wczytanie trwało ~10 s. Jeśli przez Whispera nie zmieścił się cały na karcie, wczytujemy go ponownie.
+    summary_mode = "ollama" if opt.summary == "auto" else opt.summary
+    text_box: dict = {}
+    text_thread = None
+    will_refine = bool(refine_thread) or bool(wav and device == "cuda" and tr.segments)
+    if summary_mode == "ollama" and will_refine and vision_engine:
+        tmodel = Ollama(opt.summary_model or opt.text_model, opt.ollama_host)
+        try:
+            ready = tmodel.has_model()
+        except LLMError:
+            ready = False
+        if ready:
+            vision_engine.unload()
+
+            def text_preload() -> None:
+                from .llm import TEXT_CTX
+                t_l = time.time()
+                tmodel.preload(TEXT_CTX)
+                text_box["s"] = round(time.time() - t_l, 1)
+            text_thread = threading.Thread(target=text_preload, daemon=True)
+            text_thread.start()
+            log("        model tekstowy wczytuje się w tle, w czasie poprawki mowy…")
     if refine_thread:
         if refine_thread.is_alive():
             log("        czekam na poprawkę mowy…")
@@ -477,7 +500,6 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     # 4) STRESZCZENIE + TŁUMACZENIA — samodzielnie, lokalnym modelem tekstowym (Claude tylko jako dodatek)
     t = time.time()
     summary_md, summary_engine, summary_data = None, None, None
-    summary_mode = "ollama" if opt.summary == "auto" else opt.summary
     targets = translation_targets(tr.language, opt.translate) if tr.segments else []
     translations: dict = {}
     text_engine, text_name = None, None
@@ -492,11 +514,24 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 text_engine = Ollama(opt.summary_model or opt.text_model, opt.ollama_host)
                 text_name = f"ollama:{text_engine.model}"
                 text_engine.ensure(log)                # pierwszy raz: pobranie modelu (jednorazowo)
-                t_l = time.time()
                 from .llm import TEXT_CTX
-                text_engine.preload(TEXT_CTX)
-                timings["tekst_wczytanie_s"] = round(time.time() - t_l, 1)
-                log(f"        model tekstowy wczytany ({time.time() - t_l:.1f} s)")
+                t_l = time.time()
+                if text_thread:
+                    text_thread.join()
+                    share = text_engine.gpu_share()
+                    if share is not None and share < 0.99:
+                        log(f"        model tekstowy tylko w {share:.0%} na karcie (obok był Whisper) — wczytuję ponownie")
+                        text_engine.unload()
+                        text_engine.preload(TEXT_CTX)
+                        timings["tekst_wczytanie_s"] = round(text_box.get("s", 0) + time.time() - t_l, 1)
+                    else:
+                        timings["tekst_wczytanie_s"] = text_box.get("s", 0.0)
+                        log(f"        model tekstowy wczytany ({text_box.get('s', 0.0):.1f} s, w tle"
+                            + (f", {share:.0%} na karcie" if share is not None else "") + ")")
+                else:
+                    text_engine.preload(TEXT_CTX)
+                    timings["tekst_wczytanie_s"] = round(time.time() - t_l, 1)
+                    log(f"        model tekstowy wczytany ({time.time() - t_l:.1f} s)")
         except LLMError as e:
             gaps.append(f"Model tekstowy niedostępny ({e}) — bez streszczenia i tłumaczeń.")
             log(f"        ! {e}")
@@ -549,6 +584,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 bad = verify_quotes(summary_data, [asdict(x) for x in tr.segments])
                 if bad:
                     log(f"        usunięto {bad} cytat(y), których nie ma w transkrypcji")
+                from .summary import tidy
+                tidy(summary_data, info.duration)
             summary_md = to_markdown(summary_data) if summary_data else (raw or None)
             summary_engine = text_name
             if not summary_data:

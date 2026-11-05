@@ -1,7 +1,11 @@
 VidSum — analiza filmów (mowa + obraz)
 =======================================
 
-START
+INSTALACJA (zalecane)
+  Uruchom VidSum-Setup-<wersja>.exe → skrót „VidSum” w menu Start. Kolejne wersje: Ustawienia → Aktualizacje
+  w programie (albo nowy instalator — instaluje się w to samo miejsce, stary kod jest usuwany).
+
+START (wersja bez instalatora)
   Kliknij dwukrotnie „VidSum Start” (VidSum Start.exe albo VidSum Start.cmd).
   Program działa W TLE — bez czarnego okna — i otwiera stronę w przeglądarce.
   Wyłączasz go przyciskiem „Zakończ” w prawym górnym rogu strony.

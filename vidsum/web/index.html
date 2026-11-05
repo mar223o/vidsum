@@ -199,7 +199,7 @@ const I18N = {
    links_ph:"…albo wklej link(i) YouTube / Instagram / TikTok albo ścieżkę C:\\…\\film.mp4 (jeden w linii)",
    analyze:"Analizuj",settings:"Ustawienia",s_lang:"Język mowy",s_whisper:"Model mowy (Whisper)",s_ocr:"Napisy na ekranie (OCR)",
    s_vis_on:"Analiza obrazu",s_vision:"Model obrazu (Ollama)",s_summary:"Streszczenie",s_frames:"Maks. kadrów",
-   s_cookies:"Ciasteczka z przeglądarki (IG/TikTok)",s_out:"Folder wyników",save:"Zapisz ustawienia",none:"brak",
+   s_cookies:"Ciasteczka z przeglądarki (IG/TikTok)",s_out:"Folder wyników",save:"Zapisz ustawienia",upd:"Aktualizacje",upd_key:"Klucz GitHub (tylko odczyt)",upd_key_ph:"wklej klucz github_pat_…",upd_key_save:"Zapisz klucz",upd_key_ok:"Klucz zapisany w Menedżerze poświadczeń Windows",upd_key_have:"klucz zapisany",upd_check:"Sprawdź aktualizacje",upd_none:"Masz najnowszą wersję",upd_new:"Dostępna wersja",upd_go:"Aktualizuj",upd_kod:"pobierze tylko kod",upd_pelna:"pobierze pełny instalator",upd_done:"Zaktualizowano — program uruchamia się ponownie…",upd_setup:"Uruchomiono instalator — dokończ instalację w jego oknie.",none:"brak",
    queue:"W toku",recent:"Ostatnio",all:"Wszystko",no_jobs:"Brak analiz. Wrzuć film powyżej.",lib_title:"Twoja biblioteka",
    lib_sub:"Wszystkie analizy z tego komputera.",search:"Szukaj w tytułach i tezach…",lib_empty:"Biblioteka jest pusta.",
    w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",uploading:"Wysyłanie",open:"Otwórz",
@@ -230,7 +230,7 @@ const I18N = {
    links_ph:"…or paste YouTube / Instagram / TikTok link(s) or a path C:\\…\\video.mp4 (one per line)",
    analyze:"Analyze",settings:"Settings",s_lang:"Speech language",s_whisper:"Speech model (Whisper)",s_ocr:"On-screen text (OCR)",
    s_vis_on:"Image analysis",s_vision:"Vision model (Ollama)",s_summary:"Summary",s_frames:"Max frames",
-   s_cookies:"Browser cookies (IG/TikTok)",s_out:"Results folder",save:"Save settings",none:"none",
+   s_cookies:"Browser cookies (IG/TikTok)",s_out:"Results folder",save:"Save settings",upd:"Updates",upd_key:"GitHub key (read-only)",upd_key_ph:"paste github_pat_… key",upd_key_save:"Save key",upd_key_ok:"Key saved in Windows Credential Manager",upd_key_have:"key saved",upd_check:"Check for updates",upd_none:"You have the latest version",upd_new:"Available version",upd_go:"Update",upd_kod:"downloads code only",upd_pelna:"downloads the full installer",upd_done:"Updated — restarting…",upd_setup:"Installer started — finish it in its window.",none:"none",
    queue:"In progress",recent:"Recent",all:"All",no_jobs:"No analyses yet. Drop a video above.",lib_title:"Your library",
    lib_sub:"Every analysis on this computer.",search:"Search titles and theses…",lib_empty:"Library is empty.",
    w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",uploading:"Uploading",open:"Open",
@@ -293,8 +293,10 @@ function applyLang(){
 }
 document.querySelectorAll(".lang button").forEach(b => b.onclick = () => {
   L = b.dataset.l; applyLang(); api("/api/ustawienia",{method:"POST",body:JSON.stringify({jezyk_ui:L})}).catch(()=>{}); });
+let lastStatus = {};
+function updInfo(){ return lastStatus.wersja ? "· VidSum " + esc(lastStatus.wersja) + (lastStatus.klucz_github ? " · " + t("upd_key_have") : "") : ""; }
 async function loadStatus(){
-  try{ const s = await api("/api/status");
+  try{ const s = await api("/api/status"); lastStatus = s; const ui = $("#updInfo"); if (ui) ui.innerHTML = updInfo();
     $("#chips").innerHTML = [["chip_ff",s.ffmpeg,""],["chip_ol",s.ollama,s.ollama_info],["chip_cl",s.claude,s.claude_info]]
       .map(([k,ok,info]) => `<span class="chip ${ok?"ok":"bad"}" title="${esc(info)}">${ok?"✓":"✕"} ${t(k)}</span>`).join("") + `<span class="chip">v${esc(s.wersja)}</span>`;
   }catch(e){ $("#chips").innerHTML = `<span class="chip bad">${esc(e.message)}</span>`; }
@@ -385,7 +387,11 @@ function renderHome(){
             <label class="f">${t("s_frames")}<input id="s_max_kadrow" type="number" min="3" max="400" placeholder="auto"></label>
             <label class="f">${t("s_cookies")}<select id="s_ciasteczka_z"><option value="">${t("none")}</option><option>edge</option><option>chrome</option><option>firefox</option></select></label>
             <label class="f" style="grid-column:1/-1">${t("s_out")}<input id="s_wyniki"></label>
-          </div><div class="row"><button class="btn" id="save">${t("save")}</button></div></details>
+          </div><div class="row"><button class="btn" id="save">${t("save")}</button></div>
+          <h3 style="margin:18px 0 6px;font-size:15px">${t("upd")} <span id="updInfo" class="muted" style="font-size:12.5px;font-weight:400">${updInfo()}</span></h3>
+          <div class="grid"><label class="f" style="grid-column:1/-1">${t("upd_key")}<input id="updKey" type="password" autocomplete="off" placeholder="${esc(t("upd_key_ph"))}"></label></div>
+          <div class="row"><button class="btn" id="updKeySave">${t("upd_key_save")}</button><button class="btn" id="updCheck">${t("upd_check")}</button></div>
+          <div id="updOut" class="muted" style="font-size:13.5px;margin-top:8px"></div></details>
       </section>
       <div id="queue"></div><div id="recent"></div>`;
     bindHome();
@@ -410,10 +416,32 @@ function bindHome(){
     for (const z of lines) { try { await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z})}); } catch(e){ toast(e.message); } }
     $("#links").value = ""; poll();
   };
+  $("#updKeySave").onclick = async () => {
+    try { await api("/api/aktualizacja/klucz", {method:"POST", body:JSON.stringify({klucz:$("#updKey").value})}); $("#updKey").value=""; toast(t("upd_key_ok")); loadStatus(); }
+    catch(e){ toast(e.message); }
+  };
+  $("#updCheck").onclick = async () => {
+    const o = $("#updOut"); o.textContent = "…";
+    try {
+      const r = await api("/api/aktualizacja");
+      if (!r.jest_nowsza) { o.textContent = t("upd_none") + " (" + r.aktualna + ")"; return; }
+      o.innerHTML = `${t("upd_new")} <b>${esc(r.najnowsza)}</b> — ${t(r.rodzaj==="kod"?"upd_kod":"upd_pelna")}${r.rozmiar_mb? " ("+r.rozmiar_mb+" MB)":""}
+        <div class="row"><button class="btn primary" id="updGo">${t("upd_go")}</button></div>`;
+      $("#updGo").onclick = async () => {
+        o.textContent = "…";
+        try { const a = await api("/api/aktualizacja", {method:"POST", body:"{}"});
+          if (a.rodzaj === "kod") { o.textContent = t("upd_done"); setTimeout(waitAndReload, 3000); } else o.textContent = t("upd_setup"); }
+        catch(e){ o.textContent = e.message; }
+      };
+    } catch(e){ o.textContent = e.message; }
+  };
   $("#save").onclick = async () => {
     const b = {}; for (const k of SKEYS){ const v = $("#s_"+k).value; b[k] = k==="max_kadrow" ? (v? Number(v): null) : k==="ocr" ? v==="true" : v; }
     settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify(b)}); toast(t("saved")); loadStatus();
   };
+}
+async function waitAndReload(){          // po aktualizacji: czekaj, aż nowa wersja wstanie, i odśwież stronę
+  for (let i = 0; i < 40; i++) { try { await api("/api/status"); location.reload(); return; } catch {} await new Promise(r => setTimeout(r, 1000)); }
 }
 function upload(file){
   const key = Math.random().toString(36).slice(2); uploads[key] = {name:file.name, pct:0}; renderHome();

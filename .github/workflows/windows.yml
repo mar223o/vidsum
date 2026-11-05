@@ -87,6 +87,12 @@ jobs:
           pip install --no-compile --target "$P\python\Lib\site-packages" -r requirements.txt
           Copy-Item -Recurse vidsum "$P\vidsum"
           Get-ChildItem "$P\vidsum" -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
+          # odcisk bibliotek: aktualizacja „samego kodu” tylko, gdy biblioteki są takie same (inaczej pełny instalator)
+          $req = (Get-FileHash requirements.txt -Algorithm SHA256).Hash.ToLower()
+          $deps = "$req-py$v"
+          $ver0 = (Select-String -Path vidsum\__init__.py -Pattern '__version__ = "(.+)"').Matches[0].Groups[1].Value
+          "{`"wersja`": `"$ver0`", `"zaleznosci`": `"$deps`"}" | Out-File -Encoding ascii "$P\vidsum\_build.json"
+          "DEPS=$deps" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           New-Item -ItemType Directory -Force "$P\bin" | Out-Null
           Copy-Item ffbin\* "$P\bin\"
           Copy-Item packaging\VidSum.cmd, "packaging\VidSum Start.cmd", packaging\CZYTAJ_MNIE.txt, docs\licencje.md, docs\format_json.md $P
@@ -212,6 +218,53 @@ jobs:
           "ZIP_A=$a" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "ZIP_B=$b" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
+      - name: "C: paczka aktualizacji (sam kod) + instalator (Inno Setup)"
+        run: |
+          $ver = (& "dist\VidSum\VidSum.exe" --version).Split(" ")[1]
+          $c = "VidSum-$ver-aktualizacja.zip"
+          Push-Location portable\VidSum
+          7z a -tzip -mx=9 "..\..\$c" vidsum "VidSum Start.cmd" VidSum.cmd CZYTAJ_MNIE.txt | Out-Null
+          Pop-Location
+          "{`"wersja`": `"$ver`", `"zaleznosci`": `"$env:DEPS`"}" | Out-File -Encoding ascii "VidSum-$ver-aktualizacja.json"
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc /Qp "/DAppVersion=$ver" "/DSourceDir=$PWD\portable\VidSum" "/O$PWD" packaging\vidsum.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup: błąd $LASTEXITCODE" }
+          $s = "VidSum-Setup-$ver.exe"
+          foreach ($z in @($c, "VidSum-$ver-aktualizacja.json", $s)) {
+            $h = (Get-FileHash $z -Algorithm SHA256).Hash.ToLower()
+            "$h  $z" | Out-File -Encoding ascii "$z.sha256"
+            Write-Host "$z  $([math]::Round((Get-Item $z).Length/1MB, 1)) MB  sha256 $h"
+          }
+          "ZIP_C=$c" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "META_C=VidSum-$ver-aktualizacja.json" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "SETUP=$s" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: "Test instalatora i podmiany kodu"
+        run: |
+          $dir = "$env:RUNNER_TEMP\VidSum inst ąę"
+          $p = Start-Process -FilePath ".\$env:SETUP" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=`"$dir`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "instalator: kod $($p.ExitCode)" }
+          & "$dir\python\python.exe" -m vidsum --version
+          if ($LASTEXITCODE -ne 0) { throw "zainstalowany VidSum nie działa" }
+          if (-not (Test-Path "$dir\vidsum\_build.json")) { throw "brak _build.json" }
+          # aktualizacja samego kodu na zainstalowanej kopii: paczka C z podmienioną wersją 9.9.9
+          $t = "$env:RUNNER_TEMP\akt"; New-Item -ItemType Directory -Force $t | Out-Null
+          Expand-Archive $env:ZIP_C -DestinationPath $t -Force
+          (Get-Content "$t\vidsum\__init__.py" -Raw) -replace '__version__ = ".+?"', '__version__ = "9.9.9"' | Set-Content "$t\vidsum\__init__.py" -Encoding utf8
+          New-Item -ItemType File "$dir\vidsum\stary_plik.py" -Force | Out-Null
+          Compress-Archive -Path "$t\*" -DestinationPath "$env:RUNNER_TEMP\akt999.zip" -Force
+          & "$dir\python\python.exe" -c "import sys; from pathlib import Path; from vidsum import update; update.swap_code(Path(sys.argv[1]), '9.9.9', Path(sys.argv[2]))" "$env:RUNNER_TEMP\akt999.zip" "$dir"
+          $v = & "$dir\python\python.exe" -m vidsum --version
+          Write-Host "po podmianie: $v"
+          if ($v -ne "VidSum 9.9.9") { throw "podmiana kodu nie zadziałała" }
+          if (Test-Path "$dir\vidsum\stary_plik.py") { throw "stary plik został" }
+          $un = Get-ChildItem $dir -Filter "unins*.exe" | Select-Object -First 1
+          $p = Start-Process -FilePath $un.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES" -Wait -PassThru
+          for ($i = 0; $i -lt 60 -and (Test-Path "$dir\vidsum"); $i++) { Start-Sleep 1 }   # odinstalowanie działa z kopii w TEMP
+          if (Test-Path "$dir\vidsum") { throw "odinstalowanie zostawiło kod" }
+          Write-Host "instalacja, aktualizacja kodu i odinstalowanie: OK"
+
       - name: Skan Windows Defender (oba warianty)
         continue-on-error: true
         run: |
@@ -220,7 +273,7 @@ jobs:
           Write-Host "Defender: sygnatury $($s.AntivirusSignatureVersion) z $($s.AntivirusSignatureLastUpdated); silnik $($s.AMEngineVersion)"
           $mp = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
           $bad = 0
-          foreach ($p in @("$PWD\dist\VidSum", "$PWD\portable\VidSum", "$PWD\$env:ZIP_A", "$PWD\$env:ZIP_B")) {
+          foreach ($p in @("$PWD\dist\VidSum", "$PWD\portable\VidSum", "$PWD\$env:ZIP_A", "$PWD\$env:ZIP_B", "$PWD\$env:SETUP")) {
             & $mp -Scan -ScanType 3 -File $p -DisableRemediation | Out-Host
             Write-Host "Skan $p → kod $LASTEXITCODE (0 = brak zagrożeń, 2 = wykryto)"
             if ($LASTEXITCODE -ne 0) { $bad++ }
@@ -251,7 +304,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $files = @($env:ZIP_A, "$env:ZIP_A.sha256", $env:ZIP_B, "$env:ZIP_B.sha256")
+          $files = @($env:SETUP, "$env:SETUP.sha256", $env:ZIP_C, "$env:ZIP_C.sha256", $env:META_C, "$env:META_C.sha256",
+                     $env:ZIP_A, "$env:ZIP_A.sha256", $env:ZIP_B, "$env:ZIP_B.sha256")
           gh release view $env:GITHUB_REF_NAME 2>$null
           if ($LASTEXITCODE -eq 0) { gh release upload $env:GITHUB_REF_NAME @files --clobber }
           else { gh release create $env:GITHUB_REF_NAME @files --title "VidSum $env:GITHUB_REF_NAME" --notes-file $(if (Test-Path "RAPORT_$($env:GITHUB_REF_NAME.TrimStart('v')).md") { "RAPORT_$($env:GITHUB_REF_NAME.TrimStart('v')).md" } else { "RAPORT_FAZA2.md" }) }

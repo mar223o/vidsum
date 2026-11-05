@@ -69,6 +69,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     # Bez argumentów (dwuklik na VidSum.exe) albo z --ui: interfejs w przeglądarce
     if not args or args[0] == "--ui":
+        try:
+            from .update import cleanup_after_update
+            cleanup_after_update()             # resztki po poprzedniej aktualizacji
+        except Exception:
+            pass
         ui = argparse.ArgumentParser(prog="vidsum --ui")
         ui.add_argument("--ui", action="store_true")
         ui.add_argument("--port", type=int, default=0)

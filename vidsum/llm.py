@@ -33,6 +33,15 @@ Krótko: "scena" do 15 słów, najwyżej 6 "obiekty" i 4 "czynnosci" (szybkość
 VISION_CTX = 3072
 TEXT_CTX = 8192
 
+# Schemat JSON odpowiedzi o kadrze (limit długości list). Pomiar na komputerze testowym (--pomiar-kadrow, RTX 3070 Ti, 20 kadrów):
+# 29,7 s zamiast 40,4 s przy tej samej liczbie tokenów; opisy w 89% słów takie same (17/20 kadrów praktycznie identyczne).
+_ARR = lambda n: {"type": "array", "items": {"type": "string"}, "maxItems": n}  # noqa: E731
+FRAME_SCHEMA = {"type": "object", "properties": {
+    "scena": {"type": "string"}, "czynnosci": _ARR(4), "obiekty": _ARR(6), "tekst_na_ekranie": _ARR(4),
+    "napisy_na_przedmiotach": _ARR(3), "cialo": {"type": "string"},
+    "pewnosc": {"type": "string", "enum": ["wysoka", "srednia", "niska"]}},
+    "required": ["scena", "czynnosci", "obiekty", "tekst_na_ekranie", "napisy_na_przedmiotach", "cialo", "pewnosc"]}
+
 VISION_KEYS = {"scena": "", "czynnosci": [], "obiekty": [], "tekst_na_ekranie": [], "napisy_na_przedmiotach": [],
                "cialo": "", "pewnosc": "niska"}
 
@@ -134,7 +143,7 @@ class Ollama:
     def describe_frame(self, image: Path, t_label: str) -> dict:
         b64 = base64.b64encode(Path(image).read_bytes()).decode("ascii")
         r = self._post("/api/chat", {
-            "model": self.model, "stream": False, "format": "json", "keep_alive": "5m",
+            "model": self.model, "stream": False, "format": FRAME_SCHEMA, "keep_alive": "5m",
             "options": {"temperature": 0, "num_predict": 400, "num_ctx": VISION_CTX},
             "messages": [{"role": "user", "content": VISION_PROMPT.format(t=t_label), "images": [b64]}],
         })
@@ -220,6 +229,20 @@ class Ollama:
             self._post("/api/generate", {"model": self.model, "keep_alive": "10m", "options": {"num_ctx": num_ctx}})
         except LLMError:
             pass
+
+    def gpu_share(self) -> float | None:
+        """Jaka część wczytanego modelu jest w pamięci karty (1.0 = cały; <1 = część na procesorze, wolniej)."""
+        try:
+            with urllib.request.urlopen(urllib.request.Request(self.host + "/api/ps"), timeout=10) as r:
+                ms = json.loads(r.read().decode("utf-8")).get("models", [])
+        except Exception:
+            return None
+        want = self.model if ":" in self.model else self.model + ":latest"
+        for m in ms:
+            if m.get("name") == want or m.get("model") == want:
+                size = m.get("size") or 0
+                return round((m.get("size_vram") or 0) / size, 3) if size else None
+        return None
 
     def unload(self) -> None:
         try:

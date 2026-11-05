@@ -18,14 +18,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from .llm import VISION_CTX, VISION_PROMPT, Ollama, _clean_vision, salvage_json
+from .llm import FRAME_SCHEMA, VISION_CTX, VISION_PROMPT, Ollama, _clean_vision, salvage_json
 
-_ARR = lambda n: {"type": "array", "items": {"type": "string"}, "maxItems": n}  # noqa: E731
-FRAME_SCHEMA = {"type": "object", "properties": {
-    "scena": {"type": "string"}, "czynnosci": _ARR(4), "obiekty": _ARR(6), "tekst_na_ekranie": _ARR(4),
-    "napisy_na_przedmiotach": _ARR(3), "cialo": {"type": "string"},
-    "pewnosc": {"type": "string", "enum": ["wysoka", "srednia", "niska"]}},
-    "required": ["scena", "czynnosci", "obiekty", "tekst_na_ekranie", "napisy_na_przedmiotach", "cialo", "pewnosc"]}
 PAIR_SCHEMA = {"type": "object", "properties": {"kadr_1": FRAME_SCHEMA, "kadr_2": FRAME_SCHEMA},
                "required": ["kadr_1", "kadr_2"]}
 PAIR_PROMPT = ("Dostajesz DWA osobne kadry z filmu: obraz 1 (czas {t1}) i obraz 2 (czas {t2}). Opisz każdy osobno — "
@@ -71,7 +65,7 @@ def run(folder: Path, model: str | None = None, host: str | None = None, log=pri
 
     def one(t_img, schema: bool):
         tt, img = t_img
-        body = {"model": model, "stream": False, "keep_alive": "10m", "format": FRAME_SCHEMA if schema else "json",
+        body = {"model": model, "stream": False, "keep_alive": "10m", "format": FRAME_SCHEMA if schema else "json",   # „teraz” = sposób z 0.7.6 (porównanie)
                 "options": {"temperature": 0, "num_predict": 400, "num_ctx": VISION_CTX},
                 "messages": [{"role": "user", "content": VISION_PROMPT.format(t=ts(tt)), "images": [_b64(img)]}]}
         r = eng._post("/api/chat", body)

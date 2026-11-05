@@ -202,6 +202,12 @@ class App:
     def status(self) -> dict:
         st: dict = {"wersja": __version__}
         try:
+            from .update import can_swap_code, token_get
+            st["klucz_github"] = bool(token_get())
+            st["aktualizacja_kodu"] = can_swap_code()
+        except Exception:
+            st["klucz_github"] = False
+        try:
             find_tool("ffmpeg")
             find_tool("ffprobe")
             st["ffmpeg"] = True
@@ -372,6 +378,13 @@ def make_handler(app: App):
                 return
             if u.path == "/api/status":
                 return self._json(app.status())
+            if u.path == "/api/aktualizacja":
+                from .update import UpdateError, check
+                try:
+                    app.update_info = check()
+                except UpdateError as e:
+                    return self._json({"error": str(e)}, 400)
+                return self._json({k: v for k, v in app.update_info.items() if not k.startswith("_")})
             if u.path == "/api/ustawienia":
                 return self._json(app.settings)
             if u.path == "/api/zadania":
@@ -404,6 +417,33 @@ def make_handler(app: App):
                 return
             if u.path == "/api/ustawienia":
                 return self._json(app.save_settings(self._body()))
+            if u.path == "/api/aktualizacja/klucz":
+                from .update import UpdateError, token_delete, token_set
+                body = self._body()
+                try:
+                    if body.get("usun"):
+                        token_delete()
+                    else:
+                        token_set(str(body.get("klucz") or ""))
+                except UpdateError as e:
+                    return self._json({"error": str(e)}, 400)
+                return self._json({"ok": True})
+            if u.path == "/api/aktualizacja":
+                from .update import UpdateError, apply, restart_ui
+                if any(j.status == "trwa" for j in app.worker.jobs.values()):
+                    return self._json({"error": "Trwa analiza — zaktualizuj po jej zakończeniu."}, 409)
+                info = getattr(app, "update_info", None)
+                if not info or not info.get("jest_nowsza") or not info.get("rodzaj"):
+                    return self._json({"error": "Najpierw sprawdź aktualizacje."}, 400)
+                try:
+                    kind = apply(info, log=lambda m: None)
+                except UpdateError as e:
+                    return self._json({"error": str(e)}, 400)
+                self._json({"ok": True, "rodzaj": kind, "wersja": info["najnowsza"]})
+                if kind == "kod":                      # nowy kod na miejscu — uruchom ponownie
+                    restart_ui()
+                    threading.Timer(0.5, lambda: os._exit(0)).start()
+                return
             if u.path == "/api/zakoncz":
                 # program działa w tle (bez okna) — wyłącza się przyciskiem w interfejsie
                 self._json({"ok": True})

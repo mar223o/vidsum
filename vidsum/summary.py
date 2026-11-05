@@ -462,9 +462,47 @@ def missing_numbers(timeline: str, ext: dict) -> list[tuple[float, str, str, str
     return out
 
 
+def _stems(t: str) -> set:
+    # polska odmiana: „mąką” i „mąkę” → „mąk”; krótkie słowa (i, w, do) pomijamy
+    return {w[:4] if len(w) > 5 else w[:3] for w in _norm_words(t) if len(w) > 2}
+
+
 def _same_step(a: str, b: str) -> bool:
-    wa, wb = set(_norm_words(a)), set(_norm_words(b))
+    wa, wb = _stems(a), _stems(b)
     return bool(wa and wb) and len(wa & wb) / min(len(wa), len(wb)) >= 0.6
+
+
+def tidy(summary: dict, duration: float, max_quotes: int = 4, max_chapters: int = 6) -> dict:
+    """Porządki po modelu (pomiar na komputerze testowym, 0.7.6): 11 cytatów i 9 rozdziałów z dziurami zamiast 2–4 i 3–6,
+    ten sam krok dwa razy, „wnioski” = kopia „wskazówek”."""
+    c = summary.get("co_masz_zrobic") or {}
+    kroki, seen = [], []
+    for k in c.get("kroki", []):
+        t, txt = _t(k.get("t")), _str(k.get("tekst"))
+        if any(abs((t or 0) - (t2 or 0)) <= 2 and _same_step(txt, x2) for t2, x2 in seen):
+            continue
+        seen.append((t, txt))
+        kroki.append(k)
+    if c:
+        c["kroki"] = kroki
+        tips = c.get("wskazowki", [])
+        c["wnioski"] = [w for w in c.get("wnioski", []) if not any(_same_step(w, x) for x in tips)]
+    q = summary.get("cytaty", [])
+    if len(q) > max_quotes:                       # równo rozłożone po filmie
+        step = len(q) / max_quotes
+        summary["cytaty"] = [q[int(i * step)] for i in range(max_quotes)]
+    ch = sorted(summary.get("rozdzialy", []), key=lambda x: x["start"])
+    while len(ch) > max_chapters:                 # scal najkrótszy rozdział z następnym (albo poprzednim)
+        lens = [(ch[i + 1]["start"] if i + 1 < len(ch) else duration) - ch[i]["start"] for i in range(len(ch))]
+        i = min(range(len(ch)), key=lambda j: lens[j])
+        j = i + 1 if i + 1 < len(ch) else i - 1
+        a, b = sorted((i, j))
+        ch[a] = {**ch[a], "end": ch[b]["end"]}
+        del ch[b]
+    for i, x in enumerate(ch):                    # bez dziur: rozdział trwa do początku następnego
+        x["end"] = ch[i + 1]["start"] if i + 1 < len(ch) else round(duration, 2)
+    summary["rozdzialy"] = ch
+    return summary
 
 
 def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda s: None,
