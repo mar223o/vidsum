@@ -27,6 +27,11 @@ gdy nie masz pewności, użyj nazwy ogólnej (np. „narzędzie kuchenne”, „
 Jeśli czegoś nie da się rozpoznać, zostaw pustą listę zamiast zgadywać.
 Krótko: "scena" do 15 słów, najwyżej 6 "obiekty" i 4 "czynnosci" (szybkość — kadrów jest wiele)."""
 
+# kontekst modelu obrazu: kadr (≤512 px szerokości ≈ 450 tokenów) + polecenie + odpowiedź ≈ 1,5 tys. tokenów.
+# Stała wartość (ta sama przy wczytaniu i przy kadrach — inaczej Ollama przeładowuje model) i mniejsza niż domyślna:
+# przy kilku zapytaniach naraz zostaje miejsce na karcie dla Whispera, który liczy w tym czasie poprawkę mowy.
+VISION_CTX = 3072
+
 VISION_KEYS = {"scena": "", "czynnosci": [], "obiekty": [], "tekst_na_ekranie": [], "napisy_na_przedmiotach": [],
                "cialo": "", "pewnosc": "niska"}
 
@@ -129,7 +134,7 @@ class Ollama:
         b64 = base64.b64encode(Path(image).read_bytes()).decode("ascii")
         r = self._post("/api/chat", {
             "model": self.model, "stream": False, "format": "json", "keep_alive": "5m",
-            "options": {"temperature": 0, "num_predict": 400},
+            "options": {"temperature": 0, "num_predict": 400, "num_ctx": VISION_CTX},
             "messages": [{"role": "user", "content": VISION_PROMPT.format(t=t_label), "images": [b64]}],
         })
         txt = r.get("message", {}).get("content", "")
@@ -211,7 +216,7 @@ class Ollama:
         """Wczytuje model do pamięci karty z wyprzedzeniem (pusty prompt) — na komputerze testowym samo wczytanie
         modelu obrazu zajmowało ~20 s przed pierwszym kadrem; tak dzieje się to w tle, w czasie OCR/kadrów."""
         try:
-            self._post("/api/generate", {"model": self.model, "keep_alive": "10m"})
+            self._post("/api/generate", {"model": self.model, "keep_alive": "10m", "options": {"num_ctx": VISION_CTX}})
         except LLMError:
             pass
 

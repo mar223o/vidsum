@@ -152,3 +152,19 @@ def gpu_count() -> int:
         return int(ctranslate2.get_cuda_device_count())
     except Exception:
         return 0
+
+
+def free_vram_mb() -> int | None:
+    """Wolna pamięć karty NVIDIA w MB (nvidia-smi, instalowany ze sterownikiem); None, gdy nie da się sprawdzić."""
+    import shutil
+    import subprocess
+    exe = shutil.which("nvidia-smi")
+    if not exe:
+        return None
+    try:
+        r = subprocess.run([exe, "--query-gpu=memory.free", "--format=csv,noheader,nounits"], capture_output=True,
+                           text=True, timeout=10, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        vals = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
+        return vals[0] if vals else None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None

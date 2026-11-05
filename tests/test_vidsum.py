@@ -797,3 +797,30 @@ def test_targeted_hotwords_from_real_fries_ocr():
     h = hotwords_targeted(lines, "The Perfect French Fry", first)
     assert h == "The Perfect French Fry. Start with agria potatoes. Heat the oil up to 190°C. Sprinkle of maldon salt."
     assert hotwords_targeted(lines[:1], None, first) == ""                 # nic nowego → bez drugiego przebiegu z podpowiedzią
+
+
+def test_correct_from_captions_only_clear_cases():
+    """Dane z analizy z komputera testowego (0.7.5): poprawiamy „Steering” i „chocolate”, nic więcej."""
+    from vidsum.ocr import OcrLine, correct_from_captions
+    from vidsum.transcribe import Segment
+    segs = [Segment(6.56, 8.95, "particular potato variety is a very high"),
+            Segment(26.11, 27.79, "Which is going to help them to fluff and break down."),
+            Segment(28.43, 29.19, "Which is going to season them."),
+            Segment(46.91, 48.33, "Steering constantly for ruffled edges."),
+            Segment(54.85, 56.19, "Finish with a sprinkle of maldon chocolate.")]
+    lines = [OcrLine(7.0, 8.5, "variety has a very", 0.94), OcrLine(8.5, 9.5, "high starch content", 0.95),
+             OcrLine(9.5, 10.0, "and a very low", 0.9), OcrLine(26.5, 27.5, "to help them to fluff", 0.95),
+             OcrLine(28.5, 29.5, "to season them", 0.93), OcrLine(47.0, 47.5, "stirring constantly for", 0.94),
+             OcrLine(55.0, 56.5, "sprinkle of maldon salt", 0.96), OcrLine(52.0, 53.5, "heat the oil up to 190°C", 0.93)]
+    fixes = correct_from_captions(segs, lines)
+    assert [(f["bylo"], f["jest"]) for f in fixes] == [("Steering", "Stirring"), ("chocolate", "salt")]
+    assert segs[3].text == "Stirring constantly for ruffled edges."
+    assert segs[4].text == "Finish with a sprinkle of maldon salt."
+    assert segs[0].text.endswith("very high") and "help" in segs[1].text and "season" in segs[2].text
+
+
+def test_free_vram_without_nvidia_smi(monkeypatch):
+    import shutil
+    from vidsum.cuda import free_vram_mb
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    assert free_vram_mb() is None

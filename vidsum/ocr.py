@@ -222,3 +222,56 @@ def hotwords(lines: list[OcrLine], title: str | None = None, limit: int = 80) ->
         if count >= limit:
             break
     return " ".join(parts)
+
+
+def correct_from_captions(segments: list, lines: list, min_score: float = 0.85) -> list[dict]:
+    """Poprawia w transkrypcji pojedyncze słowa, które napis na ekranie w TYM SAMYM momencie podaje inaczej.
+
+    Pomiar na komputerze testowym (0.7.5): Whisper „maldon chocolate” / „Steering constantly”, a na ekranie „maldon salt” /
+    „stirring constantly”. Zamieniamy tylko 1 słowo na 1 słowo (litery, ≥3 znaki), gdy obok są ≥2 słowa zgodne
+    z napisem, napis ma ≥3 słowa i pewność OCR ≥0.85, a słowo pada w czasie, gdy napis jest na ekranie. Zmienia `segments` w miejscu;
+    zwraca listę poprawek {t, bylo, jest, napis} do zapisu w wynikach."""
+    import difflib
+    word = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", re.UNICODE)
+    fixes: list[dict] = []
+    for seg in segments:
+        text = seg.text or ""
+        toks = list(word.finditer(text))
+        if len(toks) < 3:
+            continue
+        low = [m.group(0).lower() for m in toks]
+        for ln in lines:
+            if ln.score < min_score or ln.end < seg.start - 1.0 or ln.start > seg.end + 1.0:
+                continue
+            cap = [w.lower() for w in word.findall(ln.text)]
+            if len(cap) < 3:
+                continue
+            ops = difflib.SequenceMatcher(None, low, cap, autojunk=False).get_opcodes()
+            equal = [(i1, i2) for tag, i1, i2, _, _ in ops if tag == "equal"]
+            for k, (tag, i1, i2, j1, j2) in enumerate(ops):
+                if tag != "replace" or i2 - i1 != 1 or j2 - j1 != 1:
+                    continue
+                if not (cap[j1].isalpha() and low[i1].isalpha()) or min(len(cap[j1]), len(low[i1])) < 3:
+                    continue
+                # słowo musi paść, gdy napis jest na ekranie (czas słowa szacowany liniowo w zdaniu)
+                tw = seg.start + (seg.end - seg.start) * (i1 + 0.5) / max(1, len(low))
+                if not (ln.start - 1.0 <= tw <= ln.end + 1.0):
+                    continue
+                # słowo z mowy jest w innym napisie obok (np. „high” w „high starch content”) — potwierdzone, zostaje
+                if any(low[i1] in (o.text or "").lower().split() for o in lines
+                       if o is not ln and o.end >= seg.start - 3 and o.start <= seg.end + 3):
+                    continue
+                near = sum(b - a for (a, b) in equal if b == i1 or a == i2)      # zgodne słowa tuż obok
+                if near < 2 or sum(b - a for a, b in equal) < 2:
+                    continue
+                m = toks[i1]
+                new = cap[j1]
+                if m.group(0)[:1].isupper():
+                    new = new[:1].upper() + new[1:]
+                fixes.append({"t": round(seg.start, 2), "bylo": m.group(0), "jest": new, "napis": ln.text})
+                text = text[:m.start()] + new + text[m.end():]
+                toks = list(word.finditer(text))
+                low = [x.group(0).lower() for x in toks]
+                break
+        seg.text = text
+    return fixes
