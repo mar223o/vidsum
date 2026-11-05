@@ -392,6 +392,13 @@ def _try(engine, prompt: str, log) -> str:
     return ""
 
 
+NUM_PROMPT = """Fragment filmu ({t} s): „{zdanie}”
+{meta}
+Napisz po polsku JEDNĄ czynność w trybie rozkazującym, która wynika z tego fragmentu i zawiera liczbę {n} razem z jednostką
+(np. stopnie, minuty, gramy, centymetry, powtórzenia). Nie dodawaj niczego spoza fragmentu.
+Odpowiedz WYŁĄCZNIE JSON-em: {{"tekst": "..."}}
+"""
+
 _LINE_T = re.compile(r"^\[(\d+)s\]")
 _NUM = re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?")
 
@@ -430,6 +437,28 @@ def missing_lines(timeline: str, ext: dict) -> list[str]:
         lost_num = any(n not in have_nums for n in _NUM.findall(content))
         if not covered or lost_num:
             out.append(line)
+    return out
+
+
+def missing_numbers(timeline: str, ext: dict) -> list[tuple[float, str, str, str]]:
+    """(czas, liczba, zdanie, źródło) dla liczb z MOWY/NAPISÓW, których nie ma w żadnym kroku ani składniku."""
+    have = " ".join(json.dumps(ext.get(k, []), ensure_ascii=False) for k in ("kroki", "skladniki", "cwiczenia", "wskazowki"))
+    have_nums = set(_NUM.findall(have))
+    out, seen = [], set()
+    for line in timeline.splitlines():
+        m = _LINE_T.match(line)
+        if not m:
+            continue
+        for part in line.split(" | "):
+            part = _LINE_T.sub("", part).strip()
+            if not part.startswith(("MOWA:", "NAPISY:")):
+                continue
+            src = "mowa" if part.startswith("MOWA:") else "obraz"
+            for sent in re.split(r"(?<=[.!?])\s+|\s\|\s", part.split(":", 1)[1]):
+                for n in _NUM.findall(sent):
+                    if n not in have_nums and n not in seen:
+                        seen.add(n)
+                        out.append((float(m.group(1)), n, sent.strip(), src))
     return out
 
 
@@ -518,6 +547,24 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
                         ext[key].append(x)
                         added += 1
             log(f"        kontrola kompletności: dopisano {added}")
+        # liczby, których model nadal nie przeniósł (pomiar: raz zgubił 140 °C i 190 °C mimo uzupełnienia) —
+        # osobne, bardzo krótkie zapytanie na każdą liczbę: małe modele robią to niezawodnie
+        nums = missing_numbers(timeline, ext)[:6]
+        if nums:
+            log(f"        kontrola liczb: brakuje {', '.join(n for _, n, _, _ in nums)} — dopisuję")
+
+            def one(item):
+                t0, n, sent, src = item
+                pr = NUM_PROMPT.format(t=int(t0), zdanie=sent, n=n, meta=meta_line)
+                raw = _try(engine, pr, log)
+                record("liczba", pr, raw)
+                txt = _str(_loads(raw).get("tekst"))
+                return {"t": t0, "tekst": txt, "zrodlo": src} if n in _NUM.findall(txt) else None
+
+            with ThreadPoolExecutor(max_workers=min(par, len(nums))) as pool:
+                for k in pool.map(one, nums):
+                    if k:
+                        ext["kroki"].append(k)
     ext["kroki"].sort(key=lambda k: _t(k.get("t")) if isinstance(k, dict) and _t(k.get("t")) is not None else 1e9)
 
     facts_json = json.dumps({"typ": typ, **ext}, ensure_ascii=False)

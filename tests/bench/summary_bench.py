@@ -22,7 +22,8 @@ BENCH = Path(__file__).resolve().parent
 sys.path.insert(0, str(BENCH))
 from llm_bench import FACTS, HALLUCINATIONS  # noqa: E402
 
-FACTS = {**FACTS, "sól Maldon": r"maldon", "odmiana Agria": r"agri"}
+FACTS = {**FACTS, "sól Maldon": r"maldon", "odmiana Agria": r"agri",
+         "płukanie do czystej wody": FACTS["płukanie do czystej wody"] + r"|wod\w*[^.\n]{0,30}czyst"}
 
 
 def main() -> None:

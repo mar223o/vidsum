@@ -558,6 +558,9 @@ def test_staged_summary_merges_facts_and_chunks():
 
         def complete(self, prompt, as_json=False):
             self.prompts.append(prompt)
+            if "JEDNĄ czynność" in prompt:                                       # kontrola liczb
+                n = prompt.split("zawiera liczbę ")[1].split()[0]
+                return json.dumps({"tekst": f"zrób {n} razy"})
             if "FRAGMENTY:\n" in prompt:                                       # kontrola kompletności
                 self.fill = prompt
                 return json.dumps({"kroki": [{"t": 30, "tekst": "Rozgrzej olej do 190°C", "zrodlo": "obraz"},
@@ -573,7 +576,7 @@ def test_staged_summary_merges_facts_and_chunks():
 
     e = Eng()
     d = staged_summary(e, tl, "tytuł: test", 60.0, chunk_chars=120)
-    assert len(e.prompts) >= 4                                                 # ≥2 porcje + uzupełnienie + opis
+    assert len(e.prompts) >= 4                                                 # ≥2 porcje + uzupełnienie + liczby + opis
     c = d["co_masz_zrobic"]
     assert d["typ"] == "przepis" and d["tytul"] == "Frytki"
     assert [k["t"] for k in c["kroki"]] == sorted(k["t"] for k in c["kroki"])
@@ -594,6 +597,8 @@ def test_missing_lines_and_parallel_presentation():
                                          {"t": 31, "tekst": "Smaż na złoto"}]})
     assert miss == ["[10s] MOWA: Heat the oil up to 190 degrees."]        # „Extra crunch.” za krótkie
     assert missing_lines(tl, {"kroki": [{"t": 1, "tekst": "a"}, {"t": 11, "tekst": "olej 190"}, {"t": 31, "tekst": "b"}]}) == []
+    from vidsum.summary import missing_numbers
+    assert missing_numbers(tl + " | NAPISY: 190°C", {"kroki": []}) == [(10.0, "190", "Heat the oil up to 190 degrees.", "mowa")]
 
     class Eng:
         parallel = 3
