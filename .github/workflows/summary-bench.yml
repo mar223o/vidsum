@@ -6,6 +6,10 @@ on:
       stara:
         description: commit starej wersji
         default: c1b6ae1
+      pomin_stara:
+        description: pomiń starą wersję (już zmierzona)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -28,6 +32,7 @@ jobs:
         if: matrix.tryb.kod == 'stara'
         run: git worktree add ../stara "${{ github.event.inputs.stara || 'c1b6ae1' }}"
       - name: Ollama
+        if: matrix.tryb.kod != 'stara' || !inputs.pomin_stara
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           sudo systemctl stop ollama 2>/dev/null || true
@@ -35,6 +40,7 @@ jobs:
           for i in $(seq 30); do curl -sf localhost:11434/api/tags && break; sleep 1; done
           ollama pull gemma3:4b
       - name: Pomiar
+        if: matrix.tryb.kod != 'stara' || !inputs.pomin_stara
         run: |
           KOD=""; [ "${{ matrix.tryb.kod }}" = "stara" ] && KOD="--kod $(cd ../stara && pwd)"
           python tests/bench/summary_bench.py gemma3:4b --powtorzen 3 --rownolegle ${{ matrix.tryb.rownolegle }} \

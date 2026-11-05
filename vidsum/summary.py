@@ -467,12 +467,6 @@ def _same_step(a: str, b: str) -> bool:
     return bool(wa and wb) and len(wa & wb) / min(len(wa), len(wb)) >= 0.6
 
 
-def _split_even(text: str, n: int) -> list[str]:
-    lines = text.splitlines()
-    size = -(-len(text) // n)
-    return _chunks(text, max(size, max((len(l) for l in lines), default=1)))
-
-
 def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda s: None,
                    chunk_chars: int = 6000, trace: list | None = None, parallel: int | None = None) -> dict | None:
     """Streszczenie etapami. `engine.complete(prompt, as_json=True)` — Ollama albo Claude.
@@ -490,9 +484,10 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         if trace is not None:
             trace.append({"etap": stage, "odpowiedz": raw, "prompt_znakow": len(prompt)})
 
-    # równoległa Ollama: zapis dzielimy na tyle części, ile zapytań idzie naraz (min. ~1500 znaków na część)
-    n_par = min(par, max(1, len(timeline) // 1500))
-    parts = _split_even(timeline, n_par) if n_par > 1 and len(timeline) <= chunk_chars * n_par else _chunks(timeline, chunk_chars)
+    # fragmenty po ~6000 znaków (krótki film = jeden). Pomiar (tests/bench/summary_bench.py, gemma3:4b, frytki):
+    # dzielenie krótkiego zapisu na małe części, żeby liczyć je naraz, dawało 7 kroków zamiast 14–18 — model
+    # bez kontekstu gubi czynności. Długie filmy mają kilka fragmentów i te liczą się równolegle.
+    parts = _chunks(timeline, chunk_chars)
     if len(parts) > 1:
         log(f"        fakty: {len(parts)} fragmenty" + (f" ({min(par, len(parts))} naraz)" if par > 1 else ""))
 
