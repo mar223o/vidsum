@@ -117,6 +117,9 @@ def translate_segments(engine: Engine, segments: list[dict], src: str | None, tg
                 run(a, b, max(1, (b - a) // 4))
 
     run(0, len(texts), chunk)
+    if tgt == "pl":                               # baking soda → „soda oczyszczona”, nie „proszek do pieczenia”
+        from .summary import fix_terms
+        out = [fix_terms(x, s) if x else x for x, s in zip(out, texts)]
     failed = sum(1 for x in out if x is None)
     segs = [{"start": s["start"], "end": s["end"], "text": t} for s, t in zip(segments, out)]
     return segs, failed

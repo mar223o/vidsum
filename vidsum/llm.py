@@ -156,7 +156,8 @@ class Ollama:
             d["pewnosc"] = "niska"
             return _clean_vision(d)
 
-    def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None) -> str:
+    def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None,
+                 seed: int = 7, temperature: float | None = None) -> str:
         # STAŁY kontekst 8192 (większy tylko dla bardzo długich promptów): Ollama przeładowuje model, gdy kolejne
         # zapytania mają różne num_ctx — przy równoległym tłumaczeniu i streszczeniu to kosztowało sekundy
         need = len(prompt) // 3 + 1500
@@ -165,7 +166,8 @@ class Ollama:
         # (na komputerze testowym przy 0.2 raz 11 kroków, raz 2); rozmowa (czat) zostaje lekko swobodniejsza
         body = {"model": self.model, "stream": False, "keep_alive": "5m",
                 # limit długości + kara za powtórzenia: mały model potrafi się zapętlić
-                "options": {"temperature": 0 if as_json else 0.2, "num_ctx": num_ctx, "seed": 7,
+                "options": {"temperature": temperature if temperature is not None else (0 if as_json else 0.2),
+                            "num_ctx": num_ctx, "seed": seed,
                             "num_predict": max_tokens or (3000 if as_json else 1200), "repeat_penalty": 1.15},
                 **({"format": "json"} if as_json else {}),
                 "messages": [{"role": "user", "content": prompt}]}
@@ -271,7 +273,8 @@ class ClaudeCode:
             raise LLMError("Ustawiona jest zmienna ANTHROPIC_API_KEY — Claude Code naliczałby płatne API zamiast "
                            "subskrypcji Pro. Usuń zmienną albo użyj --allow-api-key.")
 
-    def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None) -> str:
+    def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None,
+                 seed: int = 7, temperature: float | None = None) -> str:
         self.check()
         proc = run([self.exe, "-p", "Wykonaj zadanie opisane na wejściu. Odpowiedz tylko wynikiem.",
                     "--output-format", "text"], input_text=prompt, timeout=self.timeout)

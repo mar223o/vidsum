@@ -158,6 +158,7 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
                        "momenty": [{"t": clamp(m.get("t")), "tekst": _str(m.get("tekst"))}
                                    for m in _lst(x.get("momenty")) if isinstance(m, dict) and _str(m.get("tekst"))]}
                       for x in _lst(d.get("rozdzialy")) if isinstance(x, dict) and _str(x.get("tytul"))],
+        "do_zapamietania": _str(d.get("do_zapamietania")),
         "szczera_ocena": _str(d.get("szczera_ocena")),
         "czego_nie_wiadomo": [_str(x) for x in _lst(d.get("czego_nie_wiadomo")) if _str(x)],
         "pytania": [_str(x) for x in _lst(d.get("pytania")) if _str(x)][:6],
@@ -183,8 +184,13 @@ def _src(z: str) -> str:
 
 def to_markdown(s: dict) -> str:
     """Markdown do raportu — z tych samych danych co widok."""
-    L = ["## W skrócie", f"**Typ:** {s['typ']}. {s['teza']}", ""]
+    L = ["## W skrócie", f"**Typ:** {s['typ']}." + (f" {s['teza']}" if s.get("teza") else ""), ""]
+    if s.get("czas_czytania_s"):
+        c = int(s["czas_czytania_s"])
+        L += [f"_Czas czytania streszczenia: ≈ {c // 60} min {c % 60:02d} s_" if c >= 60 else f"_Czas czytania: ≈ {c} s_", ""]
     L += [p + "\n" for p in s["streszczenie"]]
+    if s.get("do_zapamietania"):
+        L += [f"> **Do zapamiętania:** {s['do_zapamietania']}", ""]
     c = s["co_masz_zrobic"]
     if any(c[k] for k in ("skladniki", "kroki", "sprzet", "cwiczenia", "wskazowki", "bledy", "wnioski")) or c["czas"]:
         L.append("## Co masz zrobić")
@@ -282,6 +288,7 @@ Wypisz po polsku WSZYSTKO, co widz ma zrobić albo zapamiętać. Przejdź linia 
 zawiera czynność albo poradę. Zachowaj KAŻDĄ liczbę z jednostką (temperatury, czasy, ilości, rozmiary, serie, powtórzenia).
 Nie dodawaj niczego, czego nie ma w zapisie — nie szacuj ilości, nie dopisuj nazw ani odmian. Ewidentne błędy rozpoznawania mowy popraw tylko, jeśli NAPISY albo kontekst
 jasno wskazują poprawne słowo; w razie wątpliwości pomiń. Źródło: "mowa", "obraz" albo "mowa+obraz" (NAPISY to "obraz").
+{glossary}
 
 Odpowiedz WYŁĄCZNIE JSON-em:
 {{"typ": "przepis|trening|poradnik|wyklad|inne",
@@ -299,8 +306,9 @@ ZAPIS:
 PRESENT_HEAD = """Jesteś asystentem, który obejrzał film za użytkownika. Masz zapis filmu i listę faktów już z niego
 wyciągniętych. Napisz po polsku opis całości. Niczego nie zmyślaj; to, co nie wynika z zapisu, oznacz jako szacunek.
 {meta}
+{glossary}
 
-FAKTY Z FILMU (JSON):
+FAKTY Z FILMU:
 {facts}
 
 ZAPIS (czas w sekundach):
@@ -311,10 +319,13 @@ Odpowiedz WYŁĄCZNIE JSON-em:
 # opis całości w DWÓCH częściach — przy równoległej Ollamie liczą się naraz (każda część to połowa tekstu do napisania)
 PRESENT_A = """{{"tytul": "krótki tytuł (3–6 słów)", "tytul_akcent": "puenta (2–4 słowa)",
  "teza": "jedno zdanie: o co chodzi i co z tego wynika",
- "streszczenie": ["akapit 1 (konkretnie, z liczbami)", "akapit 2"],
+ "streszczenie": ["akapit 1 (3–4 zdania): temat i cel filmu, dla kogo jest", "akapit 2 (4–6 zdań): najważniejsze tezy albo etapy po kolei — konkretnie, z liczbami i przykładami z filmu", "akapit 3 (3–4 zdania): praktyczne wskazówki i uzasadnienia autora (dlaczego tak)", "akapit 4 (2–3 zdania): najważniejszy wniosek dla widza"],
+ "do_zapamietania": "jedno zdanie: co widz ma zapamiętać",
  "najwazniejsze": [{{"t": sekundy, "tytul": "...", "opis": "1–2 zdania", "zrodlo": "mowa|obraz|mowa+obraz"}}],
  "szczera_ocena": "2–3 zdania: co wartościowe, czego brakuje",
  "czego_nie_wiadomo": ["czego film nie mówi, a widz chciałby wiedzieć"]}}
+Streszczenie: razem około {words} słów (to ok. 1–1,5 minuty czytania) — pełne zdania, bez ogólników. Każde zdanie musi
+wynikać z FAKTÓW albo ZAPISU; nie dodawaj wiedzy spoza filmu i liczb, których w nim nie ma.
 Liczby: 3–5 „najwazniejsze”.
 """
 PRESENT_B = """{{"momenty": [{{"t": sekundy, "tekst": "co się dzieje"}}],
@@ -322,9 +333,23 @@ PRESENT_B = """{{"momenty": [{{"t": sekundy, "tekst": "co się dzieje"}}],
  "rozdzialy": [{{"start": sekundy, "end": sekundy, "tytul": "...", "opis": "1–2 zdania"}}],
  "wnioski": ["dla wykładu/rozmowy: najważniejsze wnioski"],
  "pytania": ["3–5 pytań, które widz mógłby zadać"]}}
-Liczby: 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie mówi), 3–6 „rozdzialy” obejmujących cały film po kolei.
+Liczby: 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie mówi), 3–6 „rozdzialy” obejmujących cały film po kolei
+(nowy rozdział tam, gdzie zaczyna się nowy temat albo etap).
 """
-PRESENT_FULL = PRESENT_A.split("}}\nLiczby")[0] + ",\n" + PRESENT_B[2:].split("\nLiczby")[0] + """
+SHORT_A = """{{"tytul": "krótki tytuł (3–6 słów)", "teza": "jedno zdanie: o co chodzi",
+ "streszczenie": ["akapit 1: temat i cel", "akapit 2: etapy po kolei, z liczbami", "akapit 3: wskazówki autora"],
+ "do_zapamietania": "jedno zdanie"}}
+Streszczenie: razem około {words} słów, tylko z FAKTÓW.
+"""
+# przy krokach z linii mowy: model pisze cytaty, pytania i początki rozdziałów; program przyciąga je do kroków
+PRESENT_B_SHORT = """{{"cytaty": [{{"t": sekundy, "tekst": "dosłownie z MOWA, w oryginale", "tlumaczenie": "po polsku, jeśli oryginał nie jest po polsku"}}],
+ "rozdzialy": [{{"start": sekundy, "tytul": "2–4 słowa"}}],
+ "pytania": ["3–5 pytań, które widz mógłby zadać"]}}
+Liczby: 2–4 „cytaty” — najciekawsze zdania autora (porady, uzasadnienia), nie same polecenia. 3–6 „rozdzialy” po kolei
+przez cały film; „start” to czas kroku, od którego zaczyna się nowy etap (np. krojenie, moczenie, gotowanie, smażenie).
+"""
+PRESENT_FULL = PRESENT_A.split("}}\nStreszczenie")[0] + ",\n" + PRESENT_B[2:].split("\nLiczby")[0] + """
+Streszczenie: razem około {words} słów (ok. 1–1,5 minuty czytania). Każde zdanie musi wynikać z FAKTÓW albo ZAPISU.
 Liczby: 3–5 „najwazniejsze”, 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie mówi), 3–6 „rozdzialy” obejmujących cały film po kolei.
 """
 PRESENT_PROMPT = PRESENT_HEAD + PRESENT_FULL
@@ -336,12 +361,10 @@ Kroki już wypisane:
 {done}
 
 Dopisz po polsku TYLKO to, czego na tej liście brakuje: czynności z tych fragmentów oraz KAŻDĄ liczbę z jednostką
-(temperatury, czasy, ilości, rozmiary, serie, powtórzenia), która jeszcze nie występuje w krokach. Jeśli czynność już jest
-na liście, ale bez liczby — podaj ją ponownie razem z liczbą. Nie powtarzaj kroków, które są kompletne. Nie zmyślaj.
+(temperatury, czasy, ilości, rozmiary, serie, powtórzenia), która jeszcze nie występuje w krokach — jako osobny krok
+z czasem tej linii. Nie powtarzaj kroków z listy. Treść bierz tylko z tych fragmentów; nie dodawaj przymiotników ani narzędzi.
 Odpowiedz WYŁĄCZNIE JSON-em:
-{{"kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "mowa|obraz|mowa+obraz"}}],
- "skladniki": [{{"nazwa": "...", "ilosc": "ilość TYLKO jeśli padła, inaczej brak danych", "zrodlo": "..."}}],
- "wskazowki": ["..."]}}
+{{"kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "mowa|obraz|mowa+obraz"}}]}}
 Puste listy, jeśli niczego nie brakuje.
 
 FRAGMENTY:
@@ -381,7 +404,14 @@ def _try(engine, prompt: str, log) -> str:
     from .llm import LLMError
     for attempt in (1, 2):
         try:
-            return engine.complete(prompt, as_json=True)
+            if attempt == 1:
+                return engine.complete(prompt, as_json=True)
+            # ponowna próba z innym ziarnem: przy temperaturze 0 i tym samym ziarnie model zapętla się tak samo
+            # (pomiar: dwa razy „token repeat limit reached” na tym samym etapie)
+            try:
+                return engine.complete(prompt, as_json=True, seed=11, temperature=0.3)
+            except TypeError:
+                return engine.complete(prompt, as_json=True)
         except LLMError as e:
             log(f"        ! model: {str(e)[:100]}" + (" — ponawiam" if attempt == 1 else " — pomijam ten etap"))
             last = e
@@ -505,8 +535,476 @@ def tidy(summary: dict, duration: float, max_quotes: int = 4, max_chapters: int 
     return summary
 
 
+# ---------------- kroki ZAKOTWICZONE w liniach mowy (0.7.8) ----------------
+# Pomiar na komputerze testowym (0.7.7, frytki): model wypisujący kroki z całego zapisu naraz zmyślał („wyciśnij nadmiar skrobi”,
+# „papierowy ręcznik”, „świeżo zmielona sól”) i przenosił liczby do złych kroków (190 °C przy pierwszym smażeniu).
+# Teraz każdy krok musi wskazać numery linii mowy, z których powstał; program sprawdza liczby i pokrycie linii,
+# a to, co się nie zgadza, model poprawia krótkim zapytaniem o konkretne linie.
+
+GLOSSARY = ("Uwaga na tłumaczenie: baking soda = soda oczyszczona (NIE proszek do pieczenia), baking powder = proszek "
+            "do pieczenia, duck fat = tłuszcz z kaczki, par-fry/blanch (w oleju) = podsmaż wstępnie / blanszuj, "
+            "drain = odsącz / odcedź, dust = oprósz, tray = taca, pot = garnek, sprinkle = posyp.")
+
+TYPE_PROMPT = """Fragment transkrypcji filmu. {meta}
+Jaki to typ filmu? Do wyboru: przepis — gotowanie; trening — ćwiczenia; poradnik — instrukcja krok po kroku;
+wyklad — wykład, rozmowa, wyjaśnianie, recenzja, wiadomości; inne.
+Odpowiedz WYŁĄCZNIE JSON-em z jednym słowem: {{"typ": "przepis|trening|poradnik|wyklad|inne"}}
+
+TRANSKRYPCJA:
+{text}
+"""
+
+# Format jak przy tłumaczeniu (linia → linia), bo ten mały model robi niezawodnie. Pomiar (gemma3:4b, frytki, 0.7.8):
+# format z numerami linii przy krokach („z”: [3, 4]) — model kończył po 8 krokach, pisał po angielsku, zmyślał „piekarnik”.
+LINES_PROMPT = """You turn numbered lines of an automatic video transcript ({typ_en}) into POLISH instructions.
+For EVERY numbered line, keep the SAME number and write in Polish:
+- if the line says what to do: one short instruction in Polish imperative mood (e.g. "Obierz ziemniaki."), using only
+  what this line says (you may use the previous line to know what "them" means);
+- if the line only explains or describes (why, what effect): start with "Wyjaśnienie: " and write it in Polish;
+- if the line adds nothing or only finishes the sentence from the previous line: an empty string "".
+Keep every number exactly, with its unit (the unit may come from SCREEN = text shown on screen at that moment).
+Do not add tools, amounts, adjectives or tips that are not in the line. Write only in Polish (Latin alphabet).
+Polish terms: baking soda = soda oczyszczona (NOT proszek do pieczenia), baking powder = proszek do pieczenia,
+duck fat = tłuszcz z kaczki, par-fry = podsmaż wstępnie, blanch = blanszuj, dust/sprinkle = oprósz/posyp, tray = taca.
+{meta}
+{context}Answer ONLY with JSON: {{"1": "...", "2": "..."}}
+
+LINES:
+{lines}
+"""
+
+STAGES_PROMPT = """Kroki z filmu ({typ}), po kolei, ponumerowane:
+{steps}
+Dla KAŻDEGO kroku, w tej samej numeracji, podaj nazwę etapu, do którego należy (2–3 słowa po polsku, np.
+„Przygotowanie ziemniaków”, „Gotowanie”, „Pierwsze smażenie”, „Drugie smażenie”, „Podanie”). Kolejne kroki tego samego
+etapu mają IDENTYCZNĄ nazwę. Razem {lo}–{hi} różnych nazw na cały film.
+Odpowiedz WYŁĄCZNIE JSON-em: {{"1": "...", "2": "..."}}
+"""
+
+INGR_PROMPT = """Lines of a video transcript (a recipe):
+{lines}
+List the ingredients mentioned in these lines, with names in POLISH. Amount only if a number is said in the line
+(e.g. "2 łyżki"), otherwise "brak danych". Also list kitchen equipment mentioned in the speech, in Polish.
+Do not add anything that is not in the lines. Polish terms: baking soda = soda oczyszczona, potato starch = skrobia
+ziemniaczana, duck fat = tłuszcz z kaczki, pot = garnek, tray = taca.
+Answer ONLY with JSON: {{"skladniki": [{{"nazwa": "...", "ilosc": "..."}}], "sprzet": ["..."]}}
+"""
+
+_NUM_WORDS = {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8",
+              "nine": "9", "ten": "10", "twelve": "12", "fifteen": "15", "twenty": "20", "thirty": "30",
+              "forty": "40", "fifty": "50", "hundred": "100", "half": "0.5", "jeden": "1", "jedna": "1", "jedno": "1",
+              "dwa": "2", "dwie": "2", "trzy": "3", "cztery": "4", "pięć": "5", "sześć": "6", "siedem": "7",
+              "osiem": "8", "dziewięć": "9", "dziesięć": "10", "pół": "0.5"}
+
+
+_TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi przyjaciele, których mały model nie unika
+    (r"baking soda|bicarbonate", r"baking powder", [(r"\b(dodaj\w*|dodać|wsyp\w*|użyj|użyć|daj)( trochę| odrobinę)? proszek do pieczenia",
+                                                       r"\1\2 sodę oczyszczoną"),
+                                                      (r"proszek do pieczenia", "soda oczyszczona"),
+                                                     (r"proszku do pieczenia", "sody oczyszczonej"),
+                                                     (r"proszkiem do pieczenia", "sodą oczyszczoną")]),
+    (r"duck fat", None, [(r"tłuszcz(\w*) z kaczego pióra", r"tłuszcz\1 z kaczki"), (r"\(duck fat\)", "(tłuszcz z kaczki)"),
+                         (r"\bduck fat\b", "tłuszcz z kaczki")]),
+]
+
+
+_HOMO = str.maketrans("аеорсухыіАЕОРСХ", "aeorcuxyiAEOPCX")   # cyrylica w polskim tekście (pomiar: „sodы”)
+
+
+def fix_terms(text: str, source: str) -> str:
+    """Poprawia znane błędy tłumaczenia, gdy oryginał jednoznacznie wskazuje termin (baking soda ≠ proszek do pieczenia),
+    i pojedyncze litery cyrylicy wstawione przez model w polskie słowa."""
+    if re.search(r"[a-ząćęłńóśźż][\u0400-\u04ff]|[\u0400-\u04ff][a-ząćęłńóśźż]", text, re.I):
+        text = text.translate(_HOMO)
+    src = source.lower()
+    for need, unless, subs in _TERM_FIXES:
+        if re.search(need, src) and not (unless and re.search(unless, src)):
+            for a, b in subs:
+                def rep(m, b=b):
+                    out = m.expand(b)
+                    return out[:1].upper() + out[1:] if m.group(0)[:1].isupper() else out
+                text = re.sub(a, rep, text, flags=re.I)
+    return text
+
+
+def fix_terms_deep(obj, source: str):
+    if isinstance(obj, str):
+        return fix_terms(obj, source)
+    if isinstance(obj, list):
+        return [fix_terms_deep(x, source) for x in obj]
+    if isinstance(obj, dict):
+        return {k: fix_terms_deep(v, source) for k, v in obj.items()}
+    return obj
+
+
+def _nums(text: str) -> set:
+    """Liczby w tekście (cyfry i liczebniki „one”, „jeden”) — do porównania kroku ze źródłem."""
+    out = {n.replace(",", ".") for n in _NUM.findall(text)}
+    out |= {_NUM_WORDS[w] for w in _norm_words(text) if w in _NUM_WORDS}
+    return out
+
+
+def speech_lines(segments: list[dict], ocr: list[dict] | None = None, pl: list | None = None) -> list[dict]:
+    """Linie mowy do kroków: numer, czas, tekst, polskie tłumaczenie (jeśli jest) + napis z ekranu z tego samego momentu."""
+    pl = pl if pl and len(pl) == len(segments) else [None] * len(segments)
+    lines = [{"n": i + 1, "t": float(s["start"]), "end": float(s.get("end") or s["start"]),
+              "tekst": _str(s.get("text")), "pl": _str(pl[i]), "ekran": []}
+             for i, s in enumerate(segments) if _str(s.get("text"))]
+    for i, ln in enumerate(lines, 1):
+        ln["n"] = i
+    for o in ocr or []:
+        a, b = float(o.get("start", 0)), float(o.get("end", o.get("start", 0)))
+        best, score = None, -1e9
+        for ln in lines:
+            ov = min(b, ln["end"] + 0.5) - max(a, ln["t"] - 0.5)          # nakładanie się w czasie
+            if ov > score:
+                best, score = ln, ov
+        if best is not None and score > -1.0 and _str(o.get("text")):
+            best["ekran"].append(_str(o["text"]))
+    return lines
+
+
+def _line_txt(ln: dict, mark: bool = False) -> str:
+    s = f"[{ln['n']}] {ts(ln['t'])} | " + (f"PL: {ln['pl']} | ORYGINAŁ: {ln['tekst']}" if ln.get("pl") else ln["tekst"])
+    if ln["ekran"]:
+        s += " | EKRAN: " + " / ".join(ln["ekran"])
+    return ("► " if mark else "") + s
+
+
+def _ids(x, valid: set) -> list[int]:
+    out = []
+    for v in x if isinstance(x, list) else [x]:
+        try:
+            n = int(v)
+        except (TypeError, ValueError):
+            continue
+        if n in valid and n not in out:
+            out.append(n)
+    return sorted(out)
+
+
+def _src_nums(ids: list[int], by_n: dict) -> set:
+    return set().union(*(_nums(by_n[i]["tekst"] + " " + " ".join(by_n[i]["ekran"])) for i in ids)) if ids else set()
+
+
+def _speech_nums(ids: list[int], by_n: dict) -> set:
+    """Liczby, które padły w MOWIE tych linii (te muszą trafić do kroku; z ekranu bywa też szum, np. numer odcinka)."""
+    return set().union(*(_nums(by_n[i]["tekst"]) for i in ids)) if ids else set()
+
+
+def check_step(text: str, ids: list[int], by_n: dict) -> tuple[set, set]:
+    """(liczby w kroku, których nie ma w jego liniach; liczby z mowy tych linii, których nie ma w kroku)."""
+    got = _nums(text)
+    return got - _src_nums(ids, by_n), _speech_nums(ids, by_n) - got
+
+
+_EN = {"the", "and", "to", "them", "with", "of", "until", "it", "is", "this", "into", "in", "your", "you", "a", "for",
+       "then", "add", "heat", "fry", "cut", "boil", "we", "our", "going"}
+
+
+def looks_foreign(text: str) -> bool:
+    """Krok przepisany po angielsku zamiast po polsku (pomiar: gemma3:4b przepisywała oryginał)."""
+    w = _norm_words(text)
+    return len(w) >= 2 and sum(x in _EN for x in w) / len(w) >= 0.3 and not re.search(r"[ąćęłńóśźż]", text.lower())
+
+
+def _groups(ns: list[int]) -> list[list[int]]:
+    out: list[list[int]] = []
+    for n in sorted(ns):
+        if out and n - out[-1][-1] <= 2 and len(out[-1]) < 4:      # luka jednej linii — to zwykle to samo zdanie
+            out[-1].append(n)
+        else:
+            out.append([n])
+    return out
+
+
+_CONT = re.compile(r"^(to|which|until|or|so|for the|into|in order|once|and once|and when|they should|it should|"
+                   r"roughly|about|around|approximately|"
+                   r"aby|żeby|by|aż|dopóki|albo|lub|co)\b", re.I)
+_EXPL = re.compile(r"^(this|which|that|it)( is|'s| will)? (going to|gonna|will|helps?|makes?|adds?|gives?)\b|"
+                   r"^(we've got|we have got|we have|i've got|i have)\b|"
+                   r"^(this particular|the secret|perfect for|is a very|to remove)\b|^(to|co) (pomoże|doda|sprawi)", re.I)
+
+
+_FILLER = re.compile(r"^(this is it|this is the|here is|here's|hi\b|hello|welcome|hey\b|so,? today|today we)", re.I)
+# typowe polecenia na początku zdania (angielski) — pusta odpowiedź przy takiej linii to zgubiony krok („Peel.”)
+_EN_IMP = re.compile(r"^(peel|cut|trim|chop|slice|dice|add|heat|fry|boil|bake|cook|soak|wash|rinse|drain|dust|place|put|"
+                     r"remove|lay|stir|mix|whisk|season|finish|serve|pour|bring|set|take|use|make|start|open|click|"
+                     r"press|select|go|turn|let|leave|cover|preheat|grate|blend|combine|spread|sprinkle|freeze|chill)\b", re.I)
+
+
+_ADVERBS = {"ponownie", "następnie", "potem", "teraz", "lekko", "dokładnie", "delikatnie", "szybko", "powoli", "najpierw",
+            "dalej", "jeszcze", "zawsze", "stale", "ostrożnie", "dobrze", "mocno", "krótko", "na", "w", "do", "po"}
+
+
+def _continues(orig: str) -> bool:
+    """Linia tylko kończy zdanie poprzedniej („To completely cool.”, „Or blanch them.”, „Roughly one centimetre.”)."""
+    return bool(_CONT.match(orig.strip()))
+
+
+def _imperative(txt: str) -> bool:
+    """Polskie polecenie: pierwsze słowo bez końcowej samogłoski („Obierz”, „Dodaj”, „Smaż”, „Posyp”), a nie opis
+    („Posiada…”, „Idealne…”, „Mamy…”, „Powinny…”). Pomiar: model zamieniał każdą linię na „krok”."""
+    w = _norm_words(re.sub(r"^(i|a|oraz|albo|lub)\s+", "", txt.strip(), flags=re.I))
+    while len(w) > 1 and w[0] in _ADVERBS:          # „Ponownie zamroź”, „Lekko oprósz”
+        w = w[1:]
+    return bool(w) and not re.search(r"[aeiouyąęó]$", w[0])
+
+
+def _explains(orig: str) -> bool:
+    """Linia wyjaśnia (dlaczego, jaki efekt), a nie mówi, co zrobić („This is going to add a crispy layer.”)."""
+    return bool(_EXPL.match(orig.strip()))
+
+
+def _num_line(ln: dict) -> str:
+    return f"{ln['n']}. {ln['tekst']}" + (f"   [SCREEN: {' / '.join(ln['ekran'])}]" if ln["ekran"] else "")
+
+
+def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lambda s: None,
+                   record=lambda *a: None, par: int = 1, chunk_lines: int = 20) -> dict:
+    """Kroki i wyjaśnienia linia po linii (każdy krok wie, z której linii mowy pochodzi), składniki, sprzęt, etapy.
+
+    Program sprawdza: liczby kroku muszą paść w jego linii (albo na ekranie w tym momencie), liczby z mowy muszą trafić
+    do kroku, krok musi być po polsku. Co się nie zgadza — jeszcze raz tylko te linie; jeśli nadal — polskie
+    tłumaczenie tej linii (jeśli jest) albo brak kroku. Lepiej brak kroku niż zła liczba."""
+    from concurrent.futures import ThreadPoolExecutor
+    by_n = {ln["n"]: ln for ln in lines}
+    typ_pl = typ
+    chunks = [lines[i:i + chunk_lines] for i in range(0, len(lines), chunk_lines)]
+    if len(chunks) > 1 and len(chunks[-1]) < 6:            # krótka końcówka — do poprzedniej części
+        tail = chunks.pop()                                 # (nie `chunks[-2] += chunks.pop()` — to nadpisuje 1. część)
+        chunks[-1] = chunks[-1] + tail
+
+    def ask(ch: list[dict]) -> dict:
+        prev = [by_n[i] for i in (ch[0]["n"] - 2, ch[0]["n"] - 1) if i in by_n]
+        ctx = ("Previous lines (context only, do NOT answer them):\n" +
+               "\n".join(f"- {ln['tekst']}" for ln in prev) + "\n") if prev else ""
+        local = [{**ln, "n": i} for i, ln in enumerate(ch, 1)]      # numeracja od 1 w każdej części (jak w tłumaczeniu)
+        typ_en = {"przepis": "a recipe", "poradnik": "a how-to tutorial"}.get(typ, "a video")
+        pr = LINES_PROMPT.format(typ_en=typ_en, meta=meta_line, context=ctx,
+                                 lines="\n".join(_num_line(ln) for ln in local))
+        raw = _try(engine, pr, log)
+        record("kroki", pr, raw)
+        d = _loads(raw)
+        if isinstance(d.get("linie"), dict):
+            d = d["linie"]
+        return {ln["n"]: _str(d.get(str(i))) if not isinstance(d.get(str(i)), dict) else _str(d[str(i)].get("tekst"))
+                for i, ln in enumerate(ch, 1)}
+
+    def run(groups: list[list[dict]]) -> dict:
+        res: dict = {}
+        with ThreadPoolExecutor(max_workers=max(1, min(par, len(groups)))) as pool:
+            for r in pool.map(ask, groups):
+                res.update(r)
+        return res
+
+    log(f"        kroki z linii mowy: {len(lines)} linii, {len(chunks)} części"
+        + (f" ({min(par, len(chunks))} naraz)" if par > 1 and len(chunks) > 1 else ""))
+
+    # składniki i sprzęt — osobne krótkie zapytanie (równolegle z liniami)
+    def ask_ingr() -> dict:
+        if typ != "przepis":
+            return {}
+        pr = INGR_PROMPT.format(lines="\n".join(f"- {ln['tekst']}" for ln in lines)[:6000])
+        raw = _try(engine, pr, log)
+        record("skladniki", pr, raw)
+        return _loads(raw)
+
+    with ThreadPoolExecutor(max_workers=2 if par > 1 else 1) as pool:
+        f_ingr = pool.submit(ask_ingr)
+        out = run(chunks)
+        ingr_raw = f_ingr.result()
+
+    def ok(n: int, txt: str) -> bool:
+        if not txt:
+            return True
+        body = re.sub(r"^wyja\w*:\s*", "", txt, flags=re.I)
+        extra, lost = check_step(body, [n], by_n)
+        return not extra and not lost and not looks_foreign(body)
+
+    bad = [n for n, txt in out.items() if not ok(n, txt)]
+    # linia z liczbą w mowie, a pusta odpowiedź — liczba by zginęła (pomiar 0.7.7: 140 °C)
+    bad += [n for n, txt in out.items() if not txt and _speech_nums([n], by_n) and n not in bad]
+    bad += [n for n, txt in out.items() if not txt and _EN_IMP.match(by_n[n]["tekst"].strip()) and n not in bad]
+    if bad:
+        log(f"        kontrola kroków: {len(bad)} linii do poprawy (liczby albo język) — pytam o nie jeszcze raz")
+        again = run([[by_n[n] for n in sorted(bad)]][:1] if len(bad) <= chunk_lines else
+                    [[by_n[n] for n in sorted(bad)[i:i + chunk_lines]] for i in range(0, len(bad), chunk_lines)])
+        for n in bad:
+            txt = again.get(n, "")
+            if txt and ok(n, txt) and (txt or not _speech_nums([n], by_n)):
+                out[n] = txt
+            else:                                  # nadal źle: polskie tłumaczenie linii (jeśli liczby się zgadzają)
+                pl = by_n[n].get("pl", "")
+                out[n] = pl if pl and ok(n, pl) else ""
+
+    steps, notes = [], []
+    for n in sorted(out):
+        txt = out[n].strip()
+        if not txt or _FILLER.match(by_n[n]["tekst"].strip()):
+            continue
+        ln = by_n[n]
+        zr = "mowa+obraz" if ln["ekran"] else "mowa"
+        m = re.match(r"^wyja\w*:\s*(.+)", txt, flags=re.I)
+        if m:
+            notes.append({"z": [n], "t": ln["t"], "tekst": m.group(1).strip(), "zrodlo": zr})
+            continue
+        txt = re.sub(r"^(I|A|Oraz|Albo|Lub)\s+(?=\w)", lambda m: "" if len(txt) > 12 else m.group(0), txt)
+        txt = txt[:1].upper() + txt[1:] if not _continues(ln["tekst"]) else txt
+        prev = steps[-1] if steps else None
+        # między poprzednim krokiem a tą linią są tylko wyjaśnienia / puste linie — to nadal ciąg dalszy
+        between = range(prev["z"][-1] + 1, n) if prev else range(0)
+        adjacent = prev is not None and all(not out.get(i, "").strip() or i in {x["z"][0] for x in notes} for i in between)
+        # dokończenie zdania z poprzedniej linii („To completely cool.” → „…, aby całkowicie ostudzić.”) albo
+        # powtórzenie — do poprzedniego kroku (pomiar: model zamieniał każdą linię na osobny „krok”)
+        if adjacent and n - prev["z"][-1] <= 3 and (txt[:1].islower() or _same_step(txt, prev["tekst"])
+                                                     or _continues(ln["tekst"])):
+            if not _same_step(txt, prev["tekst"]):
+                prev["tekst"] = prev["tekst"].rstrip(".!") + ", " + txt[:1].lower() + txt[1:]
+            prev["z"].append(n)
+            prev["zrodlo"] = "mowa+obraz" if prev["zrodlo"] == "mowa+obraz" or ln["ekran"] else "mowa"
+            continue
+        if _explains(ln["tekst"]) or not _imperative(txt):
+            if _FILLER.match(ln["tekst"].strip()):
+                continue                           # „This is it.” — bez treści (pomiar: model wstawił tu „Obierz ziemniaki”)
+            notes.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr})
+            continue
+        steps.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr, "etap": ""})
+
+    # składniki: nazwa musi pojawić się w mowie (po polsku w tłumaczeniu albo w oryginale); ilość tylko z liczbą z mowy
+    spoken = " ".join(ln["tekst"] + " " + ln.get("pl", "") + " " + " ".join(ln["ekran"]) for ln in lines)
+    spoken_pl = spoken + " " + " ".join(s["tekst"] for s in steps + notes)
+    all_nums = _nums(spoken)
+    out_ingr, seen = [], []
+    for x in _lst(ingr_raw.get("skladniki") or ingr_raw.get("składniki") or ingr_raw.get("ingredients")):
+        name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
+        if not name or any(_same_step(name, o) for o in seen) or not (_stems(name) & _stems(spoken_pl)):
+            continue
+        q = _str(x.get("ilosc")) if isinstance(x, dict) else ""
+        if not (_nums(q) and _nums(q) <= all_nums):
+            q = "brak danych"
+        seen.append(name)
+        out_ingr.append({"nazwa": name, "ilosc": q, "zrodlo": "mowa"})
+    out_equip = []
+    for x in _lst(ingr_raw.get("sprzet") or ingr_raw.get("sprzęt") or ingr_raw.get("equipment")):
+        name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
+        if name and _stems(name) & _stems(spoken_pl) and not any(_same_step(name, o) for o in out_equip):
+            out_equip.append(name)
+    return {"kroki": steps, "wyjasnienia": notes, "skladniki": out_ingr, "sprzet": out_equip}
+
+
+def chapters_from_steps(steps: list[dict], duration: float, max_chapters: int = 6, notes: list[dict] | None = None) -> list[dict]:
+    """Rozdziały z etapów kroków — granica rozdziału tylko na zmianie etapu (pomiar: rozdział „Smażenie i schładzanie”
+    obejmował gotowanie, a ostatni łączył mrożenie, drugie smażenie i solenie)."""
+    ch: list[dict] = []
+    if steps and not any(s.get("etap") for s in steps):
+        # brak etapów: rozdział na każdy krok (tytuł = początek kroku), potem łączenie najkrótszych do max_chapters
+        steps = [{**s, "etap": " ".join(s["tekst"].rstrip(".").split()[:4])} for s in steps]
+    for s in steps:
+        name = s.get("etap") or ""
+        if ch and (name == ch[-1]["tytul"] or (name and _same_step(name, ch[-1]["tytul"]))):
+            ch[-1]["kroki"].append(s["tekst"])
+            continue
+        ch.append({"start": s["t"], "tytul": name or "Kroki", "kroki": [s["tekst"]]})
+    if ch and ch[0]["start"] > 3:                 # wstęp: to, co autor mówi przed pierwszym krokiem (wyjaśnienia)
+        intro = [n["tekst"] for n in notes or [] if n.get("t", 1e9) < ch[0]["start"]][:2]
+        ch.insert(0, {"start": 0.0, "tytul": "Wstęp", "kroki": intro})
+    elif ch:
+        ch[0]["start"] = 0.0
+    while len(ch) > max_chapters:                 # scal najkrótszy z sąsiadem (zachowaj tytuł dłuższego)
+        lens = [(ch[i + 1]["start"] if i + 1 < len(ch) else duration) - ch[i]["start"] for i in range(len(ch))]
+        i = min(range(len(ch)), key=lambda j: lens[j])
+        j = i + 1 if i + 1 < len(ch) else i - 1
+        a, b = sorted((i, j))
+        keep = ch[a] if lens[a] >= lens[b] else ch[b]
+        ch[a] = {"start": ch[a]["start"], "tytul": keep["tytul"], "kroki": ch[a]["kroki"] + ch[b]["kroki"]}
+        del ch[b]
+    out = []
+    for i, c in enumerate(ch):
+        end = ch[i + 1]["start"] if i + 1 < len(ch) else round(duration, 2)
+        opis = "; ".join(k.rstrip(".") for k in c["kroki"][:3]) + ("." if c["kroki"] else "")
+        if len(c["kroki"]) > 3:
+            opis = opis[:-1] + " i dalej."
+        out.append({"start": round(c["start"], 2), "end": round(end, 2), "tytul": c["tytul"],
+                    "opis": opis or "Zapowiedź tematu filmu.", "momenty": []})
+    return out
+
+
+def chapters_snapped(model_ch: list, steps: list[dict], duration: float, notes: list[dict] | None = None) -> list[dict]:
+    """Rozdziały z modelu (tytuł + początek), przyciągnięte do czasów kroków; opis = kroki z tego rozdziału.
+    Pomiar (gemma3:4b): grupowanie kroków w etapy („od kroku N”, albo etap przy każdym kroku) nie działało — model
+    numerował po kolei albo nazywał każdy krok inaczej; rozdziały z czasami pisze sensownie."""
+    if not steps:
+        return []
+    times = [s["t"] for s in steps]
+    picks: dict = {}
+    for c in model_ch or []:
+        if not isinstance(c, dict) or not _str(c.get("tytul")):
+            continue
+        t = _num(c.get("start"), -1)
+        if t < 0:
+            continue
+        snap = min(times, key=lambda x: abs(x - t))
+        picks.setdefault(snap, _str(c["tytul"]))
+    if len(picks) < 2:
+        return []
+    for s_ in steps:                                # etap kroku = rozdział, w którym jest (do momentów)
+        s_["etap"] = next((picks[t] for t in sorted(picks, reverse=True) if t <= s_["t"]), "")
+    return chapters_from_steps(steps, duration, notes=notes)
+
+
+def moments_from_steps(steps: list[dict], limit: int = 8) -> list[dict]:
+    """Momenty z kroków: początek każdego etapu i kroki z liczbami (pomiar: momenty z modelu przypisywały 190 °C do 00:33)."""
+    pick, last = [], None
+    for s in steps:
+        if s.get("etap") != last or _nums(s["tekst"]):
+            pick.append(s)
+        last = s.get("etap")
+    if len(pick) > limit:
+        step = len(pick) / limit
+        pick = [pick[int(i * step)] for i in range(limit)]
+    return [{"t": s["t"], "tekst": s["tekst"]} for s in pick]
+
+
+def drop_unsupported_numbers(summary: dict, source_text: str) -> int:
+    """Zdania opisu z liczbą, której nie ma w filmie (mowa, napisy) — usuwamy. Zwraca liczbę usuniętych zdań."""
+    have = _nums(source_text)
+    removed = 0
+
+    def digits(t: str) -> set:                 # tylko liczby zapisane cyframi — „dwa smażenia” to nie zmyślona liczba
+        return {n.replace(",", ".") for n in _NUM.findall(t)}
+
+    def clean(text: str) -> str:
+        nonlocal removed
+        parts = re.split(r"(?<=[.!?])\s+", text)
+        keep = [p for p in parts if not (digits(p) - have)]
+        removed += len(parts) - len(keep)
+        return " ".join(keep)
+
+    summary["streszczenie"] = [p for p in (clean(x) for x in summary.get("streszczenie", [])) if p]
+    for x in summary.get("najwazniejsze", []):
+        x["opis"] = clean(x.get("opis", ""))
+    summary["najwazniejsze"] = [x for x in summary.get("najwazniejsze", []) if x.get("opis")]
+    if summary.get("teza") and digits(summary["teza"]) - have:
+        summary["teza"], removed = "", removed + 1
+    return removed
+
+
+def reading_seconds(summary: dict, wpm: int = 190) -> int:
+    """Szacowany czas czytania streszczenia (akapity + teza), ~190 słów/min po polsku."""
+    words = len(_norm_words(" ".join(summary.get("streszczenie", [])) + " " + _str(summary.get("teza"))))
+    return round(words / wpm * 60)
+
+
+def target_words(n_source_words: int) -> int:
+    """Docelowa długość streszczenia: ok. 1:00–1:25 czytania (190–270 słów), krócej, gdy film ma mało treści."""
+    return max(120, min(270, int(n_source_words * 0.9)))
+
+
 def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda s: None,
-                   chunk_chars: int = 6000, trace: list | None = None, parallel: int | None = None) -> dict | None:
+                   chunk_chars: int = 6000, trace: list | None = None, parallel: int | None = None,
+                   segments: list[dict] | None = None, ocr: list[dict] | None = None,
+                   on_partial=None, polish=None) -> dict | None:
     """Streszczenie etapami. `engine.complete(prompt, as_json=True)` — Ollama albo Claude.
 
     1) fakty z fragmentów zapisu (fragmenty równolegle, gdy Ollama obsługuje kilka zapytań naraz),
@@ -522,93 +1020,126 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         if trace is not None:
             trace.append({"etap": stage, "odpowiedz": raw, "prompt_znakow": len(prompt)})
 
-    # fragmenty po ~6000 znaków (krótki film = jeden). Pomiar (tests/bench/summary_bench.py, gemma3:4b, frytki):
-    # dzielenie krótkiego zapisu na małe części, żeby liczyć je naraz, dawało 7 kroków zamiast 14–18 — model
-    # bez kontekstu gubi czynności. Długie filmy mają kilka fragmentów i te liczą się równolegle.
-    parts = _chunks(timeline, chunk_chars)
-    if len(parts) > 1:
-        log(f"        fakty: {len(parts)} fragmenty" + (f" ({min(par, len(parts))} naraz)" if par > 1 else ""))
-
-    def extract(part: str) -> str:
-        pr = EXTRACT_PROMPT.format(meta=meta_line, timeline=part)
+    lines = speech_lines(segments, ocr) if segments else []
+    n_words = sum(len(_norm_words(ln["tekst"])) for ln in lines)
+    typ = ""
+    if len(lines) >= 4 and n_words >= 25:
+        # typ z początku transkrypcji (krótkie zapytanie) — od niego zależy, czy kroki budujemy z linii mowy
+        sample = " ".join(ln["tekst"] for ln in lines)[:2500]
+        pr = TYPE_PROMPT.format(meta=meta_line, text=sample)
         raw = _try(engine, pr, log)
-        record("fakty", pr, raw)
-        return raw
+        record("typ", pr, raw)
+        # model potrafi przepisać etykietę z opisem („przepis (gotowanie)”) — bierzemy rozpoznaną nazwę typu
+        m = re.search(r"przepis|trening|poradnik|wyk[łl]ad|inne", _str(_loads(raw).get("typ")).lower())
+        typ = m.group(0).replace("ł", "l") if m else ""
+    grounded = typ in ("przepis", "poradnik")
+    notes: list[dict] = []
+    if grounded:
+        # polskie linie (tłumaczenie liczy się równolegle) — `polish()` czeka na nie; None = mowa już po polsku / brak
+        pl = polish() if callable(polish) else polish
+        if pl:
+            lines = speech_lines(segments, ocr, pl)
+        g = grounded_steps(engine, lines, typ, meta_line, log, record, par)
+        notes = g["wyjasnienia"]
+        ext.update({"kroki": [{"t": s["t"], "tekst": s["tekst"], "zrodlo": s["zrodlo"]} for s in g["kroki"]],
+                    "skladniki": g["skladniki"], "sprzet": g["sprzet"],
+                    "wskazowki": [n["tekst"] for n in notes if len(_norm_words(n["tekst"])) >= 4]})   # „Ta odmiana ziemniaka.” — nie wskazówka
+        steps_full = g["kroki"]
+        log(f"        kroki: {len(steps_full)}, wyjaśnienia: {len(notes)}, składniki: {len(g['skladniki'])}")
+        if on_partial:
+            try:
+                on_partial("kroki", {"typ": typ, "kroki": ext["kroki"], "skladniki": ext["skladniki"]})
+            except Exception:
+                pass
+    else:
+        # fragmenty po ~6000 znaków (krótki film = jeden). Pomiar (tests/bench/summary_bench.py, gemma3:4b, frytki):
+        # dzielenie krótkiego zapisu na małe części, żeby liczyć je naraz, dawało 7 kroków zamiast 14–18 — model
+        # bez kontekstu gubi czynności. Długie filmy mają kilka fragmentów i te liczą się równolegle.
+        parts = _chunks(timeline, chunk_chars)
+        if len(parts) > 1:
+            log(f"        fakty: {len(parts)} fragmenty" + (f" ({min(par, len(parts))} naraz)" if par > 1 else ""))
 
-    with ThreadPoolExecutor(max_workers=min(par, len(parts))) as pool:
-        raws = list(pool.map(extract, parts))
-    for raw in raws:
-        d = _loads(raw)
-        if _str(d.get("typ")).lower() in TYPES:
-            types.append(_str(d.get("typ")).lower())
-        for k in ext:
-            for x in _lst(d.get(k)):
-                if x and x not in ext[k]:
-                    ext[k].append(x)
-    typ = max(set(types), key=types.count) if types else "inne"
-
-    # 2) kontrola kompletności (instrukcje: przepis, poradnik, trening)
-    if typ in ("przepis", "poradnik", "trening"):
-        miss = missing_lines(timeline, ext)
-        if miss:
-            log(f"        kontrola kompletności: {len(miss)} fragment(y) bez kroku albo z pominiętą liczbą — dopisuję")
-            done = "\n".join(f"- [{_str(k.get('t'))}s] {_str(k.get('tekst'))}" for k in ext["kroki"] if isinstance(k, dict)) or "—"
-            pr = FILL_PROMPT.format(meta=meta_line, done=done, timeline="\n".join(miss))
+        def extract(part: str) -> str:
+            pr = EXTRACT_PROMPT.format(meta=meta_line, timeline=part, glossary=GLOSSARY)
             raw = _try(engine, pr, log)
-            record("uzupelnienie", pr, raw)
+            record("fakty", pr, raw)
+            return raw
+
+        with ThreadPoolExecutor(max_workers=min(par, len(parts))) as pool:
+            raws = list(pool.map(extract, parts))
+        for raw in raws:
             d = _loads(raw)
-            added = 0
-            for k in _lst(d.get("kroki")):
-                if not isinstance(k, dict) or not _str(k.get("tekst")):
-                    continue
-                txt = _str(k.get("tekst"))
-                same = [i for i, o in enumerate(ext["kroki"]) if isinstance(o, dict) and _same_step(txt, _str(o.get("tekst")))]
-                new_nums = set(_NUM.findall(txt))
-                if same:
-                    old = ext["kroki"][same[0]]
-                    if new_nums - set(_NUM.findall(_str(old.get("tekst")))):
-                        ext["kroki"][same[0]] = {**old, "tekst": txt}     # ten sam krok, ale teraz z liczbą
-                        added += 1
-                    continue
-                ext["kroki"].append(k)
-                added += 1
-            for key in ("skladniki", "wskazowki"):
-                for x in _lst(d.get(key)):
-                    name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
-                    olds = [_str(o.get("nazwa")) if isinstance(o, dict) else _str(o) for o in ext[key]]
-                    if name and not any(_same_step(name, o) for o in olds):
-                        ext[key].append(x)
-                        added += 1
-            log(f"        kontrola kompletności: dopisano {added}")
-        # liczby, których model nadal nie przeniósł (pomiar: raz zgubił 140 °C i 190 °C mimo uzupełnienia) —
-        # osobne, bardzo krótkie zapytanie na każdą liczbę: małe modele robią to niezawodnie
-        nums = missing_numbers(timeline, ext)[:6]
-        if nums:
-            log(f"        kontrola liczb: brakuje {', '.join(n for _, n, _, _ in nums)} — dopisuję")
+            if _str(d.get("typ")).lower() in TYPES:
+                types.append(_str(d.get("typ")).lower())
+            for k in ext:
+                for x in _lst(d.get(k)):
+                    if x and x not in ext[k]:
+                        ext[k].append(x)
+        typ = typ or (max(set(types), key=types.count) if types else "inne")
 
-            def one(item):
-                t0, n, sent, src = item
-                pr = NUM_PROMPT.format(t=int(t0), zdanie=sent, n=n, meta=meta_line)
+        # 2) kontrola kompletności (instrukcje: przepis, poradnik, trening)
+        if typ in ("przepis", "poradnik", "trening"):
+            miss = missing_lines(timeline, ext)
+            if miss:
+                log(f"        kontrola kompletności: {len(miss)} fragment(y) bez kroku albo z pominiętą liczbą — dopisuję")
+                done = "\n".join(f"- [{_str(k.get('t'))}s] {_str(k.get('tekst'))}" for k in ext["kroki"] if isinstance(k, dict)) or "—"
+                pr = FILL_PROMPT.format(meta=meta_line, done=done, timeline="\n".join(miss))
                 raw = _try(engine, pr, log)
-                record("liczba", pr, raw)
-                txt = _str(_loads(raw).get("tekst"))
-                return {"t": t0, "tekst": txt, "zrodlo": src} if n in _NUM.findall(txt) else None
+                record("uzupelnienie", pr, raw)
+                d = _loads(raw)
+                added = 0
+                for k in _lst(d.get("kroki")):
+                    if not isinstance(k, dict) or not _str(k.get("tekst")):
+                        continue
+                    txt = _str(k.get("tekst"))
+                    if any(_same_step(txt, _str(o.get("tekst"))) for o in ext["kroki"] if isinstance(o, dict)):
+                        continue                       # ten krok już jest — nie podmieniamy go (0.7.7: 190 °C w złym kroku)
+                    ext["kroki"].append(k)
+                    added += 1
+                # składników i porad z tego etapu nie dodajemy (0.7.7: zmyślone „świeżo zmielona” sól Maldon)
+                log(f"        kontrola kompletności: dopisano {added}")
+            # liczby, których model nadal nie przeniósł (pomiar: raz zgubił 140 °C i 190 °C mimo uzupełnienia) —
+            # osobne, bardzo krótkie zapytanie na każdą liczbę: małe modele robią to niezawodnie
+            nums = missing_numbers(timeline, ext)[:6]
+            if nums:
+                log(f"        kontrola liczb: brakuje {', '.join(n for _, n, _, _ in nums)} — dopisuję")
 
-            with ThreadPoolExecutor(max_workers=min(par, len(nums))) as pool:
-                for k in pool.map(one, nums):
-                    if k:
-                        ext["kroki"].append(k)
+                def one(item):
+                    t0, n, sent, src = item
+                    pr = NUM_PROMPT.format(t=int(t0), zdanie=sent, n=n, meta=meta_line)
+                    raw = _try(engine, pr, log)
+                    record("liczba", pr, raw)
+                    txt = _str(_loads(raw).get("tekst"))
+                    return {"t": t0, "tekst": txt, "zrodlo": src} if n in _NUM.findall(txt) else None
+
+                with ThreadPoolExecutor(max_workers=min(par, len(nums))) as pool:
+                    for k in pool.map(one, nums):
+                        if k:
+                            ext["kroki"].append(k)
     ext["kroki"].sort(key=lambda k: _t(k.get("t")) if isinstance(k, dict) and _t(k.get("t")) is not None else 1e9)
 
-    facts_json = json.dumps({"typ": typ, **ext}, ensure_ascii=False)
+    if grounded:
+        # krótko i tekstem (nie JSON-em): pomiar — przy 27 krokach w JSON-ie + pełnym zapisie gemma3:4b zapętlała się
+        # („token repeat limit reached”) i opis całości wychodził pusty
+        facts_json = "\n".join(
+            [f"Typ: {typ}", "Kroki:"] + [f"{i}. [{ts(k['t'])}] {k['tekst']}" for i, k in enumerate(ext["kroki"], 1)]
+            + (["Wyjaśnienia autora:"] + [f"- [{ts(n['t'])}] {n['tekst']}" for n in notes] if notes else [])
+            + (["Składniki: " + ", ".join(x["nazwa"] for x in ext["skladniki"])] if ext["skladniki"] else []))
+        limit = 5000
+    else:
+        facts_json = json.dumps({"typ": typ, **ext}, ensure_ascii=False)
+        limit = 9000
     # do opisu całości: zapis skrócony do rozsądnej długości (fakty są już kompletne)
-    short = timeline if len(timeline) <= 9000 else "\n".join(_chunks(timeline, 9000)[0].splitlines()) + "\n[…]"
-    head = PRESENT_HEAD.format(meta=meta_line, facts=facts_json, timeline=short)
+    short = timeline if len(timeline) <= limit else "\n".join(_chunks(timeline, limit)[0].splitlines()) + "\n[…]"
+    head = PRESENT_HEAD.format(meta=meta_line, facts=facts_json, timeline=short, glossary=GLOSSARY)
+
+    src_words = sum(len(_norm_words(ln["tekst"])) for ln in lines) if lines else len(_norm_words(timeline)) // 2
+    words = target_words(src_words)
 
     def present(tail: str, need: tuple, stage: str) -> dict:
         got: dict = {}
         for _ in (1, 2):                           # jedna ponowna próba, gdy odpowiedź nie jest poprawnym JSON-em
-            pr = head + tail.format()
+            pr = head + tail.format(words=words)
             raw = _try(engine, pr, log)
             record(stage, pr, raw)
             got = _loads(raw)
@@ -616,13 +1147,29 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
                 break
         return got
 
+    tail_b = PRESENT_B_SHORT if grounded else PRESENT_B
+    need_b = ("cytaty", "rozdzialy") if grounded else ("momenty", "rozdzialy", "cytaty")
     if par > 1:
         with ThreadPoolExecutor(max_workers=2) as pool:
             fa = pool.submit(present, PRESENT_A, ("teza", "streszczenie", "najwazniejsze"), "opis_a")
-            fb = pool.submit(present, PRESENT_B, ("momenty", "rozdzialy", "cytaty"), "opis_b")
+            fb = pool.submit(present, tail_b, need_b, "opis_b")
             p = {**fb.result(), **fa.result()}
+    elif grounded:
+        p = {**present(tail_b, need_b, "opis_b"), **present(PRESENT_A, ("teza", "streszczenie"), "opis_a")}
     else:
         p = present(PRESENT_FULL, ("teza", "streszczenie", "najwazniejsze"), "opis")
+    if not p.get("streszczenie"):
+        # zapas: krótsze polecenie bez zapisu (pomiar: przy pełnym poleceniu model potrafi się zapętlić dwa razy z rzędu)
+        log("        opis całości: drugie podejście, krótszym poleceniem")
+        pr = (PRESENT_HEAD.split("ZAPIS (czas")[0].format(meta=meta_line, facts=facts_json, glossary=GLOSSARY)
+              + "Odpowiedz WYŁĄCZNIE JSON-em:\n" + SHORT_A.format(words=words))
+        raw = _try(engine, pr, log)
+        record("opis_zapas", pr, raw)
+        p = {**_loads(raw), **{k: v for k, v in p.items() if v}}
+    if grounded:
+        p["rozdzialy"] = chapters_snapped(_lst(p.get("rozdzialy")), steps_full, duration, notes) or \
+            chapters_from_steps([{**s_, "etap": ""} for s_ in steps_full], duration, notes=notes)
+        p["momenty"] = moments_from_steps(steps_full)
 
     def texts(xs) -> list[str]:
         return [x if isinstance(x, str) else _str((x or {}).get("tekst") or (x or {}).get("nazwa")) for x in xs]
@@ -633,7 +1180,16 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7]}}
     merged["co_masz_zrobic"]["sprzet"] = texts(ext["sprzet"])
     has_facts = any(ext[k] for k in ("kroki", "skladniki", "cwiczenia", "wskazowki", "fakty"))
-    return parse_summary(json.dumps(merged, ensure_ascii=False), duration, allow_partial=has_facts)
+    out = parse_summary(json.dumps(merged, ensure_ascii=False), duration, allow_partial=has_facts)
+    if out is not None:
+        out["metoda"] = "kroki z linii mowy" if grounded else "fakty z fragmentów"
+        source = " ".join(ln["tekst"] + " " + " ".join(ln["ekran"]) for ln in lines) if lines else timeline
+        out = fix_terms_deep(out, source + " " + timeline)
+        n = drop_unsupported_numbers(out, source + " " + timeline)
+        if n:
+            log(f"        usunięto {n} zdanie(a) z liczbą, której nie ma w filmie")
+        out["czas_czytania_s"] = reading_seconds(out)
+    return out
 
 
 def _norm_words(t: str) -> list[str]:

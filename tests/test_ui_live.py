@@ -1,0 +1,127 @@
+"""Strona wyniku w przeglądarce (Playwright, Chromium): otwiera się od razu, transkrypcja jest od pierwszych sekund,
+kolejne części dochodzą bez przesuwania czytanego fragmentu, a po końcu analizy pojawia się pełny wynik.
+
+Uruchamia się tylko, gdy jest Playwright z przeglądarką (lokalnie / w kontenerze); w CI bez przeglądarki — pominięty.
+"""
+from __future__ import annotations
+
+import json
+import os
+import threading
+import time
+from http.server import ThreadingHTTPServer
+from pathlib import Path
+
+import pytest
+
+pw = pytest.importorskip("playwright.sync_api")
+DATA = Path(__file__).parent / "data"
+BENCH = Path(__file__).parent / "bench" / "data" / "frytki_076.json"
+TOKEN = "uitoken"
+
+
+def _segments(n_rep: int = 4) -> list[dict]:
+    """Długa transkrypcja (frytki ×4), żeby było co przewijać."""
+    seg = json.loads(BENCH.read_text(encoding="utf-8"))["segmenty"]
+    out = []
+    for r in range(n_rep):
+        out += [{**s, "start": s["start"] + 60 * r, "end": s["end"] + 60 * r} for s in seg]
+    return out
+
+
+@pytest.fixture()
+def live(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
+    from vidsum.gui import App, Job, make_handler
+    from vidsum.pipeline import Options
+    app = App(tmp_path / "wyniki", TOKEN)
+    out = tmp_path / "wyniki" / "film_1"
+    (out / "kadry").mkdir(parents=True)
+    job = Job("abcd1234", "https://example.com/v", "https://example.com/v", Options(out_root=tmp_path), None)
+    job.status, job.started, job.out, job.stage = "trwa", time.time() - 12, out, "1"
+    job.log = ["▶ https://example.com/v", "  [1/4] mowa: napisy serwisu"]
+    segs = _segments()
+    job.partial.update({"meta": {"tytul": "The Perfect French Fry", "autor": "Fallow", "dlugosc_s": 238.0,
+                                 "szerokosc": 360, "wysokosc": 640},
+                        "transkrypcja": {"jezyk": "en", "segmenty": segs}})
+    app.worker.jobs[job.id] = job
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_address[1]}", app, job, out, segs
+    srv.shutdown()
+
+
+def _final(out: Path, segs: list[dict]) -> None:
+    d = json.loads(BENCH.read_text(encoding="utf-8"))
+    steps = [{"t": 13.0, "tekst": "Obierz ziemniaki, przytnij końce i boki.", "zrodlo": "mowa"},
+             {"t": 41.4, "tekst": "Rozgrzej olej do 140 stopni.", "zrodlo": "mowa"}]
+    dane = {"schema": "vidsum.summary/1", "typ": "przepis", "tytul": "Idealne frytki", "tytul_akcent": "dwa smażenia",
+            "teza": "Chrupkie frytki to ziemniaki agria, soda i dwa smażenia.",
+            "streszczenie": ["Akapit pierwszy. " * 12, "Akapit drugi. " * 12, "Akapit trzeci. " * 12],
+            "do_zapamietania": "Smaż dwa razy: 140 i 190 stopni.", "czas_czytania_s": 70, "metoda": "kroki z linii mowy",
+            "co_masz_zrobic": {"skladniki": [{"nazwa": "ziemniaki agria", "ilosc": "brak danych", "zrodlo": "mowa"}],
+                               "kroki": steps, "sprzet": [], "czas": "", "cwiczenia": [], "wskazowki": [], "bledy": [],
+                               "wnioski": []},
+            "najwazniejsze": [], "momenty": [], "cytaty": [], "rozdzialy": [], "szczera_ocena": "Konkretny przepis.",
+            "czego_nie_wiadomo": [], "pytania": ["Dlaczego soda?"]}
+    r = {"schema": "vidsum.analysis/1", "utworzono": "2026-11-08T20:00:00+01:00",
+         "zrodlo": {"tytul": "The Perfect French Fry", "autor": "Fallow", "dlugosc_s": 238.0, "film": "brak.mp4",
+                    "szerokosc": 360, "wysokosc": 640},
+         "ustawienia": {"whisper": "faster-whisper", "obraz": "brak", "streszczenie": "ollama:gemma3:4b"},
+         "transkrypcja": {"jezyk": "en", "segmenty": segs, "tlumaczenia": {}},
+         "napisy_ekranowe": d["napisy"], "kadry": [], "os_czasu": [], "luki": [], "czasy": {"razem_s": 99.0},
+         "streszczenie": {"silnik": "ollama:gemma3:4b", "markdown": "x", "dane": dane}}
+    (out / "analiza.json").write_text(json.dumps(r, ensure_ascii=False), encoding="utf-8")
+
+
+@pytest.mark.parametrize("width", [1280, 390])      # trzy kolumny i telefon (streszczenie NAD transkrypcją)
+def test_live_result_page_keeps_reading_position(live, width):
+    base, app, job, out, segs = live
+    with pw.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as e:                      # brak przeglądarki
+            pytest.skip(f"brak Chromium: {e}")
+        page = b.new_page(viewport={"width": width, "height": 860})
+        errors: list[str] = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+        page.goto(f"{base}/?t={TOKEN}#/wynik/{job.id}")
+        # od razu: tytuł, pasek etapów, transkrypcja (zakładka domyślna podczas analizy), szkielet streszczenia
+        page.wait_for_selector("#tabc .tr-line")
+        assert "The Perfect French Fry" in page.inner_text("#rhead")
+        assert page.locator(".lstep.now").count() == 1
+        assert page.locator("#csum .skel").count() == 1
+        assert page.locator("#tabc .tr-line").count() == len(segs)
+        shots = Path(os.environ.get("VIDSUM_SHOTS") or out)
+        page.screenshot(path=str(shots / f"na_zywo_{width}.png"))
+        # czytam transkrypcję: przewijam do linii z ok. 2:30
+        line = page.locator('#tabc .tr-line').nth(120)
+        line.scroll_into_view_if_needed()
+        page.evaluate("window.scrollBy(0, -200)")
+        before = line.bounding_box()["y"]
+        # dochodzą kadry i kroki (etap 4/4)
+        job.stage = "4"
+        job.partial["kroki"] = {"typ": "przepis", "kroki": [{"t": 13.0, "tekst": "Obierz ziemniaki.", "zrodlo": "mowa"}],
+                                "skladniki": []}
+        page.wait_for_selector('#tabs button[data-tab="todo"]', timeout=8000)
+        assert abs(line.bounding_box()["y"] - before) <= 2, "czytany fragment przesunął się po dojściu kroków"
+        # koniec analizy: pełny wynik, ta sama zakładka (czytający nie traci miejsca), streszczenie i czas czytania
+        _final(out, segs)
+        job.status, job.finished = "gotowe", time.time()
+        page.wait_for_selector("#csum .summary p", timeout=8000)
+        page.wait_for_timeout(400)
+        assert page.locator("#tabs button.on").get_attribute("data-tab") == "tr"
+        line = page.locator('#tabc .tr-line').nth(120)
+        assert abs(line.bounding_box()["y"] - before) <= 2, "czytany fragment przesunął się po końcu analizy"
+        assert "czytania" in page.inner_text("#csum")
+        assert "Smaż dwa razy" in page.inner_text("#csum")
+        page.evaluate("window.scrollTo(0, 0)")
+        page.screenshot(path=str(shots / f"wynik_{width}.png"))
+        # telefon: jedna kolumna, bez poziomego przewijania
+        page.set_viewport_size({"width": 390, "height": 800})
+        page.wait_for_timeout(200)
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+        b.close()
+    assert not [e for e in errors if "favicon" not in e and "film" not in e and "404" not in e], errors

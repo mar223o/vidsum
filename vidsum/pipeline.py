@@ -109,6 +109,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
 
     info = probe(src.path)
     log(f"  długość {ts(info.duration)}, {info.width}x{info.height}, audio: {'tak' if info.has_audio else 'nie'}")
+    _emit(opt, "meta", {"tytul": src.title or src.path.stem, "autor": src.uploader, "dlugosc_s": round(info.duration, 2),
+                        "url": src.webpage_url, "szerokosc": info.width, "wysokosc": info.height})
     gaps: list[str] = []
     timings: dict[str, float] = {"pobieranie_s": t_fetch} if src.kind == "link" else {}
 
@@ -399,10 +401,12 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                     v = f.vision
                     log(f"        {done[0]}/{len(frames)} kadr {ts(f.t)}: {v.get('scena', '')[:90]}"
                         + (f" | czynności: {', '.join(v['czynnosci'])[:60]}" if v.get("czynnosci") else ""))
+                _emit(opt, "kadry", [{"t": x.t, "file": x.file, "scena": (x.vision or {}).get("scena", "")} for x in frames])
 
         # dwa kadry naraz tylko, gdy Ollama obsługuje kilka zapytań (OLLAMA_NUM_PARALLEL ≥ 2); inaczej to tylko kolejka
         from concurrent.futures import ThreadPoolExecutor
         workers = min(VISION_WORKERS, vision_engine.parallel)
+        _emit(opt, "kadry", [{"t": f.t, "file": f.file, "scena": ""} for f in frames])   # miniatury od razu
         refine_thread = start_refine()             # poprawka mowy (Whisper, GPU) RÓWNOLEGLE z opisem kadrów
         t_v = time.time()
         with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -575,8 +579,14 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 # nie dało więcej faktów, a przenosiło błędy rozpoznawania mowy dalej („grilled” → „grillowane”)
                 src_beats = beats
                 trace: list = []
+                def polish():                      # polskie linie tylko, jeśli tłumaczenie już gotowe (bez czekania)
+                    segs_pl = (translations.get("pl") or {}).get("segmenty")
+                    return [x.get("text") for x in segs_pl] if segs_pl else None
+
                 summary_data = staged_summary(text_engine, compact_timeline(src_beats), meta_txt, info.duration, log,
-                                              trace=trace)
+                                              trace=trace, segments=[asdict(x) for x in tr.segments],
+                                              ocr=[asdict(l) for l in ocr_lines],
+                                              on_partial=lambda k, v: _emit(opt, k, v), polish=polish)
                 # kroki pośrednie (fakty, uzupełnienie, opis) — żeby było widać, gdzie coś zginęło
                 (out / "streszczenie_kroki.json").write_text(json.dumps(trace, ensure_ascii=False, indent=1),
                                                             encoding="utf-8")

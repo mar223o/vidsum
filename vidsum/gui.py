@@ -116,7 +116,7 @@ class Worker:
                     if line.strip().startswith("wyniki:"):
                         job.out = Path(line.split("wyniki:", 1)[1].strip())
                     m = re.match(r"\s*\[(\d)/4\]\s*(\S+)", line)
-                    if m:
+                    if m and int(m.group(1)) > int(job.stage or 0):     # etap tylko do przodu ([0/4] OCR, druga [1/4])
                         job.stage = m.group(1)
             try:
                 job.out = analyze(job.source, job.opt, log)

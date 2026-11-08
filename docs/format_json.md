@@ -58,16 +58,19 @@ Wszystkie czasy w sekundach. Pola nieużywane przez dany typ filmu są puste.
 | `typ` | `przepis` / `trening` / `poradnik` / `wyklad` / `inne` | rozpoznany typ filmu |
 | `tytul`, `tytul_akcent` | string | tytuł po polsku + druga część (puenta) |
 | `teza` | string | jedno zdanie: o co chodzi i co z tego wynika |
-| `streszczenie` | lista akapitów | |
+| `streszczenie` | lista akapitów | od 0.7.8: cel ok. 1:00–1:25 czytania (krócej, gdy film ma mało treści) |
+| `do_zapamietania` | string | od 0.7.8: jedno zdanie — najważniejszy wniosek |
+| `czas_czytania_s` | liczba | od 0.7.8: szacowany czas czytania streszczenia (190 słów/min) |
+| `metoda` | string | od 0.7.8: `kroki z linii mowy` (przepis, poradnik) albo `fakty z fragmentów` |
 | `co_masz_zrobic.skladniki` | `[{nazwa, ilosc, zrodlo}]` | **przepisy → dashboard** |
-| `co_masz_zrobic.kroki` | `[{t, tekst, zrodlo}]` | kroki z czasem w filmie |
+| `co_masz_zrobic.kroki` | `[{t, tekst, zrodlo}]` | kroki z czasem w filmie; od 0.7.8 dla przepisów i poradników każdy krok powstaje z konkretnych linii mowy, a jego liczby muszą w tych liniach paść |
 | `co_masz_zrobic.cwiczenia` | `[{nazwa, serie, powtorzenia, t, technika, zrodlo}]` | **treningi → dashboard** |
 | `co_masz_zrobic.sprzet / wskazowki / bledy / wnioski` | listy stringów | |
 | `co_masz_zrobic.czas` | string | podany albo szacunek |
 | `najwazniejsze` | `[{t, tytul, opis, zrodlo}]` | 3–5 pozycji |
 | `momenty` | `[{t, tekst}]` | |
 | `cytaty` | `[{t, tekst, tlumaczenie}]` | tylko z mowy |
-| `rozdzialy` | `[{start, end, tytul, opis, momenty:[{t, tekst}]}]` | |
+| `rozdzialy` | `[{start, end, tytul, opis, momenty:[{t, tekst}]}]` | od 0.7.8 przy przepisach/poradnikach: granice na zmianie etapu kroków |
 | `szczera_ocena` | string | zawsze szacunek |
 | `czego_nie_wiadomo` | lista stringów | |
 | `pytania` | lista stringów | podpowiedzi do czatu |

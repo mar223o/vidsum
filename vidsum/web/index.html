@@ -170,12 +170,39 @@ blockquote.pull::before{content:"“";position:absolute;left:0;top:10px;color:va
 .md ul,.md ol{margin:4px 0;padding-left:20px}.md li{margin:3px 0}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:99px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;z-index:50}
 .toast.on{opacity:1}
+/* ---------- na żywo ---------- */
+.livebar{margin-top:14px;display:grid;gap:8px}
+.livebar.err{color:var(--bad);font-size:14px}
+.lsteps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px}
+.lstep{color:var(--muted);padding:2px 10px;border-radius:99px;border:1px solid var(--line)}
+.lstep.done{color:var(--ok);border-color:transparent}
+.lstep.now{color:var(--accent-ink);background:var(--accent);border-color:var(--accent);animation:pulse 1.6s ease-in-out infinite}
+.lsep{width:14px;height:1px;background:var(--line2)}
+.lnow{display:flex;gap:10px;align-items:baseline;font-size:12.5px;min-width:0}.lnow .muted{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@keyframes pulse{50%{opacity:.75}}
+.skel{display:grid;gap:10px;margin:6px 0 14px}
+.skel i{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--line) 0%,var(--card) 50%,var(--line) 100%);background-size:200% 100%;animation:sh 1.4s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.appear{animation:fi .35s ease both}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.appear,.skel i,.lstep.now{animation:none}}
+.small{font-size:13px}
+.rtime{font:500 11px var(--sans);letter-spacing:.04em;text-transform:none;color:var(--accent);margin-left:8px}
+.player .nofilm{width:100%;max-height:72vh;background-size:cover;background-position:center}
+.ph{background:rgba(0,0,0,.62);color:#fff;padding:6px 12px;border-radius:8px;font-size:13px;text-align:center;margin:12px}
+.trbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:12.5px;margin:-6px 0 10px}
+.seg.small button{padding:3px 10px;font-size:12px}
+.trtext{max-width:68ch}
+.tr-line{line-height:1.6}
+.summary{max-width:68ch;font-size:16px;line-height:1.65}
+#res{overflow-anchor:auto}
 @media (max-width:1100px){ .m-bal .layout{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)} .m-bal .col-sum{grid-column:1/-1;order:3} }
 @media (max-width:760px){
   header{padding:10px 16px;gap:10px} main{padding:20px 16px 80px}
   .layout,.m-bal .layout,.m-video .layout,.m-read .layout{grid-template-columns:minmax(0,1fr)}
   .col-sum,.col-mid,.col-break{grid-column:auto!important;order:initial!important}
   .thesis{padding-left:0} .frame{grid-template-columns:90px 1fr}
+  #res.live .col-mid, #res.live .col-sum .skel{display:none}   /* telefon w trakcie analizy: transkrypcja zaraz pod nagłówkiem */
 }
 </style>
 </head>
@@ -223,6 +250,11 @@ const I18N = {
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
    typ_przepis:"przepis",typ_trening:"trening",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_inne:"inne",
    chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu",
+   stage_dl:"pobieranie",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
+   live_wait_sum:"Streszczenie pojawi się tutaj na końcu analizy (etap 4/4). W tym czasie możesz czytać transkrypcję — nic Ci jej nie przesunie.",
+   live_steps_ready:"Kroki są już gotowe w zakładce obok. Opis całości jeszcze powstaje…",
+   live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
+   live_wait_tr:"Transkrypcja pojawi się tutaj, gdy tylko mowa zostanie rozpoznana.",live_wait_fr:"Kadry pojawią się po ich wycięciu z filmu.",
    offline:"Brak połączenia z programem VidSum. Sprawdź, czy czarne okno programu jest otwarte; jeśli je zamknąłeś — uruchom VidSum ponownie (otworzy tę samą stronę)."},
  en:{nav_home:"Analyze",nav_lib:"Library",hero1:"Drop a video —",hero2:"I'll tell you what it means for you.",
    hero_sub:"Recipe, workout, tutorial: speech, captions and picture turned into a concrete to-do list.",
@@ -254,6 +286,11 @@ const I18N = {
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
    typ_przepis:"recipe",typ_trening:"workout",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_inne:"other",
    chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text",
+   stage_dl:"download",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
+   live_wait_sum:"The summary appears here at the end of the analysis (step 4/4). Meanwhile, read the transcript — nothing will move it under you.",
+   live_steps_ready:"The steps are ready in the tab next to this. The full summary is still being written…",
+   live_video:"The video will be playable once the analysis is done",live_tr_note:"preliminary — will be refined",
+   live_wait_tr:"The transcript appears here as soon as speech is recognised.",live_wait_fr:"Frames appear once they are extracted.",
    offline:"Can't reach the VidSum program. Check that its black window is open; if you closed it, start VidSum again (it reopens this page)."}
 };
 let L = "pl", settings = {}, jobs = [], uploads = {}, cur = null, mode = "bal", tab = null, lib = {q:"", typ:""};
@@ -320,7 +357,7 @@ function jobRow(j){
     ${j.elapsed!=null ? `<span class="timer" data-start="${j.status==="trwa" ? Date.now()/1000 - j.elapsed : ""}">⏱ ${fmt(j.elapsed)}</span>` : ""}
     ${j.status==="trwa" ? `<span class="stage">${j.stage ? j.stage+"/4 · "+t("stage_"+j.stage) : t("stage_0")}</span>` : ""}
     <span class="st ${j.status}">${t(j.status)}</span>
-    ${j.status==="gotowe" ? `<a class="btn" href="#/wynik/${j.id}">${t("open")}</a>` : ""}</div>
+    ${j.status==="gotowe" ? `<a class="btn" href="#/wynik/${j.id}">${t("open")}</a>` : j.status==="trwa" ? `<a class="btn" href="#/wynik/${j.id}">${t("live_open")}</a>` : ""}</div>
     ${partsHtml(j)}
     ${j.status==="trwa"||j.status==="blad"||j.status==="w_kolejce" ? (openParts.has(j.id+":log")
        ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>`
@@ -330,7 +367,7 @@ function jobRow(j){
 const openParts = new Set(), partCache = {};
 function partLabel(k){ return k.startsWith("tlumaczenie_") ? t("part_tl")+" ("+k.slice(12).toUpperCase()+")" : t("part_"+k); }
 function partsHtml(j){
-  const ks = j.czesciowe || [];
+  const ks = (j.czesciowe || []).filter(k => ["transkrypcja","napisy","kadry"].includes(k) || k.startsWith("tlumaczenie_"));
   const live = j.status==="trwa" ? `<button data-part="${j.id}:log" class="${openParts.has(j.id+":log")?"on":""}">${esc(t("part_log"))}</button>` : "";
   if (!ks.length) return live ? `<div class="parts">${live}</div>` : "";
   const btns = live + ks.map(k => `<button data-part="${j.id}:${k}" class="${openParts.has(j.id+":"+k)?"on":""}">${esc(partLabel(k))}</button>`).join("");
@@ -413,8 +450,10 @@ function bindHome(){
   drop.addEventListener("drop", e => [...e.dataTransfer.files].forEach(upload));
   $("#go").onclick = async () => {
     const lines = $("#links").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
-    for (const z of lines) { try { await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z})}); } catch(e){ toast(e.message); } }
-    $("#links").value = ""; poll();
+    let first = null;
+    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z})}); first = first || j; } catch(e){ toast(e.message); } }
+    $("#links").value = "";
+    if (first) { try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + first.id; } else poll();
   };
   $("#updKeySave").onclick = async () => {
     try { await api("/api/aktualizacja/klucz", {method:"POST", body:JSON.stringify({klucz:$("#updKey").value})}); $("#updKey").value=""; toast(t("upd_key_ok")); loadStatus(); }
@@ -448,7 +487,13 @@ function upload(file){
   const x = new XMLHttpRequest(); x.open("POST", "/api/wyslij");
   x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name));
   x.upload.onprogress = e => { if (e.lengthComputable){ uploads[key].pct = Math.round(100*e.loaded/e.total); renderHome(); } };
-  x.onloadend = () => { delete uploads[key]; poll(); };
+  x.onloadend = async () => {
+    delete uploads[key];
+    let j = null; try { j = JSON.parse(x.responseText); } catch {}
+    if (j && j.id && !Object.keys(uploads).length && (location.hash === "#/" || location.hash === "")) {
+      try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + j.id;
+    } else poll();
+  };
   x.send(file);
 }
 function renderLib(){
@@ -471,13 +516,49 @@ $("#app").addEventListener("click", e => {
 });
 
 /* ---------- wynik ---------- */
+// Strona wyniku otwiera się od razu po starcie analizy i wypełnia w miarę postępu (transkrypcja → kadry → kroki →
+// streszczenie). Sekcje są podmieniane tylko, gdy ich treść się zmieni, a czytany fragment zostaje w tym samym miejscu.
 async function showResult(id){
   if (!cur || cur.id !== id) {
-    try { cur = {id, r: await api(`/api/zadania/${id}/plik/analiza.json`), chat: await api(`/api/zadania/${id}/czat`).catch(()=>[])}; }
+    cur = {id, r:null, chat:[], live:false, tabAuto:true, trLang:""}; tab = null;
+    let j = jobs.find(x => x.id === id);
+    if (!j) { try { jobs = await api("/api/zadania"); j = jobs.find(x => x.id === id); } catch {} }
+    if (j && j.status !== "gotowe") { cur.live = true; cur.job = j; return refreshLive(); }
+    try { cur.r = await api(`/api/zadania/${id}/plik/analiza.json`); cur.chat = await api(`/api/zadania/${id}/czat`).catch(()=>[]); }
     catch(e){ $("#app").innerHTML = `<p class="empty">${esc(e.message)}</p>`; return; }
-    tab = null;
   }
   renderResult();
+}
+let liveBusy = false;
+async function refreshLive(){
+  if (!cur || !cur.live || liveBusy) return;
+  liveBusy = true;
+  try {
+    const id = cur.id, j = jobs.find(x => x.id === id) || cur.job; cur.job = j;
+    if (j && j.status === "gotowe") {
+      const r = await api(`/api/zadania/${id}/plik/analiza.json`), chat = await api(`/api/zadania/${id}/czat`).catch(()=>[]);
+      if (!cur || cur.id !== id) return;
+      cur.r = r; cur.chat = chat; cur.live = false;
+      return renderResult();
+    }
+    try { const p = await api(`/api/zadania/${id}/czesciowe`); if (cur && cur.id === id) cur.part = p; } catch {}
+    if (!cur || cur.id !== id) return;
+    cur.r = liveR(j, cur.part || {});
+    renderResult();
+  } catch {} finally { liveBusy = false; }
+}
+function liveR(j, p){                    // te same pola co analiza.json, z tego, co już gotowe
+  const m = p.meta || {}, tr = p.transkrypcja || {};
+  const tls = {}; for (const k of Object.keys(p)) if (k.startsWith("tlumaczenie_")) tls[k.slice(12)] = {segmenty:p[k]};
+  const kadry = p.kadry || [], k = p.kroki;
+  const dane = k ? {typ:k.typ||"inne", tytul:"", tytul_akcent:"", teza:"", streszczenie:[], do_zapamietania:"", partial:true,
+      co_masz_zrobic:{skladniki:k.skladniki||[], kroki:k.kroki||[], sprzet:[], czas:"", cwiczenia:[], wskazowki:[], bledy:[], wnioski:[]},
+      najwazniejsze:[], momenty:[], cytaty:[], rozdzialy:[], szczera_ocena:"", czego_nie_wiadomo:[], pytania:[]} : null;
+  return {live:true, zrodlo:{tytul:m.tytul || j?.label || "…", autor:m.autor, dlugosc_s:m.dlugosc_s || 0, szerokosc:m.szerokosc, wysokosc:m.wysokosc},
+    transkrypcja:{jezyk:tr.jezyk, segmenty:tr.segmenty || [], tlumaczenia:tls}, napisy_ekranowe:p.napisy || [],
+    kadry:kadry.map(x => ({t:x.t, file:x.file})),
+    os_czasu:kadry.map(x => ({start:x.t, kadr:x.file, napisy:"", widac:{zrodlo:x.scena ? "obraz" : "", scena:x.scena || ""}, slychac:{tekst:""}})),
+    streszczenie:dane ? {dane} : null, ustawienia:{whisper:"", obraz:"", streszczenie:""}, luki:[], czasy:null, utworzono:""};
 }
 function data(){ return (cur.r.streszczenie || {}).dane || null; }
 function tabsFor(d){
@@ -515,17 +596,24 @@ function renderTab(d){
     `<div class="it" data-t="${x.start}"><span class="n">${String(i+1).padStart(2,"0")}</span><div><div class="top"><span>${tsb(x.start)} – ${fmt(x.end)}</span><span class="tag">${t("seg")} #${i+1}</span></div><h4>${esc(x.tytul)}</h4><p>${esc(x.opis)}</p>
      ${x.momenty.length ? `<div style="margin-top:8px;display:grid;gap:5px">${x.momenty.map(m => `<div style="font-size:13px">${tsb(m.t)} ${esc(m.tekst)}</div>`).join("")}</div>` : ""}</div></div>`).join("")}</div>`;
   if (tab === "tr") {
-    const rows = r.transkrypcja.segmenty.map(s => ({t:s.start, html:`<div class="tr-line" data-t="${s.start}">${tsb(s.start)}<span>${esc(s.text)}</span></div>`}))
+    const segs = r.transkrypcja.segmenty || [], tls = r.transkrypcja.tlumaczenia || {}, langs = Object.keys(tls);
+    if (cur.trLang && !tls[cur.trLang]) cur.trLang = "";
+    const tsegs = cur.trLang ? (tls[cur.trLang].segmenty || []) : null;
+    const rows = segs.map((s, i) => { const txt = tsegs ? (tsegs[i]?.text ?? s.text) : s.text;
+        return {t:s.start, html:`<div class="tr-line" data-t="${s.start}">${tsb(s.start)}<span>${esc(txt)}</span></div>`}; })
       .concat((cur.showOcr ? (r.napisy_ekranowe||[]) : []).map(n => ({t:n.start+0.01, html:`<div class="tr-line ocr" data-t="${n.start}">${tsb(n.start)}<span>▣ ${esc(n.text)}</span></div>`})));
     rows.sort((a,b) => a.t - b.t);
     const nOcr = (r.napisy_ekranowe||[]).length;
-    return `<h3 class="big">${t("transcript")}</h3><p class="muted" style="font-size:12.5px;margin-top:-6px">${esc(r.ustawienia.whisper)}
-      ${nOcr ? ` · <label style="cursor:pointer"><input type="checkbox" id="ocrt" ${cur.showOcr?"checked":""}> ▣ ${t("ocr_show")} (${nOcr})</label>` : ""}</p>${rows.map(x => x.html).join("") || `<p class="empty">${t("nodata")}</p>`}`;
+    const sw = langs.length ? `<span class="seg small" id="trl"><button data-tl="" class="${cur.trLang?"":"on"}">${t("tr_orig")}</button>${langs.map(l => `<button data-tl="${l}" class="${cur.trLang===l?"on":""}">${l.toUpperCase()}</button>`).join("")}</span>` : "";
+    const info = [r.ustawienia.whisper, cur.live && segs.length ? t("live_tr_note") : ""].filter(Boolean).map(esc).join(" · ");
+    return `<h3 class="big">${t("transcript")}</h3><div class="trbar">${sw}<span class="muted">${info}</span>
+      ${nOcr ? `<label style="cursor:pointer"><input type="checkbox" id="ocrt" ${cur.showOcr?"checked":""}> ▣ ${t("ocr_show")} (${nOcr})</label>` : ""}</div>
+      <div class="trtext">${rows.map(x => x.html).join("") || (cur.live ? `<div class="skel"><i></i><i></i><i style="width:70%"></i></div><p class="muted small">${t("live_wait_tr")}</p>` : `<p class="empty">${t("nodata")}</p>`)}</div>`;
   }
-  if (tab === "fr") return `<h3 class="big">${t("frames")}</h3>${r.os_czasu.map(b => { const w = b.widac;
+  if (tab === "fr") return `<h3 class="big">${t("frames")}</h3>${(r.os_czasu.length ? "" : `<p class="muted small">${t(cur.live ? "live_wait_fr" : "nodata")}</p>`)}${r.os_czasu.map(b => { const w = b.widac;
     const seen = w.zrodlo==="obraz" ? esc(w.scena) + ["czynnosci","obiekty","tekst_na_ekranie"].map(k => (w[k]||[]).length ? ` — ${esc(w[k].join(", "))}` : "").join("") : t("nodata");
     return `<div class="frame" data-t="${b.start}"><img loading="lazy" src="${fileUrl(cur.id, b.kadr)}" data-seek="${b.start}" alt=""><div>${tsb(b.start)}<span class="src obraz">${t("seen")}</span> ${seen}
-      ${b.napisy ? `<div><span class="src obraz">OCR</span> ${esc(b.napisy)}</div>` : ""}<div style="margin-top:4px"><span class="src mowa">${t("heard")}</span> ${esc(b.slychac.tekst) || t("nodata")}</div></div></div>`; }).join("")}`;
+      ${b.napisy ? `<div><span class="src obraz">OCR</span> ${esc(b.napisy)}</div>` : ""}${cur.live ? "" : `<div style="margin-top:4px"><span class="src mowa">${t("heard")}</span> ${esc(b.slychac.tekst) || t("nodata")}</div>`}</div></div>`; }).join("")}`;
   return "";
 }
 function timingHtml(c){
@@ -535,47 +623,123 @@ function timingHtml(c){
   return `<div class="timing"><div>⏱ ${t("took")}: <b>${fmt(c.razem_s)}</b>${c.mowa_rownolegle ? ` <span class="muted">· ${t("parallel")}</span>` : ""}</div>
     ${keys.map(k => `<div class="trow"><span>${t("t_"+k)}</span><span class="tbar"><i style="width:${Math.max(2,100*c[k]/max)}%"></i></span><span class="tval">${c[k] < 60 ? c[k].toFixed(1)+" s" : fmt(c[k])}</span></div>`).join("")}</div>`;
 }
+const STAGES = [["0","stage_dl"],["1","stage_1"],["2","stage_2"],["3","stage_3"],["4","stage_4"]];
+function liveBar(j){
+  if (!j) return "";
+  if (j.status === "blad") return `<div class="livebar err">✕ ${esc(j.error || t("blad"))}</div>`;
+  const st = Number(j.stage || 0);
+  const steps = STAGES.map(([k, lab], i) => {
+    const s = i < st ? "done" : i === st ? "now" : "";
+    return `<span class="lstep ${s}">${s === "done" ? "✓ " : ""}${t(lab)}</span>`;
+  }).join(`<span class="lsep"></span>`);
+  const last = (j.log || []).filter(x => x.trim()).slice(-1)[0] || "";
+  return `<div class="livebar"><div class="lsteps">${steps}</div>
+    <div class="lnow"><span class="timer" data-start="${j.elapsed != null ? Date.now()/1000 - j.elapsed : ""}">⏱ ${fmt(j.elapsed || 0)}</span>
+    <span class="muted">${esc(last.trim().slice(0, 140))}</span></div></div>`;
+}
+function headHtml(r, d){
+  const z = r.zrodlo, title = d?.tytul || z.tytul || z.plik || "…", accent = d?.tytul_akcent || "";
+  let h = `<div class="eyebrow">${esc([z.autor, d && !d.partial ? t("typ_"+d.typ) : ""].filter(Boolean).join(" · ") || "VidSum")}</div>
+    <h1>${esc(title)}${accent ? `<i>${esc(accent)}</i>` : ""}</h1>${d?.teza ? `<div class="thesis">„${esc(d.teza)}”</div>` : ""}`;
+  if (cur.live) return h + liveBar(cur.job);
+  const date = (r.utworzono || "").slice(0,10), id = cur.id;
+  return h + `<div class="meta"><span>${esc(date)}</span><span>•</span><span>${fmt(z.dlugosc_s)} ${t("runtime")}</span>${r.czasy?.razem_s ? `<span>•</span><span>⏱ ${t("analysis")} ${fmt(r.czasy.razem_s)}</span>` : ""}</div>
+    <div class="actions"><button class="btn" data-a="copy">${t("copy")}</button><button class="btn" data-a="claude">${t("claude")}</button>
+      <button class="btn" data-a="folder">${t("folder")}</button><a class="btn" href="${fileUrl(id,"analiza.json")}" download style="text-decoration:none;color:inherit">${t("json")}</a></div>`;
+}
+function readTime(d){
+  const s = d.czas_czytania_s || Math.round(((d.streszczenie||[]).join(" ") + " " + (d.teza||"")).split(/\s+/).filter(Boolean).length / 190 * 60);
+  return s ? `<span class="rtime">≈ ${s >= 60 ? Math.floor(s/60) + " min " + String(s%60).padStart(2,"0") + " s" : s + " s"} ${t("reading")}</span>` : "";
+}
+function sumHtml(r, d){
+  const top = `<div class="hand">~ ${t("summary")} ~</div><div class="label">${t("summary")} ${d && d.streszczenie.length ? readTime(d) : ""}</div><hr class="rule">`;
+  if (!d || !d.streszczenie.length) {
+    if (cur.live) return top + `<div class="skel"><i></i><i></i><i></i><i></i><i style="width:55%"></i></div>
+      <p class="muted small">${t(d?.partial ? "live_steps_ready" : "live_wait_sum")}</p>`;
+    return top + (r.streszczenie ? `<div class="md">${md(r.streszczenie.markdown)}</div>` : `<p class="muted">${t("no_data")}</p>`);
+  }
+  return top + `<div class="summary">${d.streszczenie.map(p => `<p>${inline(p)}</p>`).join("")}</div>
+    ${d.do_zapamietania ? `<blockquote class="pull"><div class="label" style="margin-bottom:4px">${t("remember")}</div>${esc(d.do_zapamietania)}</blockquote>` : ""}
+    ${d.szczera_ocena ? `<div class="note"><h4>${t("honest")}</h4>${inline(d.szczera_ocena)} ${src("szacunek")}</div>` : ""}
+    ${d.czego_nie_wiadomo.length ? `<div class="note"><h4>${t("unknown")}</h4><ul>${d.czego_nie_wiadomo.map(x => `<li>${inline(x)}</li>`).join("")}</ul></div>` : ""}
+    <details class="note"><summary>${t("how")}</summary>${timingHtml(r.czasy)}
+      <p style="font-size:13px" class="muted">${t("engines")}: ${esc(r.ustawienia.whisper)} · ${esc(r.ustawienia.obraz)} · ${esc(r.ustawienia.streszczenie)}${d.metoda ? " · " + esc(d.metoda) : ""}</p>
+      ${r.luki.length ? `<p style="font-size:13px"><b>${t("gaps")}:</b><br>${r.luki.map(esc).join("<br>")}</p>` : ""}</details>`;
+}
+function playerHtml(r){
+  const z = r.zrodlo, ar = z.szerokosc && z.wysokosc ? `aspect-ratio:${z.szerokosc}/${z.wysokosc};` : "";
+  const poster = r.kadry?.[0]?.file ? fileUrl(cur.id, r.kadry[0].file) : "";
+  if (cur.live) return `<div class="player"><div class="nofilm" style="${ar}background-image:url('${poster}')"><span class="ph">${t("live_video")}</span></div></div>`;
+  return `<div class="player"><video id="vid" src="/api/zadania/${cur.id}/film?t=${T}" poster="${poster}" controls preload="metadata" playsinline></video></div>`;
+}
+function chatHtml(d){
+  if (cur.live) return "";
+  return `<div class="hand">~ ${t("chat")} ~</div><hr class="rule"><div class="hint">${t("chat_hint")}</div>
+    <div class="msgs" id="msgs"></div>
+    ${d?.pytania.length ? `<div class="sugg" id="sugg">${d.pytania.map(q => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}
+    <form class="ask" id="askf"><input id="askq" placeholder="${esc(t("ask_ph"))}" autocomplete="off"><button aria-label="send">↑</button></form>`;
+}
+/* podmiana treści sekcji tylko, gdy się zmieniła; zwraca true, gdy podmieniono */
+function put(sel, html, skel){
+  const el = $(sel); if (!el || el._h === html) return false;
+  const wasSkel = el._skel; el.innerHTML = html; el._h = html; el._skel = !!skel;
+  if (wasSkel && !skel) { el.classList.remove("appear"); void el.offsetWidth; el.classList.add("appear"); }
+  return true;
+}
+/* czytany fragment zostaje w miejscu: zapamiętaj pierwszy widoczny element z czasem i po zmianie przewiń o różnicę */
+function stable(fn){
+  let a = null;
+  if (window.scrollY > 0) {
+    for (const box of ["tabc", "csum"]) {
+      for (const el of document.querySelectorAll(`#${box} [data-t]`)) {
+        const top = el.getBoundingClientRect().top;
+        if (top >= 70 && top < innerHeight) { a = {box, t:Number(el.dataset.t), top}; break; }
+      }
+      if (a) break;
+    }
+  }
+  fn();
+  if (!a) return;
+  let best = null;
+  for (const el of document.querySelectorAll(`#${a.box} [data-t]`)) if (Number(el.dataset.t) <= a.t + 0.01) best = el;
+  if (best) { const d = best.getBoundingClientRect().top - a.top; if (Math.abs(d) > 1) window.scrollBy(0, d); }
+}
 function renderResult(){
-  const r = cur.r, d = data(), z = r.zrodlo, id = cur.id, tl = tabsFor(d);
-  if (!tab || !tl.some(x => x[0] === tab)) tab = tl[0][0];
-  const title = d?.tytul || z.tytul || z.plik, accent = d?.tytul_akcent || "";
-  const date = (r.utworzono || "").slice(0,10);
-  const summaryHtml = d ? d.streszczenie.map(p => `<p>${inline(p)}</p>`).join("") : (r.streszczenie ? `<div class="md">${md(r.streszczenie.markdown)}</div>` : `<p class="muted">${t("no_data")}</p>`);
-  const film = `/api/zadania/${id}/film?t=${T}`, poster = r.kadry?.[0] ? fileUrl(id, r.kadry[0].file) : "";
-  $("#app").innerHTML = `<div class="m-${mode}">
-    <div class="modebar"><div class="seg" id="modes"><button data-m="video">◉ ${t("m_video")}</button><button data-m="bal">≡ ${t("m_bal")}</button><button data-m="read">▤ ${t("m_read")}</button></div></div>
-    <div class="r-head"><div class="eyebrow">${esc([z.autor, d ? t("typ_"+d.typ) : ""].filter(Boolean).join(" · ") || "VidSum")}</div>
-      <h1>${esc(title)}${accent ? `<i>${esc(accent)}</i>` : ""}</h1>
-      ${d?.teza ? `<div class="thesis">„${esc(d.teza)}”</div>` : ""}
-      <div class="meta"><span>${esc(date)}</span><span>•</span><span>${fmt(z.dlugosc_s)} ${t("runtime")}</span>${r.czasy?.razem_s ? `<span>•</span><span>⏱ ${t("analysis")} ${fmt(r.czasy.razem_s)}</span>` : ""}</div>
-      <div class="actions"><button class="btn" data-a="copy">${t("copy")}</button><button class="btn" data-a="claude">${t("claude")}</button>
-        <button class="btn" data-a="folder">${t("folder")}</button><a class="btn" href="${fileUrl(id,"analiza.json")}" download style="text-decoration:none;color:inherit">${t("json")}</a></div></div>
-    <div class="layout">
-      <section class="col-sum"><div class="hand">~ ${t("summary")} ~</div><div class="label">${t("summary")}</div><hr class="rule">
-        <div class="summary">${summaryHtml}</div>
-        ${d?.teza ? `<blockquote class="pull">${esc(d.teza)}</blockquote>` : ""}
-        ${d?.szczera_ocena ? `<div class="note"><h4>${t("honest")}</h4>${inline(d.szczera_ocena)} ${src("szacunek")}</div>` : ""}
-        ${d?.czego_nie_wiadomo.length ? `<div class="note"><h4>${t("unknown")}</h4><ul>${d.czego_nie_wiadomo.map(x => `<li>${inline(x)}</li>`).join("")}</ul></div>` : ""}
-        <details class="note"><summary>${t("how")}</summary>${timingHtml(r.czasy)}
-          <p style="font-size:13px" class="muted">${t("engines")}: ${esc(r.ustawienia.whisper)} · ${esc(r.ustawienia.obraz)} · ${esc(r.ustawienia.streszczenie)}</p>
-          ${r.luki.length ? `<p style="font-size:13px"><b>${t("gaps")}:</b><br>${r.luki.map(esc).join("<br>")}</p>` : ""}</details>
-      </section>
-      <section class="col-mid">
-        <div class="player"><video id="vid" src="${film}" poster="${poster}" controls preload="metadata" playsinline></video></div>
-        <div class="chatbox"><div class="hand">~ ${t("chat")} ~</div><hr class="rule"><div class="hint">${t("chat_hint")}</div>
-          <div class="msgs" id="msgs"></div>
-          ${d?.pytania.length ? `<div class="sugg" id="sugg">${d.pytania.map(q => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}
-          <form class="ask" id="askf"><input id="askq" placeholder="${esc(t("ask_ph"))}" autocomplete="off"><button aria-label="send">↑</button></form></div>
-      </section>
-      <section class="col-break"><div class="hand">~ ${t("breakdown")} ~</div><div class="label">${t("breakdown")}</div><hr class="rule">
-        <div class="tabs" id="tabs">${tl.map(([k,lab]) => `<button data-tab="${k}" class="${k===tab?"on":""}">${lab}</button>`).join("")}</div>
-        <div id="tabc">${renderTab(d)}</div></section>
-    </div></div>`;
-  document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === mode));
-  const v = $("#vid");
-  v.addEventListener("error", () => { v.parentElement.innerHTML = `<div class="nofilm" style="background-image:url('${poster}')"><span style="background:rgba(0,0,0,.6);padding:6px 10px;border-radius:8px">${t("no_film")}</span></div>`; });
-  v.addEventListener("timeupdate", highlight);
-  renderChat();
+  const r = cur.r, d = data(), tl = tabsFor(d);
+  if (!tab || !tl.some(x => x[0] === tab)) tab = cur.live ? "tr" : tl[0][0];
+  // koniec analizy: jeśli nikt nie wybierał zakładki i strona jest na górze — pokaż najpierw wynik (kroki/najważniejsze)
+  if (!cur.live && cur.wasLive && cur.tabAuto && window.scrollY < 200) tab = tl[0][0];
+  cur.wasLive = cur.live;
+  let root = $("#res");
+  if (!root || root.dataset.id !== cur.id || root.dataset.mode !== mode) {
+    $("#app").innerHTML = `<div id="res" class="m-${mode}" data-id="${cur.id}" data-mode="${mode}">
+      <div class="modebar"><div class="seg" id="modes"><button data-m="video">◉ ${t("m_video")}</button><button data-m="bal">≡ ${t("m_bal")}</button><button data-m="read">▤ ${t("m_read")}</button></div></div>
+      <div class="r-head" id="rhead"></div>
+      <div class="layout">
+        <section class="col-sum" id="csum"></section>
+        <section class="col-mid"><div id="cplayer"></div><div class="chatbox" id="cchat"></div></section>
+        <section class="col-break"><div class="hand">~ ${t("breakdown")} ~</div><div class="label">${t("breakdown")}</div><hr class="rule">
+          <div class="tabs" id="tabs"></div><div id="tabc"></div></section>
+      </div></div>`;
+    document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === mode));
+  }
+  $("#res").classList.toggle("live", !!cur.live);
+  stable(() => {
+    put("#rhead", headHtml(r, d));
+    put("#csum", sumHtml(r, d), cur.live && !(d && d.streszczenie.length));
+    if (put("#cplayer", playerHtml(r))) {
+      const v = $("#vid");
+      if (v) {
+        const poster = v.getAttribute("poster");
+        const z = r.zrodlo, ar = z.szerokosc && z.wysokosc ? `aspect-ratio:${z.szerokosc}/${z.wysokosc};` : "";
+        v.addEventListener("error", () => { v.parentElement.innerHTML = `<div class="nofilm" style="${ar}background-image:url('${poster}')"><span class="ph">${t("no_film")}</span></div>`; });
+        v.addEventListener("timeupdate", highlight);
+      }
+    }
+    if (put("#cchat", chatHtml(d))) renderChat();
+    put("#tabs", tl.map(([k,lab]) => `<button data-tab="${k}" class="${k===tab?"on":""}">${lab}</button>`).join(""));
+    put("#tabc", renderTab(d));
+  });
 }
 function highlight(){
   const v = $("#vid"); if (!v) return; const now = v.currentTime;
@@ -601,9 +765,10 @@ async function ask(q){
 $("#app").addEventListener("click", async e => {
   const s = e.target.closest("[data-seek]"); if (s) { e.preventDefault(); return seek(s.dataset.seek); }
   const m = e.target.closest("#modes button"); if (m) { mode = m.dataset.m; try{ localStorage.setItem("vs_mode", mode); }catch{} return renderResult(); }
-  const tb = e.target.closest("#tabs button"); if (tb) { tab = tb.dataset.tab; document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b===tb)); $("#tabc").innerHTML = renderTab(data()); return; }
+  const tb = e.target.closest("#tabs button"); if (tb) { tab = tb.dataset.tab; cur.tabAuto = false; return renderResult(); }
+  const tlb = e.target.closest("#trl button"); if (tlb) { cur.trLang = tlb.dataset.tl; return stable(() => put("#tabc", renderTab(data()))); }
   const q = e.target.closest("#sugg button"); if (q) return ask(q.dataset.q);
-  if (e.target.id === "ocrt") { cur.showOcr = e.target.checked; $("#tabc").innerHTML = renderTab(data()); return; }
+  if (e.target.id === "ocrt") { cur.showOcr = e.target.checked; return stable(() => put("#tabc", renderTab(data()))); }
   const ck = e.target.closest(".chk input"); if (ck) { ck.closest(".chk").classList.toggle("done", ck.checked); return; }
   const a = e.target.closest("[data-a]"); if (!a || !cur) return;
   try {
@@ -621,6 +786,7 @@ async function poll(){
   for (const id of new Set([...openParts].map(k => k.split(":")[0])))     // otwarte podglądy — świeże dane
     if (jobs.some(j => j.id === id && j.status === "trwa")) { try { partCache[id] = await api(`/api/zadania/${id}/czesciowe`); } catch {} }
   const h = location.hash || "#/";
+  if (h.startsWith("#/wynik/") && cur && cur.live) return refreshLive();
   if (h === "#/" || h === "") renderHome(); else if (h.startsWith("#/biblioteka") && !document.activeElement?.matches("#libq")) renderLib();
 }
 setInterval(() => document.querySelectorAll(".timer[data-start]").forEach(el => { if (el.dataset.start) el.textContent = "⏱ " + fmt(Date.now()/1000 - Number(el.dataset.start)); }), 1000);

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import http.server
 import json
+import re
 import os
 import stat
 import sys
@@ -669,9 +670,10 @@ def test_pipeline_emits_partial_results(tmp_path, ollama):
     got = {}
     from vidsum.pipeline import Options, analyze
     opt = Options(out_root=tmp_path, transcript_file=NAPISY, ocr=False, ollama_host=ollama, vision_model="fake-vl",
-                  text_model="fake-txt", on_partial=lambda k, d: got.setdefault(k, d))
+                  text_model="fake-txt", on_partial=lambda k, d: got.__setitem__(k, d))   # ostatnia wersja każdej części
     analyze(str(FILM), opt, log=lambda m: None)
-    assert list(got)[:2] == ["transkrypcja", "kadry"] and "tlumaczenie_en" in got
+    assert list(got)[:3] == ["meta", "transkrypcja", "kadry"] and "tlumaczenie_en" in got
+    assert got["meta"]["dlugosc_s"] > 0
     assert got["transkrypcja"]["segmenty"][0]["text"] and got["kadry"][0]["scena"] == "deska i nóż"
 
 
@@ -851,3 +853,191 @@ def test_vision_bench_three_modes(tmp_path, ollama, monkeypatch):
     assert set(r) == {"teraz", "schemat", "2w1"} and all(len(v["opisy"]) == n for v in r.values())
     assert any(isinstance(c.get("format"), dict) and "kadr_1" in c["format"]["properties"] for c in FakeOllama.calls)
     assert "| 2w1 |" in out.read_text(encoding="utf-8") and r["schemat"]["zgodnosc_slow_z_teraz"] == 1.0
+
+
+# ---------------- 0.7.8: kroki zakotwiczone w liniach mowy ----------------
+FRY = [  # fragment frytek (mowa z komputera testowego, 0.7.7)
+    {"start": 38.89, "end": 39.67, "text": "Heat oil in a pot."},
+    {"start": 39.81, "end": 41.21, "text": "We've got some duck fat too for flavour."},
+    {"start": 41.39, "end": 43.67, "text": "And once it reaches around about 140 degrees."},
+    {"start": 44.01, "end": 45.03, "text": "We're going to drop in our fries."},
+    {"start": 50.03, "end": 51.07, "text": "And freeze or chill again."},
+    {"start": 52.11, "end": 53.01, "text": "Heat the oil up to 190."},
+    {"start": 53.41, "end": 54.63, "text": "Fry until golden and crispy."},
+    {"start": 54.85, "end": 56.19, "text": "Finish with a sprinkle of maldon salt."},
+]
+
+
+class _Eng:
+    """Atrapa modelu: linia po linii według słownika {oryginał: odpowiedź} (pierwsza i kolejne próby osobno)."""
+    parallel = 1
+
+    def __init__(self, first: dict, again: dict | None = None, stages=None, ingr=None):
+        self.first, self.again, self.stages, self.ingr, self.prompts, self.seen = first, again or {}, stages, ingr, [], set()
+
+    def complete(self, prompt, as_json=False):
+        self.prompts.append(prompt)
+        if prompt.startswith("Lines of a video transcript"):
+            return json.dumps(self.ingr or {"skladniki": [], "sprzet": []}, ensure_ascii=False)
+        if prompt.startswith("You turn numbered lines"):
+            out = {}
+            for m in re.finditer(r"^(\d+)\. (.*?)(?:   \[SCREEN: .*\])?$", prompt.split("LINES:")[1], re.M):
+                src = m.group(2)
+                ans = self.again.get(src, self.first.get(src, "")) if src in self.seen else self.first.get(src, "")
+                self.seen.add(src)
+                out[m.group(1)] = ans
+            return json.dumps(out, ensure_ascii=False)
+        if prompt.startswith("Kroki z filmu"):
+            return json.dumps(self.stages or {}, ensure_ascii=False)
+        return "{}"
+
+
+def test_speech_lines_attach_screen_text():
+    from vidsum.summary import speech_lines
+    lines = speech_lines(FRY, [{"start": 52.0, "end": 53.5, "text": "heat the oil up to 190°C"}])
+    assert [l["n"] for l in lines] == list(range(1, 9))
+    assert lines[5]["ekran"] == ["heat the oil up to 190°C"] and not lines[4]["ekran"]
+
+
+FIRST = {"Heat oil in a pot.": "Rozgrzej olej w garnku.",
+         "We've got some duck fat too for flavour.": "Wyjaśnienie: tłuszcz z kaczki dodaje smaku.",
+         "And once it reaches around about 140 degrees.": "Poczekaj, aż osiągnie 190 stopni.",      # zła liczba (0.7.7)
+         "We're going to drop in our fries.": "Wrzuć frytki.",
+         "And freeze or chill again.": "Zamroź albo schłodź ponownie.",
+         "Heat the oil up to 190.": "Heat the oil up to 190.",                                     # po angielsku
+         "Fry until golden and crispy.": "",                                                       # pominięta
+         "Finish with a sprinkle of maldon salt.": "Posyp solą Maldon."}
+
+
+def test_grounded_steps_fix_wrong_number_english_and_keep_order():
+    from vidsum.summary import grounded_steps, speech_lines
+    eng = _Eng(FIRST, again={"And once it reaches around about 140 degrees.": "Poczekaj, aż olej osiągnie około 140 stopni.",
+                             "Heat the oil up to 190.": "Rozgrzej olej do 190 stopni."},
+               stages={"1": "Pierwsze smażenie", "2": "Pierwsze smażenie", "3": "Gotowanie",   # pojedynczy „wyskok”
+                       "4": "Drugie smażenie", "5": "Drugie smażenie"},
+               ingr={"skladniki": [{"nazwa": "sól Maldon", "ilosc": "świeżo zmielona"},
+                                   {"nazwa": "papryka", "ilosc": "2 łyżki"}], "sprzet": ["garnek", "papierowy ręcznik"]})
+    g = grounded_steps(eng, speech_lines(FRY), "przepis", "")
+    texts = [s["tekst"] for s in g["kroki"]]
+    # „And once it reaches 140” (po linii-wyjaśnieniu o tłuszczu z kaczki) dokleja się do „Rozgrzej olej”
+    assert texts == ["Rozgrzej olej w garnku, poczekaj, aż olej osiągnie około 140 stopni.", "Wrzuć frytki.",
+                     "Zamroź albo schłodź ponownie.", "Rozgrzej olej do 190 stopni.", "Posyp solą Maldon."]
+    t140 = g["kroki"][0]["t"]
+    t190 = g["kroki"][3]["t"]
+    assert t140 < 44 < 52 <= t190
+    assert g["wyjasnienia"][0]["tekst"] == "tłuszcz z kaczki dodaje smaku."
+    assert g["skladniki"] == [{"nazwa": "sól Maldon", "ilosc": "brak danych", "zrodlo": "mowa"}]   # bez zmyśleń
+    assert g["sprzet"] == ["garnek"]
+    assert sum(p.startswith("You turn numbered lines") for p in eng.prompts) == 2   # druga runda raz
+
+
+def test_repair_cannot_invent_numbers():
+    from vidsum.summary import grounded_steps, speech_lines
+    bad = {"And once it reaches around about 140 degrees.": "Rozgrzej olej do 180 stopni przez 5 minut."}
+    g = grounded_steps(_Eng(bad, again=bad), speech_lines(FRY[:3]), "przepis", "")
+    assert not any("180" in s["tekst"] for s in g["kroki"])
+
+
+def test_still_wrong_falls_back_to_polish_translation_line():
+    from vidsum.summary import grounded_steps, looks_foreign, speech_lines
+    assert looks_foreign("Then boil the fries until just tender") and not looks_foreign("Gotuj frytki do miękkości.")
+    lines = speech_lines(FRY[5:7], pl=["Rozgrzej olej do 190 stopni.", "Smaż, aż będą złote i chrupiące."])
+    eng = _Eng({"Heat the oil up to 190.": "Heat the oil up to 190.", "Fry until golden and crispy.": "Smaż na złoto."})
+    g = grounded_steps(eng, lines, "poradnik", "")
+    assert [s["tekst"] for s in g["kroki"]] == ["Rozgrzej olej do 190 stopni.", "Smaż na złoto."]
+
+
+def test_chapters_follow_stage_changes():
+    from vidsum.summary import chapters_from_steps
+    steps = [{"t": 13, "tekst": "Obierz.", "etap": "Przygotowanie"}, {"t": 18, "tekst": "Namocz.", "etap": "Przygotowanie"},
+             {"t": 24, "tekst": "Zagotuj wodę z sodą.", "etap": "Gotowanie"}, {"t": 39, "tekst": "Rozgrzej olej do 140.", "etap": "Pierwsze smażenie"},
+             {"t": 50, "tekst": "Zamroź.", "etap": "Drugie smażenie"}, {"t": 53, "tekst": "Smaż na złoto.", "etap": "Drugie smażenie"}]
+    ch = chapters_from_steps(steps, 58.31)
+    assert [c["tytul"] for c in ch] == ["Wstęp", "Przygotowanie", "Gotowanie", "Pierwsze smażenie", "Drugie smażenie"]
+    assert ch[0]["start"] == 0 and ch[-1]["end"] == 58.31
+    assert all(a["end"] == b["start"] for a, b in zip(ch, ch[1:]))
+    assert "Smaż na złoto" in ch[-1]["opis"]
+
+
+def test_drop_sentences_with_numbers_not_in_video():
+    from vidsum.summary import drop_unsupported_numbers, reading_seconds, target_words
+    s = {"teza": "Frytki smażone dwa razy.", "streszczenie": ["Smaż w 140 stopniach. Potem 180 stopni przez 3 minuty.",
+                                                               "Na koniec 190 stopni."],
+         "najwazniejsze": [{"opis": "Ziemniaki gotuj 10 minut."}]}
+    n = drop_unsupported_numbers(s, "around about 140 degrees. Heat the oil up to 190. two")
+    assert s["streszczenie"] == ["Smaż w 140 stopniach.", "Na koniec 190 stopni."] and s["najwazniejsze"] == [] and n == 2
+    assert reading_seconds({"streszczenie": ["słowo " * 190]}) == 60
+    assert target_words(1000) == 270 and target_words(50) == 120
+
+
+def test_staged_summary_grounded_path_end_to_end():
+    from vidsum.summary import staged_summary
+    first = {**FIRST, "And once it reaches around about 140 degrees.": "Poczekaj, aż olej osiągnie 140 stopni.",
+             "Heat the oil up to 190.": "Rozgrzej olej do 190 stopni.", "Fry until golden and crispy.": "Smaż na złoto."}
+
+    class E(_Eng):
+        def complete(self, prompt, as_json=False):
+            if prompt.startswith("Fragment transkrypcji"):
+                return '{"typ": "przepis (gotowanie)"}'                   # tak odpowiadała gemma3:4b
+            if prompt.startswith(("Kroki z filmu", "Lines of a video", "You turn")):
+                return super().complete(prompt, as_json)
+            if '"streszczenie"' in prompt.split("Odpowiedz WYŁĄCZNIE JSON-em:")[-1]:
+                return json.dumps({"tytul": "Frytki", "teza": "Dwa smażenia.", "streszczenie": ["Smaż w 140, potem w 190 stopniach.", "Olej 175 stopni."],
+                                   "do_zapamietania": "Dwa smażenia.", "najwazniejsze": []}, ensure_ascii=False)
+            if prompt.startswith("Jesteś asystentem"):
+                return json.dumps({"cytaty": [{"t": 52, "tekst": "Heat the oil up to 190."}], "pytania": ["?"],
+                                   "rozdzialy": [{"start": 38, "tytul": "Pierwsze smażenie"}, {"start": 50, "tytul": "Drugie smażenie"}]},
+                                  ensure_ascii=False)
+            return super().complete(prompt, as_json)
+
+    got = {}
+    eng = E(first, stages={"1": "Pierwsze smażenie", "2": "Pierwsze smażenie", "3": "Pierwsze smażenie",
+                           "4": "Drugie smażenie", "5": "Drugie smażenie", "6": "Drugie smażenie"})
+    s = staged_summary(eng, "[39s] MOWA: Heat oil in a pot.", "", 58.31, segments=FRY,
+                       on_partial=lambda k, v: got.setdefault(k, v))
+    assert s["metoda"] == "kroki z linii mowy" and s["typ"] == "przepis"
+    assert len(s["co_masz_zrobic"]["kroki"]) == 6 and "kroki" in got
+    assert s["streszczenie"] == ["Smaż w 140, potem w 190 stopniach."]            # zdanie ze 175 usunięte
+    assert [c["tytul"] for c in s["rozdzialy"]] == ["Wstęp", "Pierwsze smażenie", "Drugie smażenie"]
+    assert s["co_masz_zrobic"]["wskazowki"] == ["tłuszcz z kaczki dodaje smaku."] and s["czas_czytania_s"] > 0
+
+
+def test_fix_terms_baking_soda_only_when_source_says_so():
+    from vidsum.summary import fix_terms
+    assert fix_terms("Dodaj proszek do pieczenia.", "Add baking soda.") == "Dodaj sodę oczyszczoną."
+    assert fix_terms("Proszek do pieczenia pomoże.", "Add baking soda.") == "Soda oczyszczona pomoże."
+    assert fix_terms("Dodaj proszek do pieczenia.", "Add baking powder.") == "Dodaj proszek do pieczenia."
+    assert fix_terms("Dodanie sodы pomaga.", "") == "Dodanie sody pomaga."
+    assert fix_terms("Smaż w oleju (duck fat).", "duck fat") == "Smaż w oleju (tłuszcz z kaczki)."
+
+
+def test_every_line_is_sent_to_the_model_once():
+    """Błąd znaleziony na prawdziwym modelu: krótka końcówka nadpisywała pierwszą część (pierwsze 20 linii znikały)."""
+    from vidsum.summary import grounded_steps, speech_lines
+    names = [f"Line {chr(97 + i // 26)}{chr(97 + i % 26)} here" for i in range(44)]     # bez liczb (bez drugiej rundy)
+    segs = [{"start": float(i), "end": i + 0.9, "text": n} for i, n in enumerate(names)]
+    eng = _Eng({})
+    grounded_steps(eng, speech_lines(segs), "przepis", "")
+    sent = [m for p in eng.prompts if p.startswith("You turn")
+            for m in re.findall(r"^\d+\. (Line \w+ here)", p.split("LINES:")[1], re.M)]
+    assert sorted(sent) == names
+
+
+def test_summary_text_has_a_fallback_when_model_loops():
+    """Pomiar (gemma3:4b): opis całości potrafił zapętlić się dwa razy — wtedy krótsze polecenie bez zapisu."""
+    from vidsum.summary import staged_summary
+
+    class E(_Eng):
+        def complete(self, prompt, as_json=False, **kw):
+            if prompt.startswith("Fragment transkrypcji"):
+                return '{"typ": "przepis"}'
+            if prompt.startswith(("Kroki z filmu", "Lines of a video", "You turn")):
+                return super().complete(prompt, as_json)
+            if "ZAPIS (czas" not in prompt and '"streszczenie"' in prompt:
+                return json.dumps({"teza": "Dwa smażenia.", "streszczenie": ["Najpierw 140, potem 190 stopni."]}, ensure_ascii=False)
+            return ""                                                      # pełne polecenie: pusto (zapętlenie)
+
+    first = {**FIRST, "And once it reaches around about 140 degrees.": "Poczekaj, aż olej osiągnie 140 stopni.",
+             "Heat the oil up to 190.": "Rozgrzej olej do 190 stopni."}
+    s = staged_summary(E(first), "[39s] MOWA: Heat oil in a pot.", "", 58.31, segments=FRY)
+    assert s["streszczenie"] == ["Najpierw 140, potem 190 stopni."] and s["teza"] == "Dwa smażenia."
