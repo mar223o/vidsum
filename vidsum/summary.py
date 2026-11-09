@@ -605,7 +605,11 @@ _NUM_WORDS = {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "s
               "nine": "9", "ten": "10", "twelve": "12", "fifteen": "15", "twenty": "20", "thirty": "30",
               "forty": "40", "fifty": "50", "hundred": "100", "half": "0.5", "jeden": "1", "jedna": "1", "jedno": "1",
               "dwa": "2", "dwie": "2", "trzy": "3", "cztery": "4", "pięć": "5", "sześć": "6", "siedem": "7",
-              "osiem": "8", "dziewięć": "9", "dziesięć": "10", "pół": "0.5"}
+              "osiem": "8", "dziewięć": "9", "dziesięć": "10", "pół": "0.5",
+              # odmiana (pomiar 0.8.1: „Około jednego centymetra” nie liczyło się jako 1 → krok z 1 cm odpadał)
+              "jednego": "1", "jednej": "1", "jednym": "1", "jedną": "1", "dwóch": "2", "dwoma": "2", "dwom": "2",
+              "trzech": "3", "trzema": "3", "czterech": "4", "czterema": "4", "pięciu": "5", "sześciu": "6",
+              "siedmiu": "7", "ośmiu": "8", "dziewięciu": "9", "dziesięciu": "10", "połowa": "0.5", "połowę": "0.5"}
 
 
 _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi przyjaciele, których mały model nie unika

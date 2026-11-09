@@ -1105,3 +1105,13 @@ def test_resources_section_in_report():
     md = "\n".join(_resources_md(z))
     assert "zajęte **1772 MB**" in md and "na karcie 82% (reszta na procesorze" in md and "firefox.exe" in md
     assert "⚠" in md and _resources_md(None) == []
+
+
+def test_polish_number_inflection_counts_as_number():
+    """Pomiar 0.8.1: „Około jednego centymetra kwadratowego.” (mowa: „Roughly one centimetre square.”) wyglądało
+    na zgubioną liczbę 1 i krok z 1 cm odpadał."""
+    from vidsum.summary import _nums, check_step
+    assert "1" in _nums("Około jednego centymetra kwadratowego.")
+    assert {"2", "5"} <= _nums("Smaż przez dwóch minut, potem pięciu")
+    assert check_step("Około jednego centymetra kwadratowego.", [1], {1: {"tekst": "Roughly one centimetre square.", "ekran": []}}) \
+        == (set(), set())
