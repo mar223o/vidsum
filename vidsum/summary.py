@@ -317,7 +317,9 @@ ZAPIS (czas w sekundach):
 Odpowiedz WYŁĄCZNIE JSON-em:
 """
 # opis całości w DWÓCH częściach — przy równoległej Ollamie liczą się naraz (każda część to połowa tekstu do napisania)
-PRESENT_A = """{{"tytul": "krótki tytuł (3–6 słów)", "tytul_akcent": "puenta (2–4 słowa)",
+# bez „tytul_akcent”: pomiar (0.7.9 na karcie) — model wypisywał tam dziesiątki wariantów tytułu aż do limitu
+# 3000 tokenów, dwa razy z rzędu (~60 s straty)
+PRESENT_A = """{{"tytul": "krótki tytuł (3–6 słów)",
  "teza": "jedno zdanie: o co chodzi i co z tego wynika",
  "streszczenie": ["akapit 1 (3–4 zdania): temat i cel filmu, dla kogo jest", "akapit 2 (4–6 zdań): najważniejsze tezy albo etapy po kolei — konkretnie, z liczbami i przykładami z filmu", "akapit 3 (3–4 zdania): praktyczne wskazówki i uzasadnienia autora (dlaczego tak)", "akapit 4 (2–3 zdania): najważniejszy wniosek dla widza"],
  "do_zapamietania": "jedno zdanie: co widz ma zapamiętać",
@@ -398,14 +400,20 @@ def _loads(raw: str) -> dict:
     return d if isinstance(d, dict) else {}
 
 
-def _try(engine, prompt: str, log) -> str:
+def _try(engine, prompt: str, log, max_tokens: int | None = None, seed: int | None = None) -> str:
     """Jedno wywołanie z jedną ponowną próbą. Pomiar: Ollama potrafi przerwać odpowiedź
     („token repeat limit reached”) — wtedy druga próba zwykle przechodzi; jeśli nie, ten etap jest pusty."""
     from .llm import LLMError
     for attempt in (1, 2):
         try:
+            kw = {k: v for k, v in (("max_tokens", max_tokens),) if v}
+            if seed is not None:
+                kw.update(seed=seed, temperature=0.3)
             if attempt == 1:
-                return engine.complete(prompt, as_json=True)
+                try:
+                    return engine.complete(prompt, as_json=True, **kw)
+                except TypeError:                      # silnik bez tych parametrów (Claude, atrapy w testach)
+                    return engine.complete(prompt, as_json=True)
             # ponowna próba z innym ziarnem: przy temperaturze 0 i tym samym ziarnie model zapętla się tak samo
             # (pomiar: dwa razy „token repeat limit reached” na tym samym etapie)
             try:
@@ -756,6 +764,14 @@ def _explains(orig: str) -> bool:
     return bool(_EXPL.match(orig.strip()))
 
 
+def _fix_name(name: str, spoken: str) -> str:
+    """Drobne poprawki nazw składników od modelu: „sol” → „sól”, „malon” → „Maldon” (gdy tak w filmie)."""
+    name = re.sub(r"\bsol\b", "sól", name)
+    if re.search(r"maldon", spoken, re.I):
+        name = re.sub(r"\bmal(?:d)?on\b", "Maldon", name, flags=re.I)
+    return name.strip()
+
+
 def _num_line(ln: dict) -> str:
     return f"{ln['n']}. {ln['tekst']}" + (f"   [SCREEN: {' / '.join(ln['ekran'])}]" if ln["ekran"] else "")
 
@@ -877,8 +893,9 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
     all_nums = _nums(spoken)
     out_ingr, seen = [], []
     for x in _lst(ingr_raw.get("skladniki") or ingr_raw.get("składniki") or ingr_raw.get("ingredients")):
-        name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
-        if not name or any(_same_step(name, o) for o in seen) or not (_stems(name) & _stems(spoken_pl)):
+        name = _fix_name(_str(x.get("nazwa")) if isinstance(x, dict) else _str(x), spoken)
+        # duplikat tylko przy tych samych słowach (pomiar: „skrobia ziemniaczana” wypadała jako duplikat „ziemniaków”)
+        if not name or any(_stems(name) == _stems(o) for o in seen) or not (_stems(name) & _stems(spoken_pl)):
             continue
         q = _str(x.get("ilosc")) if isinstance(x, dict) else ""
         if not (_nums(q) and _nums(q) <= all_nums):
@@ -1136,16 +1153,13 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     src_words = sum(len(_norm_words(ln["tekst"])) for ln in lines) if lines else len(_norm_words(timeline)) // 2
     words = target_words(src_words)
 
-    def present(tail: str, need: tuple, stage: str) -> dict:
-        got: dict = {}
-        for _ in (1, 2):                           # jedna ponowna próba, gdy odpowiedź nie jest poprawnym JSON-em
-            pr = head + tail.format(words=words)
-            raw = _try(engine, pr, log)
-            record(stage, pr, raw)
-            got = _loads(raw)
-            if any(got.get(k) for k in need):
-                break
-        return got
+    def present(tail: str, need: tuple, stage: str, cap: int = 1600) -> dict:
+        # jedna próba z limitem długości; przy pustym wyniku NIE powtarzamy tego samego (przy temperaturze 0 model
+        # zapętla się identycznie) — niżej jest krótsze polecenie z innym ziarnem
+        pr = head + tail.format(words=words)
+        raw = _try(engine, pr, log, max_tokens=cap)
+        record(stage, pr, raw)
+        return _loads(raw)
 
     tail_b = PRESENT_B_SHORT if grounded else PRESENT_B
     need_b = ("cytaty", "rozdzialy") if grounded else ("momenty", "rozdzialy", "cytaty")
@@ -1163,7 +1177,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         log("        opis całości: drugie podejście, krótszym poleceniem")
         pr = (PRESENT_HEAD.split("ZAPIS (czas")[0].format(meta=meta_line, facts=facts_json, glossary=GLOSSARY)
               + "Odpowiedz WYŁĄCZNIE JSON-em:\n" + SHORT_A.format(words=words))
-        raw = _try(engine, pr, log)
+        raw = _try(engine, pr, log, max_tokens=1200, seed=11)
         record("opis_zapas", pr, raw)
         p = {**_loads(raw), **{k: v for k, v in p.items() if v}}
     if grounded:

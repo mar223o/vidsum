@@ -1041,3 +1041,19 @@ def test_summary_text_has_a_fallback_when_model_loops():
              "Heat the oil up to 190.": "Rozgrzej olej do 190 stopni."}
     s = staged_summary(E(first), "[39s] MOWA: Heat oil in a pot.", "", 58.31, segments=FRY)
     assert s["streszczenie"] == ["Najpierw 140, potem 190 stopni."] and s["teza"] == "Dwa smażenia."
+
+
+def test_ingredients_keep_potato_starch_and_fix_names():
+    """0.7.9 na karcie: skrobia ziemniaczana wypadała jako „duplikat” ziemniaków, „sol” i „malon sól”."""
+    from vidsum.summary import grounded_steps, speech_lines
+    segs = [{"start": 1.0, "end": 2.0, "text": "Start with agria potatoes."},
+            {"start": 3.0, "end": 4.0, "text": "Drain just lightly with potato starch."},
+            {"start": 5.0, "end": 6.0, "text": "Finish with a sprinkle of maldon salt."}]
+    eng = _Eng({"Start with agria potatoes.": "Zacznij od ziemniaków agria.",
+                "Drain just lightly with potato starch.": "Oprósz lekko skrobią ziemniaczaną.",
+                "Finish with a sprinkle of maldon salt.": "Posyp solą Maldon."},
+               ingr={"skladniki": [{"nazwa": "ziemniaki", "ilosc": "brak danych"},
+                                   {"nazwa": "skrobia ziemniaczana", "ilosc": "brak danych"},
+                                   {"nazwa": "malon sol", "ilosc": "brak danych"}], "sprzet": []})
+    names = [x["nazwa"] for x in grounded_steps(eng, speech_lines(segs), "przepis", "")["skladniki"]]
+    assert names == ["ziemniaki", "skrobia ziemniaczana", "Maldon sól"]
