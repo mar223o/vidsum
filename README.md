@@ -60,7 +60,7 @@ Szczegółowy przebieg jednej analizy: `przebieg.log` w jej folderze.
 | `--obraz brak` | — | bez modelu wizyjnego (same kadry + mowa) |
 | `--max-kadrow N` | 20 / 45 / 100 | zależnie od długości filmu |
 | `--ciasteczka-z edge/chrome/firefox` | — | dla Instagrama/TikToka, gdy wymagają logowania |
-| `--szybki-podglad` | — | wstępne streszczenie z samej mowy zaraz po transkrypcji (na modelu obrazu, który już jest na karcie), potem pełne; w programie: przełącznik „Szybki podgląd” obok „Analizuj” |
+| `--szybki-podglad` | — | wstępne streszczenie z samej mowy zaraz po transkrypcji (model tekstowy, przed opisem kadrów; analiza trwa o kilkanaście sekund dłużej), potem pełne; w programie: przełącznik „Szybki podgląd” obok „Analizuj” |
 | `--bez-pobierania-cuda` | — | nie pobieraj bibliotek NVIDIA (Whisper zostanie na CPU) |
 
 Kilka plików naraz: `python -m vidsum film1.mp4 film2.mp4 ...` — błąd w jednym nie zatrzymuje reszty.

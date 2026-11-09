@@ -1128,9 +1128,10 @@ def test_par_fry_is_not_steaming():
     assert fix_terms("parzenie", "Steam them for ten minutes") == "parzenie"
 
 
-def test_quick_preview_on_vision_model_before_full_summary(tmp_path, ollama, monkeypatch):
-    """0.8.2 „Szybki podgląd”: wstępne streszczenie z mowy idzie na modelu obrazu (już na karcie, ten sam kontekst —
-    bez przeładowania), przychodzi PRZED pełnym, a wynik zapisuje, po ilu sekundach był gotowy."""
+def test_quick_preview_on_text_model_before_frames(tmp_path, ollama, monkeypatch):
+    """0.8.2 „Szybki podgląd”: wstępne streszczenie z mowy na modelu TEKSTOWYM (pomiar: model obrazu pisał „marchewka”
+    zamiast „ziemniaki”), PRZED opisem kadrów (oba modele naraz nie mieszczą się na karcie 8 GB), potem pełne;
+    wynik zapisuje, po ilu sekundach podgląd był gotowy."""
     import vidsum.pipeline as pl
     import vidsum.ocr as ocr
     from vidsum.llm import VISION_CTX
@@ -1159,8 +1160,11 @@ def test_quick_preview_on_vision_model_before_full_summary(tmp_path, ollama, mon
         assert kinds.index("wstepne") < kinds.index("kroki")
     w = dict(got)["wstepne"]
     assert w["wstepne"] is True and w["streszczenie"] and w["metoda"].startswith("szybki podgląd")
-    q = [c for c in FakeOllama.calls if c.get("messages") and "QUICK PRELIMINARY" in c["messages"][0]["content"]]
-    assert len(q) == 1 and q[0]["model"] == "fake-vl" and q[0]["options"]["num_ctx"] == VISION_CTX
+    calls = [c for c in FakeOllama.calls if c.get("messages")]
+    qi = [i for i, c in enumerate(calls) if "QUICK PRELIMINARY" in c["messages"][0]["content"]]
+    assert len(qi) == 1 and calls[qi[0]]["model"] == "fake-txt" and calls[qi[0]]["options"]["num_ctx"] != VISION_CTX
+    first_frame = next(i for i, c in enumerate(calls) if c["messages"][0].get("images"))
+    assert qi[0] < first_frame                                          # podgląd przed opisem kadrów
     r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
     assert r["podglad"]["po_s"] > 0 and r["streszczenie"]["dane"].get("wstepne") is None   # pełne zastąpiło wstępne
     assert "Szybki podgląd" in (out / "raport.md").read_text(encoding="utf-8")

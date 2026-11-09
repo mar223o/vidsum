@@ -147,26 +147,29 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
 
     t_speech = time.time()
     tr_box: dict = {}
-    # SZYBKI PODGLĄD (0.8.2): wstępne streszczenie z samej mowy, gdy jest transkrypcja i model obrazu już na karcie
-    # (to ten sam model — bez wczytywania drugiego i bez przeładowania: ten sam rozmiar kontekstu)
+    # SZYBKI PODGLĄD (0.8.2): wstępne streszczenie z samej mowy na modelu TEKSTOWYM, zaraz po transkrypcji, PRZED opisem
+    # kadrów. Pomiar: model obrazu (qwen3-vl:4b) po polsku pisał „marchewka agria”, „fasolki” — nie nadaje się.
+    # Na karcie 8 GB oba modele naraz się nie mieszczą, więc opis kadrów czeka na podgląd (koszt: kilkanaście sekund).
     pv: dict = {"vision_on": False, "done": False, "thread": None}
     pv_lock = threading.Lock()
 
     def start_preview() -> None:
-        if not opt.preview:
+        if not opt.preview or opt.summary not in ("auto", "ollama"):
             return
         with pv_lock:
             tr0 = tr_box.get("tr")
             if pv["thread"] or pv["done"] or not (tr0 and tr0.segments):
                 return
-            if opt.vision == "ollama":
-                if not pv["vision_on"]:              # model obrazu jeszcze się nie wczytał — poczekaj na etap 3
+            if pv["vision_on"] and opt.vision == "ollama":   # transkrypcja dopiero w czasie opisu kadrów — za późno
+                return
+            eng, ctx = Ollama(opt.summary_model or opt.text_model, opt.ollama_host), None
+            try:
+                if not eng.has_model():
+                    log(f"        szybki podgląd pominięty: model {eng.model} jeszcze nie pobrany")
+                    pv["done"] = True
                     return
-                from .llm import VISION_CTX
-                eng, ctx = Ollama(opt.vision_model, opt.ollama_host), VISION_CTX
-            elif opt.summary in ("auto", "ollama"):
-                eng, ctx = Ollama(opt.summary_model or opt.text_model, opt.ollama_host), None
-            else:
+            except LLMError:
+                pv["done"] = True
                 return
             segs = [asdict(x) for x in tr0.segments]
 
@@ -185,6 +188,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                     _emit(opt, "wstepne", d)
                     log(f"        szybki podgląd gotowy ({pv['s']:.1f} s; {pv['po_s']:.0f} s od startu)")
                 pv["done"] = True
+                if opt.vision == "ollama":
+                    eng.unload()                   # miejsce na karcie dla modelu obrazu
             pv["thread"] = threading.Thread(target=job, daemon=True)
             pv["thread"].start()
 
@@ -430,9 +435,12 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         if preload_thread and preload_thread.is_alive():
             log("        model obrazu jeszcze się wczytuje…")
             preload_thread.join()
-        log(f"  [3/4] opis kadrów ({opt.vision_model})…")
+        start_preview()                          # transkrypcja jest (GPU / napisy serwisu) — podgląd teraz
+        if pv["thread"] and pv["thread"].is_alive():
+            log("        czekam na szybki podgląd (model tekstowy na karcie)…")
+            pv["thread"].join(timeout=180)
         pv["vision_on"] = True
-        start_preview()
+        log(f"  [3/4] opis kadrów ({opt.vision_model})…")
         failed: list[str] = []
         done = [0]
         busy = [0.0]
@@ -467,9 +475,6 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         t_v = time.time()
         with ThreadPoolExecutor(max_workers=workers) as pool:
             list(pool.map(describe, frames))
-        if pv["thread"] and pv["thread"].is_alive():      # podgląd na tym samym modelu — przed jego zwolnieniem
-            log("        czekam na szybki podgląd…")
-            pv["thread"].join(timeout=120)
         pv["done"] = True                              # po opisie kadrów pełne streszczenie i tak zaraz będzie
         wall = time.time() - t_v
         if frames and wall > 0:

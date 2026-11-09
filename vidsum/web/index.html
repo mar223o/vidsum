@@ -309,7 +309,7 @@ const I18N = {
    theme_dark:"Ciemny",theme_light:"Jasny",theme_system:"Jak w systemie",
    res_gpu:"Karta",res_before:"przed startem zajęte",res_free:"wolne na modele",res_min:"najmniej wolnej w trakcie:",res_on:"na karcie",
    res_progs:"programy na karcie",res_warn:"inne programy zajmowały ponad 1,2 GB karty — zamknięcie przeglądarek, Discorda czy Steama przyspiesza analizę",
-   pv:"Szybki podgląd",pv_tip:"Wstępne streszczenie z samej mowy zaraz po transkrypcji, potem pełne (z obrazem i krokami). Dodaje kilka sekund do całej analizy.",
+   pv:"Szybki podgląd",pv_tip:"Wstępne streszczenie z samej mowy zaraz po transkrypcji, potem pełne (z obrazem i krokami). Cała analiza trwa przez to o kilkanaście sekund dłużej.",
    pv_badge:"wstępne",pv_note:"Wstępne — z samej mowy. Pełne streszczenie (z obrazem i krokami) zastąpi je za chwilę.",
    pv_done:(a,b)=>`wstępne po ${a} → pełne po ${b}`,
    stage_dl:"pobieranie",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
@@ -354,7 +354,7 @@ const I18N = {
    theme_dark:"Dark",theme_light:"Light",theme_system:"System",
    res_gpu:"GPU",res_before:"used before start",res_free:"free for models",res_min:"lowest free during analysis:",res_on:"on GPU",
    res_progs:"programs on GPU",res_warn:"other programs used over 1.2 GB of GPU memory — closing browsers, Discord or Steam speeds up analysis",
-   pv:"Quick preview",pv_tip:"A preliminary summary from speech alone right after the transcript, then the full one (with picture and steps). Adds a few seconds to the whole analysis.",
+   pv:"Quick preview",pv_tip:"A preliminary summary from speech alone right after the transcript, then the full one (with picture and steps). Makes the whole analysis some 10–20 seconds longer.",
    pv_badge:"preliminary",pv_note:"Preliminary — from speech only. The full summary (with picture and steps) will replace it shortly.",
    pv_done:(a,b)=>`preliminary after ${a} → full after ${b}`,
    stage_dl:"download",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
@@ -788,7 +788,8 @@ function playerHtml(r){
   const z = r.zrodlo, ar = z.szerokosc && z.wysokosc ? `aspect-ratio:${z.szerokosc}/${z.wysokosc};` : "";
   const poster = r.kadry?.[0]?.file ? fileUrl(cur.id, r.kadry[0].file) : "";
   if (cur.live) return `<div class="player"><div class="nofilm" style="${ar}background-image:url('${poster}')"><span class="ph">${t("live_video")}</span></div></div>`;
-  return `<div class="player"><video id="vid" src="/api/zadania/${cur.id}/film?t=${T}" poster="${poster}" controls preload="metadata" playsinline></video></div>`;
+  // stała wysokość od początku (proporcje z analizy): wczytanie filmu nie przesuwa tego, co czytasz niżej
+  return `<div class="player"><video id="vid" style="${ar}" src="/api/zadania/${cur.id}/film?t=${T}" poster="${poster}" controls preload="metadata" playsinline></video></div>`;
 }
 function chatHtml(d){
   if (cur.live) return "";
@@ -850,7 +851,8 @@ function renderResult(){
       if (v) {
         const poster = v.getAttribute("poster");
         const z = r.zrodlo, ar = z.szerokosc && z.wysokosc ? `aspect-ratio:${z.szerokosc}/${z.wysokosc};` : "";
-        v.addEventListener("error", () => { v.parentElement.innerHTML = `<div class="nofilm" style="${ar}background-image:url('${poster}')"><span class="ph">${t("no_film")}</span></div>`; });
+        // podmiana po błędzie przychodzi później niż render — czytany fragment musi zostać w miejscu
+        v.addEventListener("error", () => stable(() => { v.parentElement.innerHTML = `<div class="nofilm" style="${ar}background-image:url('${poster}')"><span class="ph">${t("no_film")}</span></div>`; }));
         v.addEventListener("timeupdate", highlight);
       }
     }
