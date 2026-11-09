@@ -239,11 +239,12 @@ def restart_ui() -> None:
     """Uruchom program ponownie (po ~2 s, gdy ten proces już się zamknie) — bez okna konsoli."""
     exe = Path(sys.executable)
     pyw = exe.with_name("pythonw.exe") if exe.name.lower() == "python.exe" else exe
-    if os.name == "nt":
-        cmd = f'timeout /t 2 /nobreak >nul & start "" "{pyw}" -m vidsum --ui'
-        subprocess.Popen(["cmd", "/c", cmd], cwd=str(ROOT), creationflags=0x08000000)   # CREATE_NO_WINDOW
-    else:
-        subprocess.Popen(["sh", "-c", f'sleep 2; "{exe}" -m vidsum --ui'], cwd=str(ROOT))
+    # Bez cmd /c: Python zamienia cudzysłowy w liście argumentów na \", a cmd/start dostawał wtedy ścieżkę „\\”
+    # (0.7.7 → 0.7.8: „System Windows nie może odnaleźć \\”). Nowy proces sam czeka 2 s i uruchamia program.
+    code = "import time, runpy, sys; time.sleep(2); sys.argv = ['vidsum', '--ui']; runpy.run_module('vidsum', run_name='__main__')"
+    args = [str(pyw if os.name == "nt" else exe), "-c", code]
+    flags = (0x08000000 | 0x00000008) if os.name == "nt" else 0          # CREATE_NO_WINDOW | DETACHED_PROCESS
+    subprocess.Popen(args, cwd=str(ROOT), creationflags=flags, close_fds=True)
 
 
 def apply(info: dict, token: str | None = None, log=print) -> str:

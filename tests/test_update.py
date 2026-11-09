@@ -3,6 +3,7 @@ import io
 import json
 import os
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -119,3 +120,44 @@ def test_check_works_without_key_on_public_repo(monkeypatch):
     monkeypatch.setattr(update, "token_get", lambda: None)
     monkeypatch.setattr(urllib.request, "build_opener", lambda *a: Op())
     assert update.check()["jest_nowsza"] is False and seen["auth"] is None
+
+
+def test_restart_runs_python_directly_without_cmd(monkeypatch, tmp_path):
+    """0.7.7 → 0.7.8: `cmd /c start "" "..."` z listy argumentów dawał „Windows nie może odnaleźć \\\\”."""
+    import subprocess
+    import sys
+    got = {}
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: got.update(args=args, kw=kw))
+    update.restart_ui()
+    a = got["args"]
+    assert a[0].lower().endswith(("python.exe", "pythonw.exe")) or a[0] == sys.executable
+    assert a[1] == "-c" and "cmd" not in a and '"' not in a[2]
+    assert got["kw"]["cwd"] == str(update.ROOT)
+    # kod startowy naprawdę uruchamia moduł vidsum z --ui (sprawdzone bez czekania i bez serwera)
+    ran = {}
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    monkeypatch.setattr("runpy.run_module", lambda name, run_name: ran.update(name=name, argv=list(sys.argv)))
+    old = list(sys.argv)
+    try:
+        exec(a[2], {})
+    finally:
+        sys.argv = old
+    assert ran == {"name": "vidsum", "argv": ["vidsum", "--ui"]}
+
+
+def test_restart_command_really_starts_python(monkeypatch, tmp_path):
+    """Prawdziwe uruchomienie tej samej komendy (na Windows w CI — sprawdza przekazanie argumentów przez CreateProcess);
+    zamiast programu kod zapisuje znacznik."""
+    import subprocess
+    import sys
+    got = {}
+    real_popen = subprocess.Popen
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: got.update(args=args))
+    update.restart_ui()
+    monkeypatch.setattr(subprocess, "Popen", real_popen)
+    mark = tmp_path / "znacznik.txt"
+    code = (got["args"][2].replace("time.sleep(2)", "time.sleep(0)")
+            .replace("runpy.run_module('vidsum', run_name='__main__')", f"open(r'{mark}', 'w').write(' '.join(sys.argv))"))
+    exe = got["args"][0] if Path(got["args"][0]).exists() else sys.executable
+    subprocess.run([exe, "-c", code], check=True, timeout=60)
+    assert mark.read_text() == "vidsum --ui"
