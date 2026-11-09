@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- VidSum: kadr filmu z liniami streszczenia i iskrą (własny projekt) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3D6BFF"/>
+      <stop offset=".55" stop-color="#8E4DFF"/>
+      <stop offset="1" stop-color="#FF3D63"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="url(#bg)"/>
+  <rect x="44" y="72" width="156" height="120" rx="24" fill="none" stroke="#fff" stroke-width="14"/>
+  <rect x="70" y="102" width="86" height="14" rx="7" fill="#fff"/>
+  <rect x="70" y="126" width="104" height="14" rx="7" fill="#fff" opacity=".85"/>
+  <rect x="70" y="150" width="60" height="14" rx="7" fill="#fff" opacity=".7"/>
+  <path d="M152 146 L176 157 L152 168 Z" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M200 30 C204 52 212 60 234 64 C212 68 204 76 200 98 C196 76 188 68 166 64 C188 60 196 52 200 30 Z" fill="#FFD447"/>
+</svg>

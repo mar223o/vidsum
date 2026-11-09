@@ -281,6 +281,14 @@ jobs:
           # okno programu: pywebview + .NET (pythonnet) + WebView2 w zainstalowanym Pythonie
           & "$dir\python\python.exe" -c "import webview; from webview.platforms import winforms; print('okno programu: ok')"
           if ($LASTEXITCODE -ne 0) { throw "okno programu (pywebview/WebView2) nie działa w instalacji" }
+          # ikona VidSum w skrócie (Menu Start) i plik ikony w instalacji
+          if (-not (Test-Path "$dir\vidsum\web\vidsum.ico")) { throw "brak vidsum.ico w instalacji" }
+          $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\VidSum\VidSum.lnk"
+          if (Test-Path $lnk) {
+            $ic = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).IconLocation
+            Write-Host "ikona skrótu: $ic"
+            if ($ic -notlike "*vidsum.ico*") { throw "skrót bez ikony VidSum: $ic" }
+          } else { Write-Host "brak skrótu w Menu Start (instalacja cicha) — pomijam sprawdzenie ikony" }
           # aktualizacja samego kodu na zainstalowanej kopii: paczka C z podmienioną wersją 9.9.9
           $t = "$env:RUNNER_TEMP\akt"; New-Item -ItemType Directory -Force $t | Out-Null
           Expand-Archive $env:ZIP_C -DestinationPath $t -Force

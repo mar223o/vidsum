@@ -87,6 +87,17 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         outer_log(msg)
 
     opt.language = normalize(opt.language)          # nieznany kod → czytelny błąd od razu
+    # zasoby karty: stan przed startem (co jeszcze z niej korzysta) + pomiar co 2 s w czasie analizy → raport
+    from .cuda import GpuWatch, gpu_snapshot, ollama_models
+    zasoby: dict = {"przed": gpu_snapshot(), "modele": {}}
+    gpu_watch = GpuWatch().start() if zasoby["przed"] else None
+    if zasoby["przed"]:
+        g = zasoby["przed"]
+        log(f"  karta: {g['karta']} — zajęte {g['zajete_mb']} MB z {g['pamiec_mb']} MB przed startem, wolne {g['wolne_mb']} MB")
+        if g["zajete_mb"] > 1200:
+            names = ", ".join(x["nazwa"].rsplit(".", 1)[0] for x in g["programy"][:8])
+            log(f"  ! inne programy zajmują {g['zajete_mb']} MB karty ({names}…) — analiza może być wolniejsza; "
+                "zamknij przeglądarki, Discorda, Steama albo wyłącz w nich przyspieszanie sprzętowe")
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp = opt.out_root / "_pobrane"
     # od 0.7.7: link → model obrazu wczytuje się do karty JUŻ W CZASIE POBIERANIA filmu (na komputerze testowym wczytanie ~11 s,
@@ -424,6 +435,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     else:
         gaps.append("Analiza obrazu wyłączona — kadry zapisane, ale bez opisów.")
     timings["obraz_s"] = round(time.time() - t, 1)
+    if opt.vision == "ollama":
+        zasoby["modele"]["opis_kadrow"] = ollama_models(opt.ollama_host)
 
     if speech_thread and speech_thread.is_alive():
         log("        czekam na transkrypcję…")
@@ -536,6 +549,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                     text_engine.preload(TEXT_CTX)
                     timings["tekst_wczytanie_s"] = round(time.time() - t_l, 1)
                     log(f"        model tekstowy wczytany ({time.time() - t_l:.1f} s)")
+            zasoby["modele"]["streszczenie"] = ollama_models(opt.ollama_host)
         except LLMError as e:
             gaps.append(f"Model tekstowy niedostępny ({e}) — bez streszczenia i tłumaczeń.")
             log(f"        ! {e}")
@@ -615,6 +629,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         text_engine.unload()
     if vision_engine:
         vision_engine.unload()
+    if gpu_watch:
+        gpu_watch.stop()
+        zasoby["w_trakcie"] = {"najmniej_wolnej_mb": gpu_watch.min_free, "najwiecej_zajetej_mb": gpu_watch.max_used}
     timings["razem_s"] = round(time.time() - t0, 1)
     if speech_thread or ocr_thread:
         timings["mowa_rownolegle"] = True
@@ -655,6 +672,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         "streszczenie": {"silnik": summary_engine, "markdown": summary_md, "dane": summary_data} if summary_md else None,
         "luki": gaps,
         "czasy": timings,
+        "zasoby": zasoby if zasoby.get("przed") else None,
     }
     (out / "analiza.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "transkrypcja.srt").write_text(_srt(tr.segments), encoding="utf-8")
@@ -727,6 +745,34 @@ def _srt(segments: list) -> str:
     return "\n".join(f"{i}\n{f(s['start'])} --> {f(s['end'])}\n{s['text'] or ''}\n" for i, s in enumerate(rows, 1))
 
 
+def _resources_md(z: dict | None) -> list[str]:
+    """Raport zasobów karty: co było zajęte przed startem, ile zostało na modele, ile modeli było na karcie."""
+    if not z or not z.get("przed"):
+        return []
+    g = z["przed"]
+    L = ["## Zasoby komputera (karta graficzna)", "",
+         f"- Karta: **{g['karta']}**, pamięć {g['pamiec_mb']} MB",
+         f"- Przed startem: zajęte **{g['zajete_mb']} MB** przez inne programy, wolne na modele **{g['wolne_mb']} MB**"]
+    w = z.get("w_trakcie") or {}
+    if w.get("najmniej_wolnej_mb") is not None:
+        L.append(f"- W trakcie analizy: najmniej wolnej pamięci {w['najmniej_wolnej_mb']} MB, "
+                 f"najwięcej zajętej {w['najwiecej_zajetej_mb']} MB")
+    for etap, nazwa in (("opis_kadrow", "Opis kadrów"), ("streszczenie", "Streszczenie")):
+        ms = (z.get("modele") or {}).get(etap) or []
+        if ms:
+            L.append(f"- {nazwa}: " + "; ".join(
+                f"`{m['model']}` {m['rozmiar_mb']} MB, na karcie {m['na_karcie_proc']}%"
+                + (" (reszta na procesorze — wolniej)" if (m["na_karcie_proc"] or 0) < 99 else "") for m in ms))
+    progs = [p["nazwa"] + (f" ({p['pamiec_mb']} MB)" if p.get("pamiec_mb") else "") for p in g.get("programy", [])]
+    if progs:
+        L.append(f"- Programy korzystające z karty przed startem ({len(progs)}): " + ", ".join(progs))
+        L.append("  _Windows nie podaje, ile pamięci karty zajmuje każdy z nich — widać tylko sumę wyżej._")
+    if g["zajete_mb"] > 1200:
+        L.append(f"- ⚠ Inne programy zajmowały ponad 1,2 GB karty — zamknięcie przeglądarek, Discorda, Steama "
+                 "albo wyłączenie w nich przyspieszania sprzętowego zwykle przyspiesza analizę.")
+    return L + [""]
+
+
 def _report_md(r: dict) -> str:
     z = r["zrodlo"]
     L = [f"# {z['tytul'] or z['plik']}", "",
@@ -740,6 +786,7 @@ def _report_md(r: dict) -> str:
     else:
         L += ["## Streszczenie", "", "_Brak — wklej `prompt_dla_claude.md` do Claude albo uruchom z `--streszczenie`._", ""]
     L += ["## Ograniczenia analizy", ""] + [f"- {g}" for g in r["luki"]] + [""]
+    L += _resources_md(r.get("zasoby"))
     L += ["## Oś czasu (mowa + obraz)", ""]
     for b in r["os_czasu"]:
         w = b["widac"]

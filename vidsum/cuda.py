@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import urllib.request
 import zipfile
@@ -167,4 +168,94 @@ def free_vram_mb() -> int | None:
         vals = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
         return vals[0] if vals else None
     except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+_PROC = re.compile(r"\|\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(C\+G|C|G)\s+(.+?)\s+(N/A|\d+\s*MiB)\s+\|")
+
+
+def gpu_snapshot() -> dict | None:
+    """Stan karty NVIDIA: nazwa, pamięć (MB): całość / zajęte / wolne, oraz programy, które z niej korzystają.
+    Na Windows (WDDM) nvidia-smi nie podaje, ile zajmuje każdy program („N/A”) — wtedy jest tylko lista nazw."""
+    import shutil
+    import subprocess
+    exe = shutil.which("nvidia-smi")
+    if not exe:
+        return None
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        r = subprocess.run([exe, "--query-gpu=name,memory.total,memory.used,memory.free", "--format=csv,noheader,nounits"],
+                           capture_output=True, text=True, timeout=10, creationflags=flags)
+        name, total, used, free = [x.strip() for x in r.stdout.splitlines()[0].split(",")][:4]
+        snap = {"karta": name, "pamiec_mb": int(total), "zajete_mb": int(used), "wolne_mb": int(free), "programy": []}
+        r2 = subprocess.run([exe], capture_output=True, text=True, timeout=10, creationflags=flags)
+        progs = []
+        for m in _PROC.finditer(r2.stdout):
+            n = re.split(r"[\\/]", m.group(3).strip())[-1].lstrip(".")
+            mem = m.group(4)
+            item = {"nazwa": n, "pamiec_mb": int(re.sub(r"\D", "", mem)) if mem[0].isdigit() else None}
+            if item not in progs:
+                progs.append(item)
+        snap["programy"] = progs
+        return snap
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return None
+
+
+def ollama_models(host: str | None = None) -> list[dict]:
+    """Modele wczytane w Ollamie: nazwa, rozmiar (MB) i ile procent jest na karcie (reszta liczy się na procesorze)."""
+    import urllib.request
+    host = (host or os.environ.get("OLLAMA_HOST") or "http://127.0.0.1:11434").rstrip("/")
+    if not host.startswith("http"):
+        host = "http://" + host
+    try:
+        with urllib.request.urlopen(host + "/api/ps", timeout=5) as r:
+            ms = json.loads(r.read().decode("utf-8")).get("models", [])
+    except Exception:
+        return []
+    out = []
+    for m in ms:
+        size = m.get("size") or 0
+        out.append({"model": m.get("name") or m.get("model"), "rozmiar_mb": round(size / 2**20),
+                    "na_karcie_proc": round(100 * (m.get("size_vram") or 0) / size) if size else None})
+    return out
+
+
+class GpuWatch:
+    """Co 2 s sprawdza pamięć karty w czasie analizy: najmniej wolnej / najwięcej zajętej (do raportu zasobów)."""
+
+    def __init__(self, every: float = 2.0):
+        import threading
+        self.every, self.min_free, self.max_used, self._stop = every, None, None, threading.Event()
+        self._t = threading.Thread(target=self._run, daemon=True)
+
+    def start(self) -> "GpuWatch":
+        self._t.start()
+        return self
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            s = gpu_snapshot_light()
+            if s:
+                used, free = s
+                self.min_free = free if self.min_free is None else min(self.min_free, free)
+                self.max_used = used if self.max_used is None else max(self.max_used, used)
+            self._stop.wait(self.every)
+
+    def stop(self) -> None:
+        self._stop.set()
+
+
+def gpu_snapshot_light() -> tuple[int, int] | None:
+    import shutil
+    import subprocess
+    exe = shutil.which("nvidia-smi")
+    if not exe:
+        return None
+    try:
+        r = subprocess.run([exe, "--query-gpu=memory.used,memory.free", "--format=csv,noheader,nounits"],
+                           capture_output=True, text=True, timeout=10, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        used, free = [int(x) for x in r.stdout.splitlines()[0].split(",")][:2]
+        return used, free
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
         return None

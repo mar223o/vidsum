@@ -9,6 +9,8 @@
 #endif
 
 [Setup]
+SetupIconFile=..\vidsum\web\vidsum.ico
+UninstallDisplayIcon={app}\vidsum\web\vidsum.ico
 AppId={{6B1E2C4A-8F3D-4E7B-9C21-5A0D7F3E9B14}
 AppName=VidSum
 AppVersion={#AppVersion}
@@ -43,9 +45,9 @@ Type: filesandordirs; Name: "{app}\vidsum.stare"
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\VidSum"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; Comment: "Analiza filmów"
+Name: "{group}\VidSum"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\vidsum\web\vidsum.ico"; Comment: "Analiza filmów"
 Name: "{group}\Odinstaluj VidSum"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\VidSum"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{userdesktop}\VidSum"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\vidsum\web\vidsum.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; Description: "Uruchom VidSum"; Flags: postinstall nowait skipifsilent

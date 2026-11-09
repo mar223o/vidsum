@@ -327,7 +327,9 @@ PRESENT_A = """{{"tytul": "krótki tytuł (3–6 słów)",
  "szczera_ocena": "2–3 zdania: co wartościowe, czego brakuje",
  "czego_nie_wiadomo": ["czego film nie mówi, a widz chciałby wiedzieć"]}}
 Streszczenie: razem około {words} słów (to ok. 1–1,5 minuty czytania) — pełne zdania, bez ogólników. Każde zdanie musi
-wynikać z FAKTÓW albo ZAPISU; nie dodawaj wiedzy spoza filmu i liczb, których w nim nie ma.
+wynikać z FAKTÓW albo ZAPISU; nie dodawaj wiedzy spoza filmu i liczb, których w nim nie ma. Etapy opisuj w kolejności
+kroków i NIE łącz w jednym zdaniu rzeczy z różnych kroków (np. składnika z gotowania z czynnością ze smażenia). Nie pisz
+o proporcjach ani ilościach, jeśli w filmie nie padły.
 Liczby: 3–5 „najwazniejsze”.
 """
 PRESENT_B = """{{"momenty": [{{"t": sekundy, "tekst": "co się dzieje"}}],
@@ -341,7 +343,8 @@ Liczby: 4–8 „momenty”, 2–4 „cytaty” (pusta lista, jeśli nikt nie m�
 SHORT_A = """{{"tytul": "krótki tytuł (3–6 słów)", "teza": "jedno zdanie: o co chodzi",
  "streszczenie": ["akapit 1: temat i cel", "akapit 2: etapy po kolei, z liczbami", "akapit 3: wskazówki autora"],
  "do_zapamietania": "jedno zdanie"}}
-Streszczenie: razem około {words} słów, tylko z FAKTÓW.
+Streszczenie: razem około {words} słów, tylko z FAKTÓW, etapy w kolejności kroków; nie łącz rzeczy z różnych kroków
+i nie pisz o proporcjach, których nie podano.
 """
 # przy krokach z linii mowy: model pisze cytaty, pytania i początki rozdziałów; program przyciąga je do kroków
 PRESENT_B_SHORT = """{{"cytaty": [{{"t": sekundy, "tekst": "dosłownie z MOWA, w oryginale", "tlumaczenie": "po polsku, jeśli oryginał nie jest po polsku"}}],
@@ -550,7 +553,7 @@ def tidy(summary: dict, duration: float, max_quotes: int = 4, max_chapters: int 
 # a to, co się nie zgadza, model poprawia krótkim zapytaniem o konkretne linie.
 
 GLOSSARY = ("Uwaga na tłumaczenie: baking soda = soda oczyszczona (NIE proszek do pieczenia), baking powder = proszek "
-            "do pieczenia, duck fat = tłuszcz z kaczki, par-fry/blanch (w oleju) = podsmaż wstępnie / blanszuj, "
+            "do pieczenia, duck fat = tłuszcz z kaczki, par-fry/blanch (w OLEJU, nie w wodzie) = podsmaż wstępnie / blanszuj, "
             "drain = odsącz / odcedź, dust = oprósz, tray = taca, pot = garnek, sprinkle = posyp.")
 
 TYPE_PROMPT = """Fragment transkrypcji filmu. {meta}
@@ -573,7 +576,7 @@ For EVERY numbered line, keep the SAME number and write in Polish:
 Keep every number exactly, with its unit (the unit may come from SCREEN = text shown on screen at that moment).
 Do not add tools, amounts, adjectives or tips that are not in the line. Write only in Polish (Latin alphabet).
 Polish terms: baking soda = soda oczyszczona (NOT proszek do pieczenia), baking powder = proszek do pieczenia,
-duck fat = tłuszcz z kaczki, par-fry = podsmaż wstępnie, blanch = blanszuj, dust/sprinkle = oprósz/posyp, tray = taca.
+duck fat = tłuszcz z kaczki, par-fry = podsmaż wstępnie w oleju, blanch (in oil) = blanszuj w oleju, dust/sprinkle = oprósz/posyp, tray = taca.
 {meta}
 {context}Answer ONLY with JSON: {{"1": "...", "2": "..."}}
 
@@ -731,10 +734,11 @@ _CONT = re.compile(r"^(to|which|until|or|so|for the|into|in order|once|and once|
                    r"aby|żeby|by|aż|dopóki|albo|lub|co)\b", re.I)
 _EXPL = re.compile(r"^(this|which|that|it)( is|'s| will)? (going to|gonna|will|helps?|makes?|adds?|gives?)\b|"
                    r"^(we've got|we have got|we have|i've got|i have)\b|"
-                   r"^(this particular|the secret|perfect for|is a very|to remove)\b|^(to|co) (pomoże|doda|sprawi)", re.I)
+                   r"^(this particular|perfect for|is a very|to remove)\b|^(to|co) (pomoże|doda|sprawi)", re.I)
 
 
-_FILLER = re.compile(r"^(this is it|this is the|here is|here's|hi\b|hello|welcome|hey\b|so,? today|today we)", re.I)
+_FILLER = re.compile(r"^(this is it|this is the|here is|here's|hi\b|hello|welcome|hey\b|so,? today|today we|"
+                     r"the secret to|the trick to)", re.I)
 # typowe polecenia na początku zdania (angielski) — pusta odpowiedź przy takiej linii to zgubiony krok („Peel.”)
 _EN_IMP = re.compile(r"^(peel|cut|trim|chop|slice|dice|add|heat|fry|boil|bake|cook|soak|wash|rinse|drain|dust|place|put|"
                      r"remove|lay|stir|mix|whisk|season|finish|serve|pour|bring|set|take|use|make|start|open|click|"
@@ -907,7 +911,22 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
         if name and _stems(name) & _stems(spoken_pl) and not any(_same_step(name, o) for o in out_equip):
             out_equip.append(name)
-    return {"kroki": steps, "wyjasnienia": notes, "skladniki": out_ingr, "sprzet": out_equip}
+    return {"kroki": steps, "wyjasnienia": merge_notes(notes), "skladniki": out_ingr, "sprzet": out_equip}
+
+
+def merge_notes(notes: list[dict]) -> list[dict]:
+    """Sąsiednie wyjaśnienia (urywki jednego zdania z kolejnych linii) sklejone w jedno zdanie.
+    Pomiar 0.8.0: „Posiada bardzo wysoką zawartość skrobi.” / „Bardzo niską zawartość wody.” jako osobne „wskazówki”."""
+    out: list[dict] = []
+    for n in notes:
+        if out and n["z"][0] - out[-1]["z"][-1] <= 2:
+            prev = out[-1]
+            part = re.sub(r"^(i|a|oraz)\s+", "", n["tekst"].strip(), flags=re.I).rstrip(".")
+            prev["tekst"] = prev["tekst"].rstrip(".") + ", " + part[:1].lower() + part[1:] + "."
+            prev["z"] = prev["z"] + n["z"]
+        else:
+            out.append(dict(n))
+    return out
 
 
 def chapters_from_steps(steps: list[dict], duration: float, max_chapters: int = 6, notes: list[dict] | None = None) -> list[dict]:
@@ -947,27 +966,77 @@ def chapters_from_steps(steps: list[dict], duration: float, max_chapters: int = 
     return out
 
 
+_FOLD = str.maketrans("ąćęłńóśźż", "acelnoszz")
+_KEY_STOP = {"przygotowanie", "przygotowywanie", "przygotuj", "frytki", "frytek", "ziemniaki", "ziemniaków", "ziemniaka",
+             "etap", "etapu", "część", "krok", "kroki", "wstęp", "podsumowanie", "oraz", "dla", "przez", "jako"}
+
+
+def _keys(text: str) -> set:
+    """Rdzenie słów do dopasowania tytułu z krokiem (bez polskich znaków, 4 pierwsze litery, bez słów ogólnych)."""
+    out = set()
+    for w in _norm_words(text):
+        if len(w) < 4 or w in _KEY_STOP:
+            continue
+        r = re.sub(r"(owanie|ywanie|iwanie|anie|enie|cie|nia|nie|ów|ami|ach)$", "", w.translate(_FOLD))
+        if len(r) >= 3:
+            out.add(r[:5])                  # „gotowanie” → „got” (trafia w „zagotuj”), „smażenie” → „smaz”
+    return out
+
+
+def _hits(keys: set, text: str) -> int:
+    words = [w.translate(_FOLD) for w in _norm_words(text)]
+    return sum(any(k in w for w in words) for k in keys)       # „goto” trafia w „zagotuj”, „smaz” w „podsmaż”
+
+
 def chapters_snapped(model_ch: list, steps: list[dict], duration: float, notes: list[dict] | None = None) -> list[dict]:
-    """Rozdziały z modelu (tytuł + początek), przyciągnięte do czasów kroków; opis = kroki z tego rozdziału.
-    Pomiar (gemma3:4b): grupowanie kroków w etapy („od kroku N”, albo etap przy każdym kroku) nie działało — model
-    numerował po kolei albo nazywał każdy krok inaczej; rozdziały z czasami pisze sensownie."""
+    """Rozdziały z modelu (tytuł + przybliżony początek), przypięte do kroków PO TREŚCI: w oknie ±15 s od czasu modelu
+    wybieramy pierwszy krok, który pasuje do tytułu („Gotowanie” → „Zagotuj wodę”); bez dopasowania — najbliższy krok.
+    Pomiar (0.8.0): przypinanie po samym czasie dawało „Gotowanie ziemniaków” nad krojeniem."""
     if not steps:
         return []
-    times = [s["t"] for s in steps]
     picks: dict = {}
-    for c in model_ch or []:
-        if not isinstance(c, dict) or not _str(c.get("tytul")):
-            continue
+    last = -1.0
+    for c in sorted((c for c in model_ch or [] if isinstance(c, dict) and _str(c.get("tytul"))),
+                    key=lambda c: _num(c.get("start"), 0)):
         t = _num(c.get("start"), -1)
         if t < 0:
             continue
-        snap = min(times, key=lambda x: abs(x - t))
-        picks.setdefault(snap, _str(c["tytul"]))
+        title = _str(c["tytul"])
+        cand = [x for x in steps if x["t"] > last and abs(x["t"] - t) <= 15]
+        if not cand:
+            continue
+        keys = _keys(title)
+        best = max((_hits(keys, x["tekst"]) for x in cand), default=0)
+        if keys and not best:
+            continue                # tytuł nie pasuje do żadnego kroku w pobliżu — nie stawiamy granicy w ciemno
+        pick = next(x for x in cand if _hits(keys, x["tekst"]) == best) if best else min(cand, key=lambda x: abs(x["t"] - t))
+        picks[pick["t"]] = title
+        last = pick["t"]
     if len(picks) < 2:
         return []
     for s_ in steps:                                # etap kroku = rozdział, w którym jest (do momentów)
         s_["etap"] = next((picks[t] for t in sorted(picks, reverse=True) if t <= s_["t"]), "")
     return chapters_from_steps(steps, duration, notes=notes)
+
+
+def snap_highlights(items: list, steps: list[dict], duration: float) -> list:
+    """„Najważniejsze” przypięte do kroku po liczbach i treści (pomiar 0.8.0: model wpisał 140 jako czas → 00:58)."""
+    out = []
+    for x in items or []:
+        text = _str(x.get("tytul")) + " " + _str(x.get("opis"))
+        nums = {n.replace(",", ".") for n in _NUM.findall(text)}
+        cand = [s_ for s_ in steps if nums & _nums(s_["tekst"])]
+        keys = _keys(text)
+        if not cand:
+            best = max((_hits(keys, s_["tekst"]) for s_ in steps), default=0)
+            cand = [s_ for s_ in steps if best and _hits(keys, s_["tekst"]) == best]
+        if cand:
+            t0 = _num(x.get("t"), 0)
+            x = {**x, "t": min(cand, key=lambda s_: (-_hits(keys, s_["tekst"]), abs(s_["t"] - t0)))["t"]}
+        elif _num(x.get("t"), -1) > duration:
+            continue
+        out.append(x)
+    return out
 
 
 def moments_from_steps(steps: list[dict], limit: int = 8) -> list[dict]:
@@ -1184,6 +1253,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         p["rozdzialy"] = chapters_snapped(_lst(p.get("rozdzialy")), steps_full, duration, notes) or \
             chapters_from_steps([{**s_, "etap": ""} for s_ in steps_full], duration, notes=notes)
         p["momenty"] = moments_from_steps(steps_full)
+        p["najwazniejsze"] = snap_highlights(_lst(p.get("najwazniejsze")), steps_full, duration)
 
     def texts(xs) -> list[str]:
         return [x if isinstance(x, str) else _str((x or {}).get("tekst") or (x or {}).get("nazwa")) for x in xs]

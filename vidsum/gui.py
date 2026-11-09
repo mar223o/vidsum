@@ -370,10 +370,8 @@ def make_handler(app: App):
             qs = urllib.parse.parse_qs(u.query)
             if u.path in ("/", "/index.html"):
                 return self._file(web / "index.html")
-            if u.path == "/favicon.ico":
-                self.send_response(204)
-                self.end_headers()
-                return
+            if u.path in ("/favicon.ico", "/icon.svg"):       # ikona programu (bez tokenu — to tylko obrazek)
+                return self._file(web / ("vidsum.ico" if u.path.endswith(".ico") else "icon.svg"))
             if not self._authed(qs):
                 return
             if u.path == "/api/status":
@@ -417,6 +415,12 @@ def make_handler(app: App):
                 return
             if u.path == "/api/ustawienia":
                 return self._json(app.save_settings(self._body()))
+            if u.path == "/api/przegladarka":            # z okna programu: to samo w zwykłej przeglądarce
+                h = str(self._body().get("hash") or "")
+                h = h if re.fullmatch(r"#/[\w/.-]*", h) else ""
+                port = self.server.server_address[1]
+                webbrowser.open(f"http://127.0.0.1:{port}/?t={app.token}{h}")
+                return self._json({"ok": True})
             if u.path == "/api/aktualizacja/klucz":
                 from .update import UpdateError, token_delete, token_set
                 body = self._body()
@@ -596,6 +600,51 @@ def open_window(url: str) -> None:
         webbrowser.open(url)
 
 
+def fix_shortcut_icons() -> None:
+    """Skróty z instalatora < 0.8.1 mają ikonę Pythona; aktualizacja samego kodu ich nie zmienia — poprawiamy je raz."""
+    if os.name != "nt":
+        return
+    ico = Path(__file__).parent / "web" / "vidsum.ico"
+    mark = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "ikony_skrotow.txt"
+    if not ico.exists() or (mark.exists() and mark.read_text(encoding="utf-8").strip() == str(ico)):
+        return
+    ps = ("$s=New-Object -ComObject WScript.Shell;"
+          "$p=@(\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\VidSum\\VidSum.lnk\","
+          "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'VidSum.lnk'));"
+          "foreach($f in $p){ if(Test-Path $f){ $l=$s.CreateShortcut($f);"
+          f" if($l.Arguments -like '*vidsum*'){{ $l.IconLocation='{ico},0'; $l.Save() }} }} }}")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], timeout=30,
+                       capture_output=True, creationflags=0x08000000)
+        mark.parent.mkdir(parents=True, exist_ok=True)
+        mark.write_text(str(ico), encoding="utf-8")
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def _set_window_icon(title: str) -> None:
+    """Ikona VidSum na pasku tytułu i pasku zadań (pywebview na Windows bierze ikonę z pythonw.exe)."""
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        ico = str(Path(__file__).parent / "web" / "vidsum.ico")
+        u = ctypes.windll.user32
+        for _ in range(50):                             # okno pojawia się chwilę po starcie
+            hwnd = u.FindWindowW(None, title)
+            if hwnd:
+                break
+            time.sleep(0.1)
+        if not hwnd:
+            return
+        for size, which in ((16, 0), (32, 1)):          # ICON_SMALL, ICON_BIG
+            h = u.LoadImageW(None, ico, 1, size, size, 0x10)   # IMAGE_ICON, LR_LOADFROMFILE
+            if h:
+                u.SendMessageW(hwnd, 0x0080, which, h)  # WM_SETICON
+    except Exception:
+        pass
+
+
 def run_window(url: str, app: "App | None" = None) -> bool:
     """Prawdziwe okno programu (pywebview na WebView2 — jest w każdym Windows 10/11, także bez przeglądarki Edge).
     Działa na głównym wątku i wraca, gdy okno zostanie zamknięte. False = brak pywebview/WebView2 → stara droga.
@@ -629,7 +678,7 @@ def run_window(url: str, app: "App | None" = None) -> bool:
             return True
         win.events.closing += closing
         store = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "okno"
-        webview.start(private_mode=False, storage_path=str(store))
+        webview.start(_set_window_icon, (f"VidSum {__version__}",), private_mode=False, storage_path=str(store))
         return True
     except Exception as e:
         print(f"Okno programu nie wystartowało ({type(e).__name__}: {e}) — otwieram w przeglądarce.")
@@ -655,6 +704,7 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
     url = f"http://127.0.0.1:{srv.server_address[1]}/?t={app.token}"
     print(f"VidSum {__version__} — interfejs: {url}")
     print("Program działa w tle; wyłączysz go przyciskiem „Zakończ” w interfejsie.")
+    threading.Thread(target=fix_shortcut_icons, daemon=True).start()
     if open_browser:
         # serwer w tle, okno programu na głównym wątku; zamknięcie okna kończy program
         th = threading.Thread(target=srv.serve_forever, daemon=True)

@@ -312,7 +312,7 @@ def test_native_window_asks_before_closing_during_analysis(monkeypatch, tmp_path
     fake.settings = {}
     win = Win()
     fake.create_window = lambda title, url, **kw: calls.update(title=title, url=url) or win
-    fake.start = lambda **kw: calls.update(start=kw)
+    fake.start = lambda *a, **kw: calls.update(start=kw, start_args=a)
     monkeypatch.setitem(sys.modules, "webview", fake)
     monkeypatch.delenv("VIDSUM_PRZEGLADARKA", raising=False)
     monkeypatch.delenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", raising=False)
@@ -341,3 +341,21 @@ def test_native_window_missing_library_falls_back(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", imp)
     monkeypatch.delenv("VIDSUM_PRZEGLADARKA", raising=False)
     assert gui.run_window("http://x") is False
+
+
+def test_open_in_browser_endpoint(server, monkeypatch):
+    from vidsum import gui
+    base, app = server
+    opened = []
+    monkeypatch.setattr(gui.webbrowser, "open", opened.append)
+    _, r = req(base, "/api/przegladarka", json.dumps({"hash": "#/wynik/abc123"}).encode(), method="POST")
+    assert r["ok"] and opened[0].endswith("#/wynik/abc123") and "?t=" in opened[0]
+    req(base, "/api/przegladarka", json.dumps({"hash": "javascript:alert(1)"}).encode(), method="POST")
+    assert not opened[1].endswith("alert(1)")
+
+
+def test_icon_served_without_token(server):
+    base, _ = server
+    _, svg = req(base, "/icon.svg", token=False)
+    _, ico = req(base, "/favicon.ico", token=False)
+    assert b"<svg" in svg and ico[:4] == b"\x00\x00\x01\x00"

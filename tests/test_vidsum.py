@@ -986,7 +986,8 @@ def test_staged_summary_grounded_path_end_to_end():
                                    "do_zapamietania": "Dwa smażenia.", "najwazniejsze": []}, ensure_ascii=False)
             if prompt.startswith("Jesteś asystentem"):
                 return json.dumps({"cytaty": [{"t": 52, "tekst": "Heat the oil up to 190."}], "pytania": ["?"],
-                                   "rozdzialy": [{"start": 38, "tytul": "Pierwsze smażenie"}, {"start": 50, "tytul": "Drugie smażenie"}]},
+                                   "rozdzialy": [{"start": 38, "tytul": "Rozgrzewanie oleju"}, {"start": 50, "tytul": "Drugie smażenie"},
+                                                 {"start": 55, "tytul": "Parowanie"}]},   # ostatni nie pasuje do kroku
                                   ensure_ascii=False)
             return super().complete(prompt, as_json)
 
@@ -998,7 +999,9 @@ def test_staged_summary_grounded_path_end_to_end():
     assert s["metoda"] == "kroki z linii mowy" and s["typ"] == "przepis"
     assert len(s["co_masz_zrobic"]["kroki"]) == 6 and "kroki" in got
     assert s["streszczenie"] == ["Smaż w 140, potem w 190 stopniach."]            # zdanie ze 175 usunięte
-    assert [c["tytul"] for c in s["rozdzialy"]] == ["Wstęp", "Pierwsze smażenie", "Drugie smażenie"]
+    # rozdział przypięty do kroku po treści: „Drugie smażenie” startuje przy „Smaż na złoto” (53 s), a nie przy czasie 50
+    assert [c["tytul"] for c in s["rozdzialy"]] == ["Wstęp", "Rozgrzewanie oleju", "Drugie smażenie"]
+    assert s["rozdzialy"][2]["start"] == 53.41
     assert s["co_masz_zrobic"]["wskazowki"] == ["tłuszcz z kaczki dodaje smaku."] and s["czas_czytania_s"] > 0
 
 
@@ -1057,3 +1060,48 @@ def test_ingredients_keep_potato_starch_and_fix_names():
                                    {"nazwa": "malon sol", "ilosc": "brak danych"}], "sprzet": []})
     names = [x["nazwa"] for x in grounded_steps(eng, speech_lines(segs), "przepis", "")["skladniki"]]
     assert names == ["ziemniaki", "skrobia ziemniaczana", "Maldon sól"]
+
+
+def test_highlight_snaps_to_step_with_its_number():
+    from vidsum.summary import snap_highlights
+    steps = [{"t": 39.0, "tekst": "Rozgrzej olej do 140 stopni."}, {"t": 52.0, "tekst": "Rozgrzej olej do 190 stopni."}]
+    got = snap_highlights([{"t": 140, "tytul": "Temperatura", "opis": "Smaż w 190 stopniach."}], steps, 58.3)
+    assert got[0]["t"] == 52.0                                       # model wpisał 140 jako czas (0.8.0: 00:58)
+
+
+def test_neighbouring_note_fragments_are_joined():
+    from vidsum.summary import merge_notes
+    got = merge_notes([{"z": [6], "tekst": "Posiada bardzo wysoką zawartość skrobi."},
+                       {"z": [7], "tekst": "I bardzo niską zawartość wody."}, {"z": [27], "tekst": "To doda warstwę."}])
+    assert [g["tekst"] for g in got] == ["Posiada bardzo wysoką zawartość skrobi, bardzo niską zawartość wody.",
+                                         "To doda warstwę."]
+
+
+def test_gpu_snapshot_parses_nvidia_smi(monkeypatch):
+    import subprocess
+    from vidsum import cuda
+    table = """|    0   N/A  N/A            9440    C+G   C:\\Windows\\explorer.exe               N/A      |
+|    0   N/A  N/A           15828    C+G   ...s\\Mozilla Firefox\\firefox.exe      N/A      |
+|    0   N/A  N/A           15829    C+G   ...s\\Mozilla Firefox\\firefox.exe      N/A      |
+|    0   N/A  N/A           12345      C   ...\\ollama\\llama-server.exe         3120MiB |"""
+
+    def run(args, **kw):
+        out = "NVIDIA GeForce RTX 3070 Ti, 8192, 1772, 6420\n" if len(args) > 1 else table
+        return subprocess.CompletedProcess(args, 0, out, "")
+    monkeypatch.setattr(cuda.shutil if hasattr(cuda, "shutil") else __import__("shutil"), "which", lambda n: "nvidia-smi")
+    monkeypatch.setattr(subprocess, "run", run)
+    g = cuda.gpu_snapshot()
+    assert g["karta"] == "NVIDIA GeForce RTX 3070 Ti" and g["zajete_mb"] == 1772 and g["wolne_mb"] == 6420
+    assert [p["nazwa"] for p in g["programy"]] == ["explorer.exe", "firefox.exe", "llama-server.exe"]
+    assert g["programy"][2]["pamiec_mb"] == 3120
+
+
+def test_resources_section_in_report():
+    from vidsum.pipeline import _resources_md
+    z = {"przed": {"karta": "RTX", "pamiec_mb": 8192, "zajete_mb": 1772, "wolne_mb": 6420,
+                   "programy": [{"nazwa": "firefox.exe", "pamiec_mb": None}]},
+         "w_trakcie": {"najmniej_wolnej_mb": 920, "najwiecej_zajetej_mb": 7272},
+         "modele": {"opis_kadrow": [{"model": "qwen3-vl:4b-instruct", "rozmiar_mb": 5100, "na_karcie_proc": 82}]}}
+    md = "\n".join(_resources_md(z))
+    assert "zajęte **1772 MB**" in md and "na karcie 82% (reszta na procesorze" in md and "firefox.exe" in md
+    assert "⚠" in md and _resources_md(None) == []

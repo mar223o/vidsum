@@ -4,19 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VidSum</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
 <style>
-:root{
-  --bg:#f4ede4; --panel:#fbf7f2; --card:#f7f1e9; --ink:#211c18; --muted:#7a6f66; --line:#e3d8cc; --line2:#cfc2b4;
-  --accent:#d0704a; --accent-soft:#f3dccf; --accent-ink:#fff; --ok:#3f7d4c; --bad:#b4442f; --warn:#a8741a;
-  --speech:#3a5ea8; --vision:#7a4fb0; --est:#a8741a; --none:#8b8178;
-  --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
-  --sans:"Segoe UI",system-ui,-apple-system,sans-serif; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
-  --r:14px;
+:root{  /* ciemny (domyślnie, jak Vimeo/YouTube) */
+  --bg:#0e0e10; --panel:#16161a; --card:#1d1d22; --ink:#f4f4f5; --muted:#9e9ea8; --line:#26262c; --line2:#35353d;
+  --accent:#ff4d6a; --accent-soft:#3a1720; --accent-ink:#fff; --ok:#4ade80; --bad:#f87171; --warn:#fbbf24;
+  --speech:#7aa7ff; --vision:#c4a1ff; --est:#fbbf24; --none:#8b8b95;
+  --grad:linear-gradient(135deg,#3d6bff,#8e4dff 55%,#ff3d63);
+  --serif:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
+  --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --r:14px; color-scheme:dark;
 }
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#191613; --panel:#211d19; --card:#262019; --ink:#efe7dd; --muted:#a99d91; --line:#352e27; --line2:#4a4037;
-    --accent:#ec8a60; --accent-soft:#3d271d; --accent-ink:#1a0e08; --ok:#7cc48b; --bad:#f08a76; --warn:#e3b45a;
-    --speech:#93b0f0; --vision:#c3a2ee; --est:#e3b45a; --none:#a99d91; }
+:root[data-theme="light"]{
+  --bg:#f5f5f7; --panel:#ffffff; --card:#f0f0f3; --ink:#18181b; --muted:#6b6b76; --line:#e4e4e9; --line2:#d4d4dc;
+  --accent:#e5354f; --accent-soft:#fde3e8; --accent-ink:#fff; --ok:#16a34a; --bad:#dc2626; --warn:#b45309;
+  --speech:#2f5fd0; --vision:#7c3aed; --est:#b45309; --none:#71717a; color-scheme:light;
+}
+@media (prefers-color-scheme: light){
+  :root[data-theme="system"]{
+    --bg:#f5f5f7; --panel:#ffffff; --card:#f0f0f3; --ink:#18181b; --muted:#6b6b76; --line:#e4e4e9; --line2:#d4d4dc;
+    --accent:#e5354f; --accent-soft:#fde3e8; --accent-ink:#fff; --ok:#16a34a; --bad:#dc2626; --warn:#b45309;
+    --speech:#2f5fd0; --vision:#7c3aed; --est:#b45309; --none:#71717a; color-scheme:light; }
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -196,6 +204,21 @@ blockquote.pull::before{content:"“";position:absolute;left:0;top:10px;color:va
 .tr-line{line-height:1.6}
 .summary{max-width:68ch;font-size:16px;line-height:1.65}
 #res{overflow-anchor:auto}
+/* ---------- 0.8.1: ciemny wygląd, logo, momenty z miniaturami ---------- */
+.logo{display:inline-flex;align-items:center;gap:9px;font:700 20px var(--serif);letter-spacing:-.02em}
+.logo img{border-radius:8px;display:block}
+.logo i{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.btn.ico{padding:6px 11px}
+.rule{border-top-color:var(--line2)}
+.hand{display:none}
+.panel,.it,.note,.frame{box-shadow:none}
+.it.simple.mom{display:grid;grid-template-columns:132px 1fr;gap:14px;align-items:center;padding:8px;border-radius:12px;cursor:pointer}
+.it.simple.mom:hover,.it.simple.mom.now{background:var(--card)}
+.mthumb{width:132px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#000;display:block}
+.it.simple.mom p{margin:4px 0 0;font-size:15px}
+.sumact{display:flex;gap:8px;margin:4px 0 14px}
+.thesis{padding-left:0 !important}
+.res{font-size:13px;margin:8px 0}.res b{color:var(--ink)}
 @media (max-width:1100px){ .m-bal .layout{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)} .m-bal .col-sum{grid-column:1/-1;order:3} }
 @media (max-width:760px){
   header{padding:10px 16px;gap:10px} main{padding:20px 16px 80px}
@@ -208,10 +231,12 @@ blockquote.pull::before{content:"“";position:absolute;left:0;top:10px;color:va
 </head>
 <body>
 <header>
-  <a class="logo" href="#/">Vid<i>Sum</i></a>
+  <a class="logo" href="#/"><img src="/icon.svg" alt="" width="28" height="28"><span>Vid<i>Sum</i></span></a>
   <nav><a href="#/" data-nav="home" data-i="nav_home"></a><a href="#/biblioteka" data-nav="lib" data-i="nav_lib"></a></nav>
   <div class="chips" id="chips"></div>
   <div class="seg lang"><button data-l="pl">PL</button><button data-l="en">EN</button></div>
+  <button class="btn ico" id="theme" title="" aria-label="theme">☾</button>
+  <button class="btn" id="inbrowser" data-i="open_browser" hidden></button>
   <button class="btn quit" id="quit" data-i="quit"></button>
 </header>
 <main id="app"></main>
@@ -250,6 +275,10 @@ const I18N = {
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
    typ_przepis:"przepis",typ_trening:"trening",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_inne:"inne",
    chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu",
+   open_browser:"Otwórz w przeglądarce",copy_sum:"Kopiuj",tr_sum:"Tłumacz",tr_sum_q:"Przetłumacz streszczenie na angielski.",
+   theme_dark:"Ciemny",theme_light:"Jasny",theme_system:"Jak w systemie",
+   res_gpu:"Karta",res_before:"przed startem zajęte",res_free:"wolne na modele",res_min:"najmniej wolnej w trakcie:",res_on:"na karcie",
+   res_progs:"programy na karcie",res_warn:"inne programy zajmowały ponad 1,2 GB karty — zamknięcie przeglądarek, Discorda czy Steama przyspiesza analizę",
    stage_dl:"pobieranie",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
    live_wait_sum:"Streszczenie pojawi się tutaj na końcu analizy (etap 4/4). W tym czasie możesz czytać transkrypcję — nic Ci jej nie przesunie.",
    live_steps_ready:"Kroki są już gotowe w zakładce obok. Opis całości jeszcze powstaje…",
@@ -286,6 +315,10 @@ const I18N = {
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
    typ_przepis:"recipe",typ_trening:"workout",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_inne:"other",
    chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text",
+   open_browser:"Open in browser",copy_sum:"Copy",tr_sum:"Translate",tr_sum_q:"Translate the summary into English.",
+   theme_dark:"Dark",theme_light:"Light",theme_system:"System",
+   res_gpu:"GPU",res_before:"used before start",res_free:"free for models",res_min:"lowest free during analysis:",res_on:"on GPU",
+   res_progs:"programs on GPU",res_warn:"other programs used over 1.2 GB of GPU memory — closing browsers, Discord or Steam speeds up analysis",
    stage_dl:"download",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
    live_wait_sum:"The summary appears here at the end of the analysis (step 4/4). Meanwhile, read the transcript — nothing will move it under you.",
    live_steps_ready:"The steps are ready in the tab next to this. The full summary is still being written…",
@@ -293,7 +326,7 @@ const I18N = {
    live_wait_tr:"The transcript appears here as soon as speech is recognised.",live_wait_fr:"Frames appear once they are extracted.",
    offline:"Can't reach the VidSum program. Check that its black window is open; if you closed it, start VidSum again (it reopens this page)."}
 };
-let L = "pl", settings = {}, jobs = [], uploads = {}, cur = null, mode = "bal", tab = null, lib = {q:"", typ:""};
+let L = "pl", settings = {}, jobs = [], uploads = {}, cur = null, mode = "video", tab = null, lib = {q:"", typ:""};
 const $ = s => document.querySelector(s);
 const t = (k, ...a) => { const v = (I18N[L] && I18N[L][k]) ?? I18N.pl[k] ?? k; return typeof v === "function" ? v(...a) : v; };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -387,6 +420,20 @@ document.addEventListener("click", async e => {
   openParts.has(key) ? openParts.delete(key) : openParts.add(key);
   if (openParts.has(key) && !key.endsWith(":log")) { try { partCache[id] = await api(`/api/zadania/${id}/czesciowe`); } catch {} }
   renderHome();
+});
+/* motyw: ciemny (domyślnie) → jasny → jak w systemie */
+const THEMES = ["dark", "light", "system"];
+function applyTheme(th){ document.documentElement.dataset.theme = th; $("#theme").textContent = th === "dark" ? "☾" : th === "light" ? "☀" : "◐";
+  $("#theme").title = t("theme_" + th); }
+let theme = "dark"; try { theme = localStorage.getItem("vs_theme") || "dark"; } catch {}
+applyTheme(theme);
+$("#theme").addEventListener("click", () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; try { localStorage.setItem("vs_theme", theme); } catch {} applyTheme(theme); });
+/* w oknie programu (pywebview): przycisk „Otwórz w przeglądarce” */
+function inApp(){ return !!window.pywebview; }
+function showBrowserBtn(){ $("#inbrowser").hidden = !inApp(); }
+window.addEventListener("pywebviewready", showBrowserBtn); setTimeout(showBrowserBtn, 800);
+$("#inbrowser").addEventListener("click", async () => {
+  try { await api("/api/przegladarka", {method:"POST", body:JSON.stringify({hash: location.hash})}); } catch(e){ toast(e.message); }
 });
 $("#quit").addEventListener("click", async () => {
   if (jobs.some(j => j.status === "trwa") && !confirm(t("quit_q"))) return;
@@ -560,6 +607,10 @@ function liveR(j, p){                    // te same pola co analiza.json, z tego
     os_czasu:kadry.map(x => ({start:x.t, kadr:x.file, napisy:"", widac:{zrodlo:x.scena ? "obraz" : "", scena:x.scena || ""}, slychac:{tekst:""}})),
     streszczenie:dane ? {dane} : null, ustawienia:{whisper:"", obraz:"", streszczenie:""}, luki:[], czasy:null, utworzono:""};
 }
+function frameAt(t){                    // kadr najbliższy danemu momentowi (miniatura w „Momentach”)
+  const ks = (cur.r.kadry || []).filter(k => k.file);
+  return ks.reduce((b, k) => !b || Math.abs(k.t - t) < Math.abs(b.t - t) ? k : b, null);
+}
 function data(){ return (cur.r.streszczenie || {}).dane || null; }
 function tabsFor(d){
   const tl = [];
@@ -588,8 +639,9 @@ function renderTab(d){
   }
   if (tab === "key") return `<h3 class="big">${t("things", d.najwazniejsze.length)}</h3><div class="items">${d.najwazniejsze.map((x,i) =>
     `<div class="it" data-t="${x.t}"><span class="n">${i+1}</span><div><div class="top">${tsb(x.t)}<span class="tag">${t("point")} #${i+1}</span></div><h4>${esc(x.tytul)}</h4><p>${esc(x.opis)}${src(x.zrodlo)}</p></div></div>`).join("")}</div>`;
-  if (tab === "mom") return `<h3 class="big">${t("moments", d.momenty.length)}</h3><div class="items">${d.momenty.map(x =>
-    `<div class="it simple" data-t="${x.t}">${tsb(x.t)}<p>${esc(x.tekst)}</p></div>`).join("")}</div>`;
+  if (tab === "mom") return `<h3 class="big">${t("moments", d.momenty.length)}</h3><div class="items">${d.momenty.map(x => {
+    const k = frameAt(x.t);
+    return `<div class="it simple mom" data-t="${x.t}">${k ? `<img class="mthumb" loading="lazy" alt="" src="${fileUrl(cur.id, k.file)}">` : ""}<div>${tsb(x.t)}<p>${esc(x.tekst)}</p></div></div>`; }).join("")}</div>`;
   if (tab === "quo") return `<h3 class="big">${t("quotes")}</h3>${d.cytaty.map(x =>
     `<blockquote class="pull" data-t="${x.t}">„${esc(x.tekst)}”${x.tlumaczenie ? `<div class="muted" style="font-size:14px;margin-top:6px">${esc(x.tlumaczenie)}</div>` : ""}<div style="margin-top:8px">${tsb(x.t)}</div></blockquote>`).join("")}`;
   if (tab === "cha") return `<h3 class="big">${t("chapters")}</h3><div class="items">${d.rozdzialy.map((x,i) =>
@@ -647,6 +699,15 @@ function headHtml(r, d){
     <div class="actions"><button class="btn" data-a="copy">${t("copy")}</button><button class="btn" data-a="claude">${t("claude")}</button>
       <button class="btn" data-a="folder">${t("folder")}</button><a class="btn" href="${fileUrl(id,"analiza.json")}" download style="text-decoration:none;color:inherit">${t("json")}</a></div>`;
 }
+function resHtml(z){                    // zasoby karty z analizy (0.8.1)
+  if (!z || !z.przed) return "";
+  const g = z.przed, w = z.w_trakcie || {}, ms = [...((z.modele||{}).opis_kadrow||[]), ...((z.modele||{}).streszczenie||[])];
+  return `<div class="res"><b>${t("res_gpu")}:</b> ${esc(g.karta)} · ${t("res_before")} <b>${g.zajete_mb} MB</b> / ${g.pamiec_mb} MB · ${t("res_free")} <b>${g.wolne_mb} MB</b>
+    ${w.najmniej_wolnej_mb != null ? `<br>${t("res_min")} ${w.najmniej_wolnej_mb} MB` : ""}
+    ${ms.length ? "<br>" + ms.map(m => `${esc(m.model)}: ${m.rozmiar_mb} MB, ${t("res_on")} ${m.na_karcie_proc}%`).join(" · ") : ""}
+    ${(g.programy||[]).length ? `<br><span class="muted">${t("res_progs")}: ${g.programy.map(p => esc(p.nazwa)).join(", ")}</span>` : ""}
+    ${g.zajete_mb > 1200 ? `<br><span style="color:var(--warn)">⚠ ${t("res_warn")}</span>` : ""}</div>`;
+}
 function readTime(d){
   const s = d.czas_czytania_s || Math.round(((d.streszczenie||[]).join(" ") + " " + (d.teza||"")).split(/\s+/).filter(Boolean).length / 190 * 60);
   return s ? `<span class="rtime">≈ ${s >= 60 ? Math.floor(s/60) + " min " + String(s%60).padStart(2,"0") + " s" : s + " s"} ${t("reading")}</span>` : "";
@@ -659,11 +720,13 @@ function sumHtml(r, d){
     return top + (r.streszczenie ? `<div class="md">${md(r.streszczenie.markdown)}</div>` : `<p class="muted">${t("no_data")}</p>`);
   }
   return top + `<div class="summary">${d.streszczenie.map(p => `<p>${inline(p)}</p>`).join("")}</div>
+    ${cur.live ? "" : `<div class="sumact"><button class="btn" data-a="copysum">⧉ ${t("copy_sum")}</button><button class="btn" data-a="trsum">文A ${t("tr_sum")}</button></div>`}
     ${d.do_zapamietania ? `<blockquote class="pull"><div class="label" style="margin-bottom:4px">${t("remember")}</div>${esc(d.do_zapamietania)}</blockquote>` : ""}
     ${d.szczera_ocena ? `<div class="note"><h4>${t("honest")}</h4>${inline(d.szczera_ocena)} ${src("szacunek")}</div>` : ""}
     ${d.czego_nie_wiadomo.length ? `<div class="note"><h4>${t("unknown")}</h4><ul>${d.czego_nie_wiadomo.map(x => `<li>${inline(x)}</li>`).join("")}</ul></div>` : ""}
     <details class="note"><summary>${t("how")}</summary>${timingHtml(r.czasy)}
       <p style="font-size:13px" class="muted">${t("engines")}: ${esc(r.ustawienia.whisper)} · ${esc(r.ustawienia.obraz)} · ${esc(r.ustawienia.streszczenie)}${d.metoda ? " · " + esc(d.metoda) : ""}</p>
+      ${resHtml(r.zasoby)}
       ${r.luki.length ? `<p style="font-size:13px"><b>${t("gaps")}:</b><br>${r.luki.map(esc).join("<br>")}</p>` : ""}</details>`;
 }
 function playerHtml(r){
@@ -773,6 +836,8 @@ $("#app").addEventListener("click", async e => {
   const a = e.target.closest("[data-a]"); if (!a || !cur) return;
   try {
     if (a.dataset.a === "folder") await api(`/api/zadania/${cur.id}/otworz`, {method:"POST"});
+    if (a.dataset.a === "copysum") { const d = data(); await navigator.clipboard.writeText([d.tytul, d.teza, ...d.streszczenie, d.do_zapamietania].filter(Boolean).join("\n\n")); toast(t("copied")); return; }
+    if (a.dataset.a === "trsum") { ask(t("tr_sum_q")); const c = $("#cchat"); if (c) c.scrollIntoView({behavior:"smooth", block:"center"}); return; }
     if (a.dataset.a === "copy") { const r = await fetch(fileUrl(cur.id, "prompt_dla_claude.md")); await navigator.clipboard.writeText(await r.text()); toast(t("copied")); }
     if (a.dataset.a === "claude") { a.disabled = true; toast(t("claude_wait")); await api(`/api/zadania/${cur.id}/claude`, {method:"POST"});
       cur.r = await api(`/api/zadania/${cur.id}/plik/analiza.json`); a.disabled = false; renderResult(); }
@@ -791,7 +856,7 @@ async function poll(){
 }
 setInterval(() => document.querySelectorAll(".timer[data-start]").forEach(el => { if (el.dataset.start) el.textContent = "⏱ " + fmt(Date.now()/1000 - Number(el.dataset.start)); }), 1000);
 (async () => {
-  try { mode = localStorage.getItem("vs_mode") || "bal"; } catch {}
+  try { mode = localStorage.getItem("vs_mode") || "video"; } catch {}
   try { settings = await api("/api/ustawienia"); L = settings.jezyk_ui || "pl"; } catch {}
   try { jobs = await api("/api/zadania?skanuj=1"); } catch {}
   applyLang(); loadStatus();
