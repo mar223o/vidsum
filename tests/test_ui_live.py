@@ -125,3 +125,62 @@ def test_live_result_page_keeps_reading_position(live, width):
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
         b.close()
     assert not [e for e in errors if "favicon" not in e and "film" not in e and "404" not in e], errors
+
+
+def test_quick_preview_then_full_and_mind_map(live):
+    """0.8.2: wstępne streszczenie (oznaczone) w trakcie analizy → pełne z opisem „wstępne po … → pełne po …”;
+    mapa myśli: kliknięcie gałęzi pokazuje szczegóły z czasem, kółko myszy powiększa, „Dopasuj” wraca."""
+    base, app, job, out, segs = live
+    job.partial["wstepne"] = {"typ": "inne", "tytul": "Frytki", "teza": "Frytki smażone dwa razy.", "wstepne": True,
+                              "streszczenie": ["Wstępny akapit o frytkach z mowy."], "do_zapamietania": "",
+                              "najwazniejsze": [{"t": 41.0, "tytul": "Olej 140", "opis": "Pierwsze smażenie.", "zrodlo": "mowa"}],
+                              "momenty": [], "cytaty": [], "rozdzialy": [], "szczera_ocena": "", "czego_nie_wiadomo": [],
+                              "pytania": [], "co_masz_zrobic": {"skladniki": [], "kroki": [], "sprzet": [], "czas": "",
+                                                                 "cwiczenia": [], "wskazowki": [], "bledy": [], "wnioski": []}}
+    with pw.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as e:
+            pytest.skip(f"brak Chromium: {e}")
+        page = b.new_page(viewport={"width": 1280, "height": 860})
+        errors: list[str] = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(f"{base}/?t={TOKEN}#/wynik/{job.id}")
+        page.wait_for_selector("#csum .summary.prelim p")
+        assert "Wstępny akapit" in page.inner_text("#csum")
+        assert page.inner_text("#csum .pvtag").strip() == "wstępne"
+        assert not page.locator('#tabs button[data-tab="map"]').count()     # mapa dopiero z pełnego wyniku
+        # koniec analizy: pełne streszczenie z rozdziałami
+        _final(out, segs)
+        r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+        r["podglad"] = {"po_s": 25.0, "s": 6.2}
+        r["streszczenie"]["dane"]["rozdzialy"] = [
+            {"start": 0, "end": 30, "tytul": "Przygotowanie", "opis": "Obieranie i krojenie.", "momenty": []},
+            {"start": 30, "end": 60, "tytul": "Smażenie", "opis": "Dwa smażenia.", "momenty": []}]
+        r["streszczenie"]["dane"]["najwazniejsze"] = [{"t": 41.4, "tytul": "Olej 140", "opis": "Pierwsze smażenie.",
+                                                      "zrodlo": "mowa"}]
+        (out / "analiza.json").write_text(json.dumps(r, ensure_ascii=False), encoding="utf-8")
+        job.status, job.finished = "gotowe", time.time()
+        page.wait_for_selector("#csum .pvtag.done", timeout=8000)
+        assert "→" in page.inner_text("#csum .pvtag.done") and not page.locator(".summary.prelim").count()
+        page.click('#tabs button[data-tab="map"]')
+        page.wait_for_selector("#mapsvg .mnode")
+        assert page.locator("#mapsvg .mnode").count() == 1 + 3 + 3       # środek, 3 gałęzie, liście: 2 kroki + 1 punkt
+        node = page.locator('#mapsvg .mnode[aria-label="Smażenie"]')
+        node.click()
+        info = page.inner_text("#mapinfo")
+        assert "Smażenie" in info and "00:30" in info and "Dwa smażenia" in info and "W filmie mówi" in info
+        vb0 = page.get_attribute("#mapsvg", "viewBox")
+        page.hover("#mapsvg")
+        page.keyboard.down("Control")
+        page.mouse.wheel(0, -300)
+        page.keyboard.up("Control")
+        page.wait_for_timeout(100)
+        vb1 = page.get_attribute("#mapsvg", "viewBox")
+        assert float(vb1.split()[2]) < float(vb0.split()[2])               # przybliżone
+        page.click('#mapwrap [data-z="0"]')
+        assert page.get_attribute("#mapsvg", "viewBox") == vb0
+        shots = Path(os.environ.get("VIDSUM_SHOTS") or out)
+        page.screenshot(path=str(shots / "mapa.png"))
+        b.close()
+    assert not errors, errors

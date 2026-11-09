@@ -49,6 +49,7 @@ class Options:
     ocr: bool = True                           # gęsty OCR napisów na ekranie (+ podpowiedzi słów dla Whispera)
     move_source: bool = False                  # przenieś plik źródłowy do folderu wyników (wysłane z UI)
     on_partial: Callable | None = None         # wyniki etapów od razu, gdy gotowe (podgląd w UI): (rodzaj, dane)
+    preview: bool = False                      # szybki podgląd: wstępne streszczenie z mowy, potem pełne (0.8.2)
     extra: dict = field(default_factory=dict)
 
 
@@ -146,6 +147,47 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
 
     t_speech = time.time()
     tr_box: dict = {}
+    # SZYBKI PODGLĄD (0.8.2): wstępne streszczenie z samej mowy, gdy jest transkrypcja i model obrazu już na karcie
+    # (to ten sam model — bez wczytywania drugiego i bez przeładowania: ten sam rozmiar kontekstu)
+    pv: dict = {"vision_on": False, "done": False, "thread": None}
+    pv_lock = threading.Lock()
+
+    def start_preview() -> None:
+        if not opt.preview:
+            return
+        with pv_lock:
+            tr0 = tr_box.get("tr")
+            if pv["thread"] or pv["done"] or not (tr0 and tr0.segments):
+                return
+            if opt.vision == "ollama":
+                if not pv["vision_on"]:              # model obrazu jeszcze się nie wczytał — poczekaj na etap 3
+                    return
+                from .llm import VISION_CTX
+                eng, ctx = Ollama(opt.vision_model, opt.ollama_host), VISION_CTX
+            elif opt.summary in ("auto", "ollama"):
+                eng, ctx = Ollama(opt.summary_model or opt.text_model, opt.ollama_host), None
+            else:
+                return
+            segs = [asdict(x) for x in tr0.segments]
+
+            def job() -> None:
+                from .summary import quick_summary
+                t_p = time.time()
+                log(f"        szybki podgląd: wstępne streszczenie z mowy ({eng.model})…")
+                try:
+                    d = quick_summary(eng, segs, f"Title: {src.title or ''}".strip(), info.duration, log, num_ctx=ctx)
+                except LLMError as e:
+                    d = None
+                    log(f"        ! szybki podgląd: {str(e)[:100]}")
+                pv["s"] = round(time.time() - t_p, 1)
+                if d:
+                    pv["po_s"] = round(time.time() - t0, 1)
+                    _emit(opt, "wstepne", d)
+                    log(f"        szybki podgląd gotowy ({pv['s']:.1f} s; {pv['po_s']:.0f} s od startu)")
+                pv["done"] = True
+            pv["thread"] = threading.Thread(target=job, daemon=True)
+            pv["thread"].start()
+
     speech_thread = None
     speech_job = None
     need_whisper = info.has_audio and not opt.transcript_file and not (src.subtitles and opt.prefer_subtitles)
@@ -261,6 +303,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 _emit(opt, "transkrypcja", {"jezyk": tr_box["tr"].language,
                                             "segmenty": [asdict(x) for x in tr_box["tr"].segments]})
                 log(f"        transkrypcja gotowa: {len(tr_box['tr'].segments)} zdań, {time.time() - t:.1f} s")
+                start_preview()                    # CPU: transkrypcja kończy się w czasie opisu kadrów
                 if engine.recovered:
                     tr_box["tr"].note = ((tr_box["tr"].note + " ") if tr_box["tr"].note else "") + \
                         f"Odzyskano {engine.recovered} zdań pominiętych przez Whispera (drugi przebieg bez podpowiedzi)."
@@ -388,6 +431,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             log("        model obrazu jeszcze się wczytuje…")
             preload_thread.join()
         log(f"  [3/4] opis kadrów ({opt.vision_model})…")
+        pv["vision_on"] = True
+        start_preview()
         failed: list[str] = []
         done = [0]
         busy = [0.0]
@@ -422,6 +467,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         t_v = time.time()
         with ThreadPoolExecutor(max_workers=workers) as pool:
             list(pool.map(describe, frames))
+        if pv["thread"] and pv["thread"].is_alive():      # podgląd na tym samym modelu — przed jego zwolnieniem
+            log("        czekam na szybki podgląd…")
+            pv["thread"].join(timeout=120)
+        pv["done"] = True                              # po opisie kadrów pełne streszczenie i tak zaraz będzie
         wall = time.time() - t_v
         if frames and wall > 0:
             # pomiar: ile kadrów model naprawdę liczył naraz (1,0× = po kolei mimo kilku zapytań)
@@ -434,6 +483,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             gaps.append(f"Nie udało się opisać kadrów: {', '.join(failed)} — w tych miejscach obraz = brak danych.")
     else:
         gaps.append("Analiza obrazu wyłączona — kadry zapisane, ale bez opisów.")
+        start_preview()
     timings["obraz_s"] = round(time.time() - t, 1)
     if opt.vision == "ollama":
         zasoby["modele"]["opis_kadrow"] = ollama_models(opt.ollama_host)
@@ -672,6 +722,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         "streszczenie": {"silnik": summary_engine, "markdown": summary_md, "dane": summary_data} if summary_md else None,
         "luki": gaps,
         "czasy": timings,
+        "podglad": {"po_s": pv["po_s"], "s": pv.get("s")} if pv.get("po_s") else None,
         "zasoby": zasoby if zasoby.get("przed") else None,
     }
     (out / "analiza.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -780,7 +831,11 @@ def _report_md(r: dict) -> str:
          f"- Długość: {ts(z['dlugosc_s'])} · obraz {z['szerokosc']}×{z['wysokosc']} · audio: {'tak' if z['audio'] else 'nie'}",
          f"- Silniki: mowa `{r['ustawienia']['whisper']}`, obraz `{r['ustawienia']['obraz']}`, "
          f"streszczenie `{r['ustawienia']['streszczenie']}`",
-         f"- ⏱ Czas analizy: **{_dur(r['czasy'].get('razem_s', 0))}** — {_timing_line(r['czasy'])}", ""]
+         f"- ⏱ Czas analizy: **{_dur(r['czasy'].get('razem_s', 0))}** — {_timing_line(r['czasy'])}"]
+    if r.get("podglad"):
+        L.append(f"- Szybki podgląd (wstępne streszczenie z mowy): po {_dur(r['podglad']['po_s'])} od startu "
+                     f"({r['podglad'].get('s') or 0:.1f} s pracy modelu)")
+    L.append("")
     if r["streszczenie"]:
         L += [r["streszczenie"]["markdown"], ""]
     else:

@@ -64,6 +64,34 @@ main{max-width:1320px;margin:0 auto;padding:28px 20px 90px}
 #drop.over{border-color:var(--accent);background:var(--accent-soft)}
 #drop b{font:500 21px var(--serif);display:block;margin-bottom:2px}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.pvsw{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
+.pvsw input{position:absolute;opacity:0;width:1px;height:1px}
+.pvsw .knob{width:34px;height:20px;border-radius:20px;background:var(--line2);position:relative;transition:background .15s;flex:none}
+.pvsw .knob::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}
+.pvsw input:checked+.knob{background:var(--accent)}
+.pvsw input:checked+.knob::after{transform:translateX(14px)}
+.pvsw input:focus-visible+.knob{outline:2px solid var(--accent);outline-offset:2px}
+.pvsw:has(input:checked){color:var(--ink)}
+.pvtag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:20px;font-size:10.5px;letter-spacing:.04em;text-transform:none;
+  border:1px solid var(--accent);color:var(--accent);vertical-align:1px}
+.pvtag.done{border-color:var(--line);color:var(--muted)}
+.summary.prelim{opacity:.82}
+.pvnote{margin-top:6px}
+.mapwrap{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
+.mapwrap:fullscreen{border-radius:0;background:var(--bg)}
+.mapwrap svg{display:block;width:100%;height:440px;cursor:grab;touch-action:none;user-select:none;font-family:inherit}
+.mapwrap svg.tall{touch-action:pan-y pinch-zoom}
+.mapwrap:fullscreen svg{height:100vh!important}
+.mapwrap svg.panning{cursor:grabbing}
+.maptools{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:1}
+.btn.sm{padding:4px 10px;font-size:12.5px;min-width:30px}
+.mnode{cursor:pointer}
+.mnode:hover rect,.mnode:focus-visible rect{filter:brightness(1.15);stroke-width:2.4}
+.mnode.on rect{stroke:var(--ink);stroke-width:2.4}
+.mnode:focus{outline:none}
+.mapinfo{margin:0 10px 10px}
+.mapwrap:fullscreen .mapinfo{position:absolute;left:16px;bottom:16px;max-width:440px;margin:0;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.mapinfo .top{margin:4px 0 6px}
 textarea,input,select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 11px}
 textarea{flex:1;min-width:220px;min-height:44px;resize:vertical}
 details>summary{cursor:pointer;color:var(--muted);font-size:14px}
@@ -260,7 +288,9 @@ const I18N = {
    quit:"Zakończ",quit_q:"Wyłączyć VidSum? Trwająca analiza zostanie przerwana.",quit_done:"VidSum wyłączony. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
    t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_poradnik:"Kroki",t_todo_inne:"Wnioski",
-   t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_tr:"Transkrypcja",t_fr:"Kadry",
+   t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
+   map_hint:"Kliknij gałąź: szczegóły i przewinięcie filmu. Powiększanie: przyciski albo Ctrl + kółko myszy (na pełnym ekranie samo kółko), przeciąganie — przesuwanie.",
+   map_full:"Pełny ekran",map_reset:"Dopasuj",t_tr:"Transkrypcja",t_fr:"Kadry",
    things:n=>`${n} ${n===1?"rzecz":n<5?"rzeczy":"rzeczy"}, które się liczą`,moments:n=>`${n} momentów wartych uwagi`,
    quotes:"Słowami autora",chapters:"Spis treści",transcript:"Transkrypcja",frames:"Kadry i co na nich widać",
    ingredients:"Składniki",steps:"Kroki",equipment:"Sprzęt",time:"Czas",exercises:"Ćwiczenia",tips:"Wskazówki",
@@ -279,6 +309,9 @@ const I18N = {
    theme_dark:"Ciemny",theme_light:"Jasny",theme_system:"Jak w systemie",
    res_gpu:"Karta",res_before:"przed startem zajęte",res_free:"wolne na modele",res_min:"najmniej wolnej w trakcie:",res_on:"na karcie",
    res_progs:"programy na karcie",res_warn:"inne programy zajmowały ponad 1,2 GB karty — zamknięcie przeglądarek, Discorda czy Steama przyspiesza analizę",
+   pv:"Szybki podgląd",pv_tip:"Wstępne streszczenie z samej mowy zaraz po transkrypcji, potem pełne (z obrazem i krokami). Dodaje kilka sekund do całej analizy.",
+   pv_badge:"wstępne",pv_note:"Wstępne — z samej mowy. Pełne streszczenie (z obrazem i krokami) zastąpi je za chwilę.",
+   pv_done:(a,b)=>`wstępne po ${a} → pełne po ${b}`,
    stage_dl:"pobieranie",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
    live_wait_sum:"Streszczenie pojawi się tutaj na końcu analizy (etap 4/4). W tym czasie możesz czytać transkrypcję — nic Ci jej nie przesunie.",
    live_steps_ready:"Kroki są już gotowe w zakładce obok. Opis całości jeszcze powstaje…",
@@ -300,7 +333,9 @@ const I18N = {
    quit:"Quit",quit_q:"Quit VidSum? A running analysis will be stopped.",quit_done:"VidSum stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
    t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_poradnik:"Steps",t_todo_inne:"Takeaways",
-   t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_tr:"Transcript",t_fr:"Frames",
+   t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
+   map_hint:"Click a branch: details and jump in the video. Zoom: buttons or Ctrl + mouse wheel (wheel alone in full screen), drag to pan.",
+   map_full:"Full screen",map_reset:"Fit",t_tr:"Transcript",t_fr:"Frames",
    things:n=>`The ${n} things that mattered`,moments:n=>`${n} moments worth jumping to`,
    quotes:"In their words",chapters:"The contents",transcript:"Transcript",frames:"Frames and what's in them",
    ingredients:"Ingredients",steps:"Steps",equipment:"Equipment",time:"Time",exercises:"Exercises",tips:"Tips",
@@ -319,6 +354,9 @@ const I18N = {
    theme_dark:"Dark",theme_light:"Light",theme_system:"System",
    res_gpu:"GPU",res_before:"used before start",res_free:"free for models",res_min:"lowest free during analysis:",res_on:"on GPU",
    res_progs:"programs on GPU",res_warn:"other programs used over 1.2 GB of GPU memory — closing browsers, Discord or Steam speeds up analysis",
+   pv:"Quick preview",pv_tip:"A preliminary summary from speech alone right after the transcript, then the full one (with picture and steps). Adds a few seconds to the whole analysis.",
+   pv_badge:"preliminary",pv_note:"Preliminary — from speech only. The full summary (with picture and steps) will replace it shortly.",
+   pv_done:(a,b)=>`preliminary after ${a} → full after ${b}`,
    stage_dl:"download",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
    live_wait_sum:"The summary appears here at the end of the analysis (step 4/4). Meanwhile, read the transcript — nothing will move it under you.",
    live_steps_ready:"The steps are ready in the tab next to this. The full summary is still being written…",
@@ -459,7 +497,8 @@ function renderHome(){
       <section class="panel">
         <div id="drop" tabindex="0" role="button"><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
           <input type="file" id="pick" accept="video/*,.mp4,.mov,.mkv,.webm" multiple hidden></div>
-        <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
+        <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button>
+          <label class="pvsw" title="${esc(t("pv_tip"))}"><input type="checkbox" id="pv" role="switch"><span class="knob"></span>${t("pv")}</label></div>
         <details style="margin-top:14px"><summary>${t("settings")}</summary>
           <div class="grid">
             <label class="f">${t("s_lang")}<select id="s_jezyk"><option value="auto">auto</option><option value="pl">polski</option><option value="en">English</option></select></label>
@@ -488,6 +527,10 @@ function renderHome(){
 }
 function bindHome(){
   for (const k of SKEYS){ const el = $("#s_"+k); if (el) el.value = String(settings[k] ?? ""); }
+  $("#pv").checked = !!settings.podglad;
+  $("#pv").onchange = async e => {
+    try { settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify({podglad:e.target.checked})}); } catch {}
+  };
   const drop = $("#drop");
   drop.onclick = () => $("#pick").click();
   drop.onkeydown = e => { if (e.key==="Enter"||e.key===" ") $("#pick").click(); };
@@ -598,9 +641,15 @@ function liveR(j, p){                    // te same pola co analiza.json, z tego
   const m = p.meta || {}, tr = p.transkrypcja || {};
   const tls = {}; for (const k of Object.keys(p)) if (k.startsWith("tlumaczenie_")) tls[k.slice(12)] = {segmenty:p[k]};
   const kadry = p.kadry || [], k = p.kroki;
-  const dane = k ? {typ:k.typ||"inne", tytul:"", tytul_akcent:"", teza:"", streszczenie:[], do_zapamietania:"", partial:true,
+  let dane = k ? {typ:k.typ||"inne", tytul:"", tytul_akcent:"", teza:"", streszczenie:[], do_zapamietania:"", partial:true,
       co_masz_zrobic:{skladniki:k.skladniki||[], kroki:k.kroki||[], sprzet:[], czas:"", cwiczenia:[], wskazowki:[], bledy:[], wnioski:[]},
       najwazniejsze:[], momenty:[], cytaty:[], rozdzialy:[], szczera_ocena:"", czego_nie_wiadomo:[], pytania:[]} : null;
+  if (p.wstepne) {                        // szybki podgląd (z samej mowy); kroki, jeśli już są, zostają
+    const w = p.wstepne;
+    dane = {...w, partial:true, wstepne:true, typ:dane ? dane.typ : (w.typ || "inne"), tytul_akcent:"",
+      co_masz_zrobic:dane ? dane.co_masz_zrobic : {skladniki:[], kroki:[], sprzet:[], czas:"", cwiczenia:[], wskazowki:[], bledy:[], wnioski:[]},
+      szczera_ocena:"", czego_nie_wiadomo:[], pytania:[], momenty:[], cytaty:[], rozdzialy:[]};
+  }
   return {live:true, zrodlo:{tytul:m.tytul || j?.label || "…", autor:m.autor, dlugosc_s:m.dlugosc_s || 0, szerokosc:m.szerokosc, wysokosc:m.wysokosc},
     transkrypcja:{jezyk:tr.jezyk, segmenty:tr.segmenty || [], tlumaczenia:tls}, napisy_ekranowe:p.napisy || [],
     kadry:kadry.map(x => ({t:x.t, file:x.file})),
@@ -621,6 +670,7 @@ function tabsFor(d){
     if (d.momenty.length) tl.push(["mom", t("t_mom")]);
     if (d.cytaty.length) tl.push(["quo", t("t_quo")]);
     if (d.rozdzialy.length) tl.push(["cha", t("t_cha")]);
+    if (!d.wstepne && (d.rozdzialy.length || d.najwazniejsze.length)) tl.push(["map", t("t_map")]);
   }
   tl.push(["tr", t("t_tr")], ["fr", t("t_fr")]);
   return tl;
@@ -647,6 +697,7 @@ function renderTab(d){
   if (tab === "cha") return `<h3 class="big">${t("chapters")}</h3><div class="items">${d.rozdzialy.map((x,i) =>
     `<div class="it" data-t="${x.start}"><span class="n">${String(i+1).padStart(2,"0")}</span><div><div class="top"><span>${tsb(x.start)} – ${fmt(x.end)}</span><span class="tag">${t("seg")} #${i+1}</span></div><h4>${esc(x.tytul)}</h4><p>${esc(x.opis)}</p>
      ${x.momenty.length ? `<div style="margin-top:8px;display:grid;gap:5px">${x.momenty.map(m => `<div style="font-size:13px">${tsb(m.t)} ${esc(m.tekst)}</div>`).join("")}</div>` : ""}</div></div>`).join("")}</div>`;
+  if (tab === "map") return mapHtml(d);
   if (tab === "tr") {
     const segs = r.transkrypcja.segmenty || [], tls = r.transkrypcja.tlumaczenia || {}, langs = Object.keys(tls);
     if (cur.trLang && !tls[cur.trLang]) cur.trLang = "";
@@ -713,12 +764,16 @@ function readTime(d){
   return s ? `<span class="rtime">≈ ${s >= 60 ? Math.floor(s/60) + " min " + String(s%60).padStart(2,"0") + " s" : s + " s"} ${t("reading")}</span>` : "";
 }
 function sumHtml(r, d){
-  const top = `<div class="hand">~ ${t("summary")} ~</div><div class="label">${t("summary")} ${d && d.streszczenie.length ? readTime(d) : ""}</div><hr class="rule">`;
+  const pvTag = d?.wstepne ? `<span class="pvtag">${t("pv_badge")}</span>`
+    : (r.podglad?.po_s && r.czasy?.razem_s ? `<span class="pvtag done">${t("pv_done", fmt(r.podglad.po_s), fmt(r.czasy.razem_s))}</span>` : "");
+  const top = `<div class="hand">~ ${t("summary")} ~</div><div class="label">${t("summary")} ${d && d.streszczenie.length ? readTime(d) : ""}${pvTag}</div><hr class="rule">`;
   if (!d || !d.streszczenie.length) {
     if (cur.live) return top + `<div class="skel"><i></i><i></i><i></i><i></i><i style="width:55%"></i></div>
       <p class="muted small">${t(d?.partial ? "live_steps_ready" : "live_wait_sum")}</p>`;
     return top + (r.streszczenie ? `<div class="md">${md(r.streszczenie.markdown)}</div>` : `<p class="muted">${t("no_data")}</p>`);
   }
+  if (d.wstepne) return top + `<div class="summary prelim">${d.streszczenie.map(p => `<p>${inline(p)}</p>`).join("")}</div>
+    <p class="muted small pvnote">${t("pv_note")}${d.metoda ? ` <span>(${esc(d.metoda)})</span>` : ""}</p>`;
   return top + `<div class="summary">${d.streszczenie.map(p => `<p>${inline(p)}</p>`).join("")}</div>
     ${cur.live ? "" : `<div class="sumact"><button class="btn" data-a="copysum">⧉ ${t("copy_sum")}</button><button class="btn" data-a="trsum">文A ${t("tr_sum")}</button></div>`}
     ${d.do_zapamietania ? `<blockquote class="pull"><div class="label" style="margin-bottom:4px">${t("remember")}</div>${esc(d.do_zapamietania)}</blockquote>` : ""}
@@ -789,7 +844,7 @@ function renderResult(){
   $("#res").classList.toggle("live", !!cur.live);
   stable(() => {
     put("#rhead", headHtml(r, d));
-    put("#csum", sumHtml(r, d), cur.live && !(d && d.streszczenie.length));
+    put("#csum", sumHtml(r, d), cur.live && !(d && d.streszczenie.length && !d.wstepne));
     if (put("#cplayer", playerHtml(r))) {
       const v = $("#vid");
       if (v) {
@@ -801,7 +856,7 @@ function renderResult(){
     }
     if (put("#cchat", chatHtml(d))) renderChat();
     put("#tabs", tl.map(([k,lab]) => `<button data-tab="${k}" class="${k===tab?"on":""}">${lab}</button>`).join(""));
-    put("#tabc", renderTab(d));
+    if (put("#tabc", renderTab(d)) && tab === "map") initMap();
   });
 }
 function highlight(){
@@ -809,6 +864,163 @@ function highlight(){
   const els = [...document.querySelectorAll("#tabc [data-t]")]; let best = null;
   for (const el of els) if (Number(el.dataset.t) <= now + 0.3) best = el;
   els.forEach(el => el.classList.toggle("now", el === best && !v.paused));
+}
+/* ---------- mapa myśli (0.8.2) ----------
+   Środek: temat filmu. Gałęzie: rozdziały (liście: kroki z danego rozdziału albo momenty rozdziału) i „Najważniejsze”.
+   Każdy węzeł ma czas — kliknięcie pokazuje opis i zdanie z transkrypcji z tej chwili oraz przewija film. */
+const MAPC = ["#5b8cff","#a46bff","#ff5c8a","#ffb347","#3ccf91","#4cc9f0","#f77fbe","#c3e05b"];
+const clip = (x, n) => { x = String(x || "").trim(); return x.length > n ? x.slice(0, n - 1).trimEnd() + "…" : x; };
+function mapData(d){
+  const r = cur.r, kroki = (d.co_masz_zrobic?.kroki) || [], br = [];
+  d.rozdzialy.forEach(ch => {
+    let kids = kroki.filter(k => k.t >= ch.start && k.t < ch.end).map(k => ({label:k.tekst, t:k.t, info:k.tekst}));
+    if (!kids.length) kids = (ch.momenty || []).map(m => ({label:m.tekst, t:m.t, info:m.tekst}));
+    br.push({label:ch.tytul, t:ch.start, end:ch.end, info:ch.opis, kids:kids.slice(0, 6)});
+  });
+  if (d.najwazniejsze.length)
+    br.push({label:t("map_key"), t:d.najwazniejsze[0].t, info:"", kids:d.najwazniejsze.slice(0, 6).map(x => ({label:x.tytul, t:x.t, info:x.opis}))});
+  return {label:d.tytul || r.zrodlo.tytul || "VidSum", info:d.teza || "", t:0, kids:br};
+}
+function wrapTxt(x, n, max){            // podział etykiety na linie po ~n znaków (najwyżej max linii)
+  const words = String(x || "").trim().split(/\s+/), out = [];
+  let line = "";
+  for (const w of words) {
+    if (line && (line + " " + w).length > n) { out.push(line); line = w; } else line = line ? line + " " + w : w;
+  }
+  if (line) out.push(line);
+  if (out.length > max) { out.length = max; out[max - 1] = clip(out[max - 1] + " …", n); }
+  return out.length ? out : [""];
+}
+const CW = [8.4, 7.2, 6.9];             // szerokość znaku (px) na poziomach 0/1/2
+function mapNode(n, lvl, c, maxw){
+  const fs = lvl === 0 ? 14.5 : lvl === 1 ? 12.5 : 12, chars = Math.max(10, Math.floor((maxw - 24) / CW[lvl]));
+  const lines = wrapTxt(n.label, chars, lvl === 2 ? 3 : 2);
+  const w = Math.min(maxw, Math.max(...lines.map(l => l.length)) * CW[lvl] + 24), h = lines.length * (fs + 4) + (lvl === 0 ? 18 : 12);
+  return {...n, lvl, c, lines, fs, w, h};
+}
+/* wąsko (kolumna obok filmu): drzewo z wcięciami — czytelne bez powiększania;
+   szeroko (pełny ekran, tryb Czytaj): klasyczna mapa myśli, gałęzie po obu stronach środka */
+function mapLayout(root, width){
+  const nodes = [], edges = [], kids = root.kids;
+  if (width < 700) {
+    let y = 46;                            // miejsce na przyciski powiększania
+    const r = mapNode(root, 0, "var(--accent)", width - 16); r.x = 8; r.y = y + r.h / 2; y += r.h + 12; nodes.push(r);
+    kids.forEach((b, i) => {
+      const c = MAPC[i % MAPC.length], bn = mapNode(b, 1, c, width - 40);
+      bn.x = 30; bn.y = y + bn.h / 2; y += bn.h + 8; const bi = nodes.push(bn) - 1; edges.push([0, bi, c, "v"]);
+      b.kids.forEach(l => { const ln = mapNode(l, 2, c, width - 68); ln.x = 56; ln.y = y + ln.h / 2; y += ln.h + 6;
+        edges.push([bi, nodes.push(ln) - 1, c, "v"]); });
+      y += 10;
+    });
+    return {nodes, edges, vb:[0, 0, width, Math.max(y, 120)]};
+  }
+  const r = mapNode(root, 0, "var(--accent)", 220); r.x = -r.w / 2; r.y = 0; nodes.push(r);
+  const sides = [[], []]; kids.forEach((b, i) => sides[i < Math.ceil(kids.length / 2) ? 0 : 1].push([b, i]));
+  let minY = -r.h / 2, maxY = r.h / 2;
+  sides.forEach((side, si) => {
+    const dir = si ? -1 : 1, blocks = side.map(([b, i]) => {
+      const c = MAPC[i % MAPC.length], bn = mapNode(b, 1, c, 170), ls = b.kids.map(l => mapNode(l, 2, c, 240));
+      const hh = Math.max(bn.h, ls.reduce((s, l) => s + l.h + 8, -8)); return {bn, ls, hh};
+    });
+    const total = blocks.reduce((s, x) => s + x.hh + 22, -22);
+    let y = -total / 2;
+    for (const {bn, ls, hh} of blocks) {
+      bn.y = y + hh / 2; bn.x = dir > 0 ? r.w / 2 + 70 : -r.w / 2 - 70 - bn.w;
+      const bi = nodes.push(bn) - 1; edges.push([0, bi, bn.c, "h"]);
+      let ly = y + (hh - ls.reduce((s, l) => s + l.h + 8, -8)) / 2;
+      for (const ln of ls) { ln.y = ly + ln.h / 2; ln.x = dir > 0 ? bn.x + bn.w + 50 : bn.x - 50 - ln.w; ly += ln.h + 8;
+        edges.push([bi, nodes.push(ln) - 1, bn.c, "h"]); }
+      y += hh + 22;
+    }
+    minY = Math.min(minY, -total / 2); maxY = Math.max(maxY, total / 2);
+  });
+  const xs = nodes.flatMap(n => [n.x, n.x + n.w]), x0 = Math.min(...xs) - 20, x1 = Math.max(...xs) + 20;
+  return {nodes, edges, vb:[x0, minY - 20, x1 - x0, maxY - minY + 40]};
+}
+function mapSvg(d, width){
+  const {nodes, edges, vb} = mapLayout(mapData(d), width);
+  cur.mapNodes = nodes;
+  const path = ([a, b, c, k]) => { const A = nodes[a], B = nodes[b];
+    if (k === "v") { const x = A.x + 12, top = A.y + A.h / 2; return `M${x},${top} V${B.y - 8} Q${x},${B.y} ${x + 8},${B.y} H${B.x}`; }
+    const right = B.x > A.x, sx = right ? A.x + A.w : A.x, ex = right ? B.x : B.x + B.w, mx = (sx + ex) / 2;
+    return `M${sx},${A.y} C${mx},${A.y} ${mx},${B.y} ${ex},${B.y}`; };
+  const svgE = edges.map(e => `<path d="${path(e)}" stroke="${e[2]}" stroke-width="${nodes[e[0]].lvl ? 1.6 : 2.4}" fill="none" opacity=".8"/>`).join("");
+  const svgN = nodes.map((n, i) => {
+    const fill = n.lvl === 2 ? "var(--card)" : n.c, ink = n.lvl === 2 ? "var(--ink)" : "#fff";
+    const ty = -((n.lines.length - 1) * (n.fs + 4)) / 2;
+    return `<g class="mnode" data-i="${i}" tabindex="0" role="button" aria-label="${esc(n.label)}" transform="translate(${n.x},${n.y})">
+      <rect x="0" y="${-n.h/2}" width="${n.w}" height="${n.h}" rx="${n.lvl === 2 ? 10 : Math.min(n.h / 2, 16)}" fill="${fill}" stroke="${n.c}" stroke-width="${n.lvl === 2 ? 1.4 : 0}"/>
+      <text x="12" y="${ty}" dy=".35em" fill="${ink}" font-size="${n.fs}" font-weight="${n.lvl === 2 ? 450 : 600}">${n.lines.map((l, j) =>
+        `<tspan x="12" dy="${j ? n.fs + 4 : 0}">${esc(l)}</tspan>`).join("")}</text></g>`; }).join("");
+  return {inner:svgE + svgN, vb:vb.map(v => Math.round(v * 10) / 10)};
+}
+function mapHtml(d){
+  const w = Math.round($("#tabc")?.clientWidth || 400), m = mapSvg(d, w);
+  return `<h3 class="big">${t("t_map")}</h3>
+    <div class="mapwrap" id="mapwrap"><div class="maptools"><button class="btn sm" data-z="1.25" aria-label="+">+</button><button class="btn sm" data-z="0.8" aria-label="−">−</button>
+      <button class="btn sm" data-z="0">${t("map_reset")}</button><button class="btn sm" data-z="full">⤢ ${t("map_full")}</button></div>
+      <svg id="mapsvg" viewBox="${m.vb.join(" ")}" data-vb="${m.vb.join(" ")}" class="${w < 700 ? "tall" : ""}" style="height:${w < 700 ? Math.max(m.vb[3] + 50, 240) : 460}px" preserveAspectRatio="xMidYMid meet">${m.inner}</svg><div id="mapinfo" class="note mapinfo" hidden></div></div>
+    <p class="muted small">${t("map_hint")}</p>`;
+}
+function spokenAt(tt){                  // zdanie z transkrypcji (oryginał) w tej chwili filmu
+  const segs = cur.r.transkrypcja?.segmenty || [];
+  let best = null;
+  for (const s of segs) { if (s.start <= tt + 0.5) best = s; else break; }
+  return best ? best.text : "";
+}
+function initMap(){
+  const svg = $("#mapsvg"); if (!svg) return;
+  let vb = svg.dataset.vb.split(" ").map(Number), base = vb.slice();
+  const set = () => svg.setAttribute("viewBox", vb.join(" "));
+  const wrap = $("#mapwrap");
+  wrap.addEventListener("fullscreenchange", () => {      // pełny ekran: szeroki układ; po wyjściu — z powrotem wąski
+    const d = data(); if (!d) return;
+    const full = document.fullscreenElement === wrap, m = mapSvg(d, full ? innerWidth : Math.round($("#tabc").clientWidth));
+    svg.innerHTML = m.inner; vb = m.vb.slice(); base = vb.slice(); set();
+    const tall = !full && m.vb[2] < 700;
+    svg.classList.toggle("tall", tall);
+    if (!full) svg.style.height = (tall ? Math.max(m.vb[3] + 50, 240) : 460) + "px";
+  });
+  const zoom = (f, cx, cy) => {               // f > 1 = przybliż; środek w punkcie (cx, cy) układu mapy
+    if (cx == null) { cx = vb[0] + vb[2] / 2; cy = vb[1] + vb[3] / 2; }
+    const w = Math.min(Math.max(vb[2] / f, base[2] / 6), base[2] * 2.5), k = w / vb[2];
+    vb = [cx - (cx - vb[0]) * k, cy - (cy - vb[1]) * k, w, vb[3] * k]; set();
+  };
+  const toMap = e => { const r = svg.getBoundingClientRect(), s = Math.max(vb[2] / r.width, vb[3] / r.height);
+    return [vb[0] + (e.clientX - r.left - (r.width - vb[2] / s) / 2) * s, vb[1] + (e.clientY - r.top - (r.height - vb[3] / s) / 2) * s, s]; };
+  svg.addEventListener("wheel", e => {
+    if (svg.classList.contains("tall") && !e.ctrlKey) return;    // wąska, wysoka mapa: kółko przewija stronę
+    e.preventDefault(); const [x, y] = toMap(e); zoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, x, y); }, {passive:false});
+  let drag = null;
+  svg.addEventListener("pointerdown", e => { drag = {x:e.clientX, y:e.clientY, vb:vb.slice(), moved:false, s:toMap(e)[2]}; svg.setPointerCapture(e.pointerId); });
+  svg.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    if (drag.moved) { vb = [drag.vb[0] - dx * drag.s, drag.vb[1] - dy * drag.s, vb[2], vb[3]]; set(); svg.classList.add("panning"); }
+  });
+  svg.addEventListener("pointerup", e => {
+    const was = drag; drag = null; svg.classList.remove("panning");
+    if (was && !was.moved) { const g = document.elementFromPoint(e.clientX, e.clientY)?.closest(".mnode"); if (g) pickNode(Number(g.dataset.i)); }
+  });
+  svg.addEventListener("keydown", e => { const g = e.target.closest?.(".mnode"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickNode(Number(g.dataset.i)); } });
+  $("#mapwrap .maptools").onclick = e => {
+    const b = e.target.closest("[data-z]"); if (!b) return;
+    if (b.dataset.z === "full") { const w = $("#mapwrap"); document.fullscreenElement ? document.exitFullscreen() : w.requestFullscreen?.().catch(()=>{}); return; }
+    if (b.dataset.z === "0") { vb = base.slice(); set(); return; }
+    zoom(Number(b.dataset.z));
+  };
+}
+function pickNode(i){
+  const n = cur.mapNodes?.[i], box = $("#mapinfo"); if (!n || !box) return;
+  document.querySelectorAll(".mnode.on").forEach(g => g.classList.remove("on"));
+  document.querySelector(`.mnode[data-i="${i}"]`)?.classList.add("on");
+  const said = n.lvl ? spokenAt(n.t) : "";
+  box.hidden = false;
+  box.innerHTML = `<h4>${esc(n.label)}</h4>${n.lvl ? `<div class="top">${tsb(n.t)}${n.end != null ? ` – ${fmt(n.end)}` : ""}</div>` : ""}
+    ${n.info && n.info !== n.label ? `<p>${inline(n.info)}</p>` : ""}
+    ${said ? `<p class="muted small"><b>${t("map_said")}</b> „${esc(said)}”</p>` : ""}`;
+  if (n.lvl) seek(n.t);
 }
 function seek(s){
   const v = $("#vid");

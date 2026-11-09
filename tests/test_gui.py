@@ -79,6 +79,14 @@ def test_settings_roundtrip_and_whitelist(server, tmp_path):
     assert saved["jezyk_ui"] == "en"
 
 
+def test_quick_preview_switch_is_saved_and_used(server):
+    """Przełącznik „Szybki podgląd” (0.8.2): domyślnie wyłączony, zapisuje się w ustawieniach i trafia do analizy."""
+    base, app = server
+    assert app.options(app.settings).preview is False
+    _, s = req(base, "/api/ustawienia", data=json.dumps({"podglad": True}).encode(), method="POST")
+    assert s["podglad"] is True and app.options(app.settings).preview is True
+
+
 def test_upload_polish_name_and_results(server):
     base, app = server
     data = (DATA / "bez_audio.mp4").read_bytes()

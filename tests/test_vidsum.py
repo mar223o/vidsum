@@ -1126,3 +1126,70 @@ def test_par_fry_is_not_steaming():
     assert fix_terms("znaczenie parowania frytek", src) == "znaczenie wstępnego smażenia frytek"
     assert fix_terms("Parowanie frytek", src) == "Wstępne smażenie frytek"
     assert fix_terms("parzenie", "Steam them for ten minutes") == "parzenie"
+
+
+def test_quick_preview_on_vision_model_before_full_summary(tmp_path, ollama, monkeypatch):
+    """0.8.2 „Szybki podgląd”: wstępne streszczenie z mowy idzie na modelu obrazu (już na karcie, ten sam kontekst —
+    bez przeładowania), przychodzi PRZED pełnym, a wynik zapisuje, po ilu sekundach był gotowy."""
+    import vidsum.pipeline as pl
+    import vidsum.ocr as ocr
+    from vidsum.llm import VISION_CTX
+    from vidsum.transcribe import Segment, Transcript
+
+    class FakeWhisper:
+        def __init__(self, *a, hotwords=None, **k):
+            self.hotwords, self.coverage_hints, self.recovered, self.cuda_download = hotwords, [], 0, False
+
+        def resolve_device(self, log=None):
+            return "cuda", None
+
+        def transcribe(self, wav, language=None):
+            return Transcript("pl", "atrapa:cuda", [Segment(1, 3, "Pokrój cebulę i wlej mleko"),
+                                                    Segment(9, 12, "Mieszaj pięć minut na małym ogniu")])
+    monkeypatch.setattr(pl, "WhisperEngine", FakeWhisper)
+    monkeypatch.setattr(ocr, "read_captions", lambda *a, **k: [])
+    monkeypatch.setattr(ocr, "ensure_models", lambda root, log=None: root)
+    got = []
+    opt = pl.Options(out_root=tmp_path, ollama_host=ollama, vision_model="fake-vl", text_model="fake-txt",
+                     max_frames=3, translate=[], preview=True, on_partial=lambda k, d: got.append((k, d)))
+    out = pl.analyze(str(DATA / "Filmy testowe ąęś" / "przepis z mową.mp4"), opt, log=lambda m: None)
+    kinds = [k for k, _ in got]
+    assert "wstepne" in kinds
+    if "kroki" in kinds:
+        assert kinds.index("wstepne") < kinds.index("kroki")
+    w = dict(got)["wstepne"]
+    assert w["wstepne"] is True and w["streszczenie"] and w["metoda"].startswith("szybki podgląd")
+    q = [c for c in FakeOllama.calls if c.get("messages") and "QUICK PRELIMINARY" in c["messages"][0]["content"]]
+    assert len(q) == 1 and q[0]["model"] == "fake-vl" and q[0]["options"]["num_ctx"] == VISION_CTX
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    assert r["podglad"]["po_s"] > 0 and r["streszczenie"]["dane"].get("wstepne") is None   # pełne zastąpiło wstępne
+    assert "Szybki podgląd" in (out / "raport.md").read_text(encoding="utf-8")
+
+
+def test_no_quick_preview_when_switch_off(tmp_path, ollama):
+    import vidsum.pipeline as pl
+    out = pl.analyze(str(DATA / "bez_audio.mp4"), pl.Options(out_root=tmp_path, ollama_host=ollama, vision_model="fake-vl",
+                                                            text_model="fake-txt", max_frames=3, translate=[], ocr=False),
+                     log=lambda m: None)
+    assert not [c for c in FakeOllama.calls if c.get("messages") and "QUICK" in c["messages"][0]["content"]]
+    assert json.loads((out / "analiza.json").read_text(encoding="utf-8"))["podglad"] is None
+
+
+def test_quick_summary_guards_numbers_and_long_transcripts():
+    from vidsum.summary import quick_lines, quick_summary
+    segs = [{"start": 1, "text": "Smaż w oleju w 140 stopniach."}]
+
+    class E:
+        def complete(self, prompt, as_json=False, **kw):
+            self.kw = kw
+            return json.dumps({"tytul": "Frytki", "teza": "Frytki smażone dwa razy.",
+                               "streszczenie": ["Smaż w 140 stopniach. Potem w 200 stopniach."],
+                               "najwazniejsze": [{"t": 1, "tytul": "Olej", "opis": "140 stopni."}]})
+    e = E()
+    d = quick_summary(e, segs, "", 60, num_ctx=3072)
+    assert d["wstepne"] and d["streszczenie"] == ["Smaż w 140 stopniach."]      # 200 nie padło w filmie
+    assert e.kw["num_ctx"] == 3072 and d["czas_czytania_s"] > 0
+    long = [{"start": i, "text": "słowo " * 15} for i in range(600)]
+    txt, cut = quick_lines(long, 5000)
+    assert cut and len(txt) <= 5000 and txt.startswith("[0s]") and "[5" in txt.splitlines()[-1][:3]
+    assert quick_summary(e, [], "", 60) is None

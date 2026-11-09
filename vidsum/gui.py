@@ -165,7 +165,8 @@ class App:
     def _load_settings(self) -> dict:
         d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
              "streszczenie": "auto", "model_tekstowy": DEFAULT_TEXT_MODEL, "tlumaczenia": "pl,en", "gpu_pobieranie": True,
-             "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results)}
+             "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results),
+             "podglad": False}
         try:
             saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
             if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":
@@ -197,7 +198,8 @@ class App:
                        summary=s.get("streszczenie") or "auto", max_frames=int(mk) if mk else None,
                        text_model=s.get("model_tekstowy") or DEFAULT_TEXT_MODEL, translate=tl,
                        cuda_download=bool(s.get("gpu_pobieranie", True)),
-                       cookies_from_browser=s.get("ciasteczka_z") or None)
+                       cookies_from_browser=s.get("ciasteczka_z") or None,
+                       preview=bool(s.get("podglad", False)))
 
     def status(self) -> dict:
         st: dict = {"wersja": __version__}

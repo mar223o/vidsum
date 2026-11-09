@@ -105,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--model-streszczenia", default=None, help=argparse.SUPPRESS)   # dawna nazwa
     ap.add_argument("--bez-pobierania-cuda", action="store_true",
                     help="nie pobieraj bibliotek NVIDIA dla Whispera na GPU (zostanie CPU)")
+    ap.add_argument("--szybki-podglad", action="store_true",
+                    help="wstępne streszczenie z samej mowy zaraz po transkrypcji (w programie: przełącznik obok Analizuj)")
     ap.add_argument("--ollama", default=None, help="adres Ollamy (domyślnie http://127.0.0.1:11434)")
     ap.add_argument("--max-kadrow", type=int, default=None)
     ap.add_argument("--ciasteczka-z", default=None, metavar="PRZEGLĄDARKA",
@@ -119,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         ap.error(str(e))
 
     opt = Options(out_root=Path(a.wyniki), language=lang, translate=tl, text_model=a.model_tekstowy,
-                  cuda_download=not a.bez_pobierania_cuda,
+                  cuda_download=not a.bez_pobierania_cuda, preview=a.szybki_podglad,
                   whisper_model=a.whisper, whisper_device=a.whisper_urzadzenie, whisper_root=a.whisper_folder or _models_dir(),
                   transcript_file=Path(a.napisy) if a.napisy else None, vision=a.obraz,
                   vision_model=a.model_obrazu, summary=a.streszczenie, summary_model=a.model_streszczenia,

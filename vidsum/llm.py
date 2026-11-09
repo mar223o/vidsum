@@ -157,11 +157,12 @@ class Ollama:
             return _clean_vision(d)
 
     def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None,
-                 seed: int = 7, temperature: float | None = None) -> str:
+                 seed: int = 7, temperature: float | None = None, num_ctx: int | None = None) -> str:
         # STAŁY kontekst 8192 (większy tylko dla bardzo długich promptów): Ollama przeładowuje model, gdy kolejne
         # zapytania mają różne num_ctx — przy równoległym tłumaczeniu i streszczeniu to kosztowało sekundy
         need = len(prompt) // 3 + 1500
-        num_ctx = TEXT_CTX if need <= TEXT_CTX else min(32768, -(-need // 4096) * 4096)
+        if not num_ctx:   # podany z zewnątrz: np. szybki podgląd na modelu obrazu (ten sam kontekst = bez przeładowania)
+            num_ctx = TEXT_CTX if need <= TEXT_CTX else min(32768, -(-need // 4096) * 4096)
         # JSON (streszczenie, tłumaczenie): temperatura 0 — ten sam film daje to samo streszczenie
         # (na komputerze testowym przy 0.2 raz 11 kroków, raz 2); rozmowa (czat) zostaje lekko swobodniejsza
         body = {"model": self.model, "stream": False, "keep_alive": "5m",

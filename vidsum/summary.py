@@ -1315,3 +1315,67 @@ def verify_quotes(summary: dict, segments: list[dict]) -> int:
             removed += 1
     summary["cytaty"] = kept
     return removed
+
+
+QUICK_PROMPT = """You read the automatic transcript of a video (time in seconds in brackets). {meta}
+Write a QUICK PRELIMINARY summary in POLISH, only from what is said. Do not add anything that is not in the transcript:
+no quantities, temperatures, times or ingredients that are not said. {glossary}
+Return JSON only:
+{{"tytul": "short Polish title, 3-6 words",
+ "teza": "one Polish sentence: what the video is about",
+ "streszczenie": ["Polish paragraph 1: topic and goal", "Polish paragraph 2: main stages in the order they are said, with the numbers that are said"],
+ "najwazniejsze": [{{"t": seconds, "tytul": "2-5 Polish words", "opis": "one Polish sentence"}}]}}
+"najwazniejsze": 3-5 items, "t" = the time of the line it comes from.
+Transcript:
+{lines}"""
+
+
+def quick_lines(segments: list[dict], max_chars: int = 5000) -> tuple[str, bool]:
+    """Linie mowy do szybkiego podglądu: „[12s] tekst”. Za długie → równomiernie wybrane linie (zwraca też, czy
+    przycięto), żeby zmieścić się w kontekście modelu obrazu bez jego przeładowania."""
+    rows = [f"[{int(float(s.get('start', 0)))}s] {str(s.get('text', '')).strip()}" for s in segments
+            if str(s.get("text", "")).strip()]
+    total = sum(len(r) + 1 for r in rows)
+    if total <= max_chars:
+        return "\n".join(rows), False
+    step = total / max_chars
+    keep = [r for i, r in enumerate(rows) if int(i / step) != int((i - 1) / step) or i == 0]
+    out, n = [], 0
+    for r in keep:
+        if n + len(r) + 1 > max_chars:
+            break
+        out.append(r)
+        n += len(r) + 1
+    return "\n".join(out), True
+
+
+def quick_summary(engine, segments: list[dict], meta: str, duration: float, log=lambda s: None,
+                  num_ctx: int | None = None, max_chars: int = 5000) -> dict | None:
+    """Szybki, wstępny podgląd z samej mowy (0.8.2, przełącznik „Szybki podgląd”): jedno zapytanie, zanim powstanie
+    pełne streszczenie. Te same zabezpieczenia co w pełnym: liczby tylko z mowy, poprawki terminów.
+    Wynik ma pole "wstepne": True — interfejs pokazuje go jako wstępny i podmienia na pełny."""
+    lines, cut = quick_lines(segments, max_chars)
+    if not lines:
+        return None
+    prompt = QUICK_PROMPT.format(meta=meta, glossary=GLOSSARY, lines=lines)
+    kw: dict = {"as_json": True, "max_tokens": 900}
+    if num_ctx:
+        kw["num_ctx"] = num_ctx
+    try:
+        raw = engine.complete(prompt, **kw)
+    except TypeError:                                  # silnik bez tych parametrów (Claude, atrapy)
+        raw = engine.complete(prompt, as_json=True)
+    d = parse_summary(raw, duration, allow_partial=True)
+    if not d:
+        return None
+    source = " ".join(str(s.get("text", "")) for s in segments)
+    d = fix_terms_deep(d, source)
+    dropped = drop_unsupported_numbers(d, source)
+    if dropped:
+        log(f"        podgląd: usunięto {dropped} zdanie(a) z liczbą spoza mowy")
+    if not (d.get("streszczenie") or d.get("teza")):
+        return None
+    d["wstepne"] = True
+    d["metoda"] = "szybki podgląd z mowy" + (" (część linii — długi film)" if cut else "")
+    d["czas_czytania_s"] = reading_seconds(d)
+    return d
