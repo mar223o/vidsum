@@ -620,6 +620,11 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
                                                      (r"proszkiem do pieczenia", "sodą oczyszczoną")]),
     (r"duck fat", None, [(r"tłuszcz(\w*) z kaczego pióra", r"tłuszcz\1 z kaczki"), (r"\(duck fat\)", "(tłuszcz z kaczki)"),
                          (r"\bduck fat\b", "tłuszcz z kaczki")]),
+    # par-fry = wstępne smażenie w oleju; model pisał „parzenie”/„parowanie” (pomiar 0.8.1) — to gotowanie na parze
+    (r"par[- ]?fr", r"steam|na parze|parowar",
+     [(rf"\bpar(?:zeni|owani){e}(?: wstępn\w*)?\b", w) for e, w in (("em", "wstępnym smażeniem"), ("e", "wstępne smażenie"),
+                                                                    ("a", "wstępnego smażenia"), ("u", "wstępnemu smażeniu"))]
+     + [(r"\bparzone\b", "wstępnie usmażone")]),
 ]
 
 

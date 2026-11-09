@@ -1115,3 +1115,14 @@ def test_polish_number_inflection_counts_as_number():
     assert {"2", "5"} <= _nums("Smaż przez dwóch minut, potem pięciu")
     assert check_step("Około jednego centymetra kwadratowego.", [1], {1: {"tekst": "Roughly one centimetre square.", "ekran": []}}) \
         == (set(), set())
+
+
+def test_par_fry_is_not_steaming():
+    """Pomiar 0.8.1: model tłumaczył par-fry jako „parzenie”/„parowanie” (= na parze). Poprawka tylko, gdy w filmie
+    padło par-fry i nie ma mowy o parze."""
+    from vidsum.summary import fix_terms
+    src = "And par-fry them. Or blanch them."
+    assert fix_terms("a następnie parzenie i smażenie", src) == "a następnie wstępne smażenie i smażenie"
+    assert fix_terms("znaczenie parowania frytek", src) == "znaczenie wstępnego smażenia frytek"
+    assert fix_terms("Parowanie frytek", src) == "Wstępne smażenie frytek"
+    assert fix_terms("parzenie", "Steam them for ten minutes") == "parzenie"
