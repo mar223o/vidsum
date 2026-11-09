@@ -596,6 +596,46 @@ def open_window(url: str) -> None:
         webbrowser.open(url)
 
 
+def run_window(url: str, app: "App | None" = None) -> bool:
+    """Prawdziwe okno programu (pywebview na WebView2 — jest w każdym Windows 10/11, także bez przeglądarki Edge).
+    Działa na głównym wątku i wraca, gdy okno zostanie zamknięte. False = brak pywebview/WebView2 → stara droga.
+    Okno bez przyspieszania sprzętowego: nie zabiera pamięci karty modelom (pomiar: ~850 MB i analiza 3:40 zamiast ~1:40)."""
+    if os.environ.get("VIDSUM_PRZEGLADARKA") == "1":
+        return False
+    try:
+        import webview                                  # pywebview
+    except Exception as e:                              # brak biblioteki / WebView2 / .NET
+        print(f"Okno programu niedostępne ({type(e).__name__}: {e}) — otwieram w przeglądarce.")
+        return False
+    os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--disable-gpu")
+    if os.name == "nt":
+        try:                                            # osobna pozycja na pasku zadań (nie „Python”)
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("VidSum.Aplikacja")
+        except Exception:
+            pass
+    try:
+        webview.settings["ALLOW_DOWNLOADS"] = True       # „Pobierz JSON” itp.
+        webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
+    except Exception:
+        pass
+    try:
+        win = webview.create_window(f"VidSum {__version__}", url, width=1400, height=900, min_size=(900, 600),
+                                    text_select=True)
+
+        def closing():
+            if app and any(j.status == "trwa" for j in app.worker.jobs.values()):
+                return win.create_confirmation_dialog("VidSum", "Trwa analiza. Zamknąć program i ją przerwać?")
+            return True
+        win.events.closing += closing
+        store = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "okno"
+        webview.start(private_mode=False, storage_path=str(store))
+        return True
+    except Exception as e:
+        print(f"Okno programu nie wystartowało ({type(e).__name__}: {e}) — otwieram w przeglądarce.")
+        return False
+
+
 def serve(port: int = 0, open_browser: bool = True, token: str | None = None, results: Path | None = None) -> None:
     token = token or _persistent_token()
     want = port or DEFAULT_PORT
@@ -604,7 +644,7 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
     elif not port and _running_instance(want):
         url = f"http://127.0.0.1:{want}/?t={token}"
         print(f"VidSum już działa — otwieram: {url}")
-        if open_browser:
+        if open_browser and not run_window(url):
             open_window(url)
         return
     app = App(results or default_results_dir(), token)
@@ -616,7 +656,18 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
     print(f"VidSum {__version__} — interfejs: {url}")
     print("Program działa w tle; wyłączysz go przyciskiem „Zakończ” w interfejsie.")
     if open_browser:
-        threading.Timer(0.5, lambda: open_window(url)).start()
+        # serwer w tle, okno programu na głównym wątku; zamknięcie okna kończy program
+        th = threading.Thread(target=srv.serve_forever, daemon=True)
+        th.start()
+        if run_window(url, app):
+            srv.shutdown()
+            os._exit(0)                                  # także gdy trwała analiza (zamknięcie potwierdzone w oknie)
+        open_window(url)                                 # brak okna → Edge w trybie aplikacji / przeglądarka
+        try:
+            th.join()
+        except KeyboardInterrupt:
+            pass
+        return
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

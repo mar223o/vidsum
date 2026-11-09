@@ -1,6 +1,6 @@
 """VidSum — lokalna analiza filmów (mowa + obraz) z oznaczaniem źródła każdej informacji."""
 
-__version__ = "0.7.11"
+__version__ = "0.8.0"
 
 # Etykiety źródeł używane w całym programie (stałe — część formatu JSON).
 SRC_SPEECH = "mowa"

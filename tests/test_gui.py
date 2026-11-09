@@ -287,3 +287,57 @@ def test_window_falls_back_to_default_browser(monkeypatch):
     monkeypatch.setenv("VIDSUM_PRZEGLADARKA", "1")
     gui.open_window("http://y")
     assert opened == ["http://x", "http://y"]
+
+
+def test_native_window_asks_before_closing_during_analysis(monkeypatch, tmp_path):
+    import sys
+    import types
+    from vidsum import gui
+    calls = {}
+
+    class Ev(list):
+        def __iadd__(self, f):
+            self.append(f)
+            return self
+
+    class Win:
+        def __init__(self):
+            self.events = types.SimpleNamespace(closing=Ev())
+
+        def create_confirmation_dialog(self, title, msg):
+            calls["dialog"] = msg
+            return False
+
+    fake = types.ModuleType("webview")
+    fake.settings = {}
+    win = Win()
+    fake.create_window = lambda title, url, **kw: calls.update(title=title, url=url) or win
+    fake.start = lambda **kw: calls.update(start=kw)
+    monkeypatch.setitem(sys.modules, "webview", fake)
+    monkeypatch.delenv("VIDSUM_PRZEGLADARKA", raising=False)
+    monkeypatch.delenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    job = types.SimpleNamespace(status="gotowe")
+    app = types.SimpleNamespace(worker=types.SimpleNamespace(jobs={"a": job}))
+    assert gui.run_window("http://127.0.0.1:1/?t=x", app) is True
+    assert calls["url"] == "http://127.0.0.1:1/?t=x" and calls["title"].startswith("VidSum")
+    import os
+    assert os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] == "--disable-gpu"
+    close = win.events.closing[0]
+    assert close() is True and "dialog" not in calls            # nic nie trwa — zamyka bez pytania
+    job.status = "trwa"
+    assert close() is False and "Trwa analiza" in calls["dialog"]
+
+
+def test_native_window_missing_library_falls_back(monkeypatch):
+    import builtins
+    from vidsum import gui
+    real = builtins.__import__
+
+    def imp(name, *a, **k):
+        if name == "webview":
+            raise ImportError("brak")
+        return real(name, *a, **k)
+    monkeypatch.setattr(builtins, "__import__", imp)
+    monkeypatch.delenv("VIDSUM_PRZEGLADARKA", raising=False)
+    assert gui.run_window("http://x") is False

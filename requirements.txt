@@ -1,3 +1,4 @@
 faster-whisper==1.2.1
 yt-dlp>=2026.10.26
 rapidocr-onnxruntime==1.2.3
+pywebview==5.4; sys_platform == "win32"

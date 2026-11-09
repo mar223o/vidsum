@@ -278,6 +278,9 @@ jobs:
           & "$dir\python\python.exe" -m vidsum --version
           if ($LASTEXITCODE -ne 0) { throw "zainstalowany VidSum nie działa" }
           if (-not (Test-Path "$dir\vidsum\_build.json")) { throw "brak _build.json" }
+          # okno programu: pywebview + .NET (pythonnet) + WebView2 w zainstalowanym Pythonie
+          & "$dir\python\python.exe" -c "import webview; from webview.platforms import winforms; print('okno programu: ok')"
+          if ($LASTEXITCODE -ne 0) { throw "okno programu (pywebview/WebView2) nie działa w instalacji" }
           # aktualizacja samego kodu na zainstalowanej kopii: paczka C z podmienioną wersją 9.9.9
           $t = "$env:RUNNER_TEMP\akt"; New-Item -ItemType Directory -Force $t | Out-Null
           Expand-Archive $env:ZIP_C -DestinationPath $t -Force
