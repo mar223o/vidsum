@@ -260,3 +260,30 @@ def test_windowless_start_logs_to_file(tmp_path):
     env = dict(os.environ, LOCALAPPDATA=str(tmp_path))
     subprocess.run([sys.executable, "-c", code], env=env, cwd=Path(__file__).parent.parent, timeout=60, check=True)
     assert "VidSum" in (tmp_path / "VidSum" / "vidsum.log").read_text(encoding="utf-8")
+
+
+def test_window_opens_as_edge_app_without_gpu(monkeypatch, tmp_path):
+    import subprocess
+    from vidsum import gui
+    got = {}
+    monkeypatch.setattr(gui, "_edge_exe", lambda: r"C:\Edge\msedge.exe")
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: got.update(args=args))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.delenv("VIDSUM_PRZEGLADARKA", raising=False)
+    gui.open_window("http://127.0.0.1:8765/?t=x")
+    a = got["args"]
+    assert a[0] == r"C:\Edge\msedge.exe" and "--app=http://127.0.0.1:8765/?t=x" in a and "--disable-gpu" in a
+    assert any(x.startswith("--user-data-dir=") and x.endswith("okno") for x in a)
+
+
+def test_window_falls_back_to_default_browser(monkeypatch):
+    from vidsum import gui
+    opened = []
+    monkeypatch.setattr(gui, "_edge_exe", lambda: None)
+    monkeypatch.setattr(gui.webbrowser, "open", opened.append)
+    gui.open_window("http://x")
+    assert opened == ["http://x"]
+    monkeypatch.setattr(gui, "_edge_exe", lambda: "edge")
+    monkeypatch.setenv("VIDSUM_PRZEGLADARKA", "1")
+    gui.open_window("http://y")
+    assert opened == ["http://x", "http://y"]

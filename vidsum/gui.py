@@ -566,6 +566,36 @@ def _replace_older(port: int, token: str) -> bool:
     return False
 
 
+def _edge_exe() -> str | None:
+    """Edge jest w każdym Windows 10/11 — z niego robimy osobne okno programu."""
+    if os.name != "nt":
+        return None
+    for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LOCALAPPDATA")):
+        if base:
+            p = Path(base) / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+            if p.exists():
+                return str(p)
+    return shutil.which("msedge")
+
+
+def open_window(url: str) -> None:
+    """VidSum we własnym oknie (bez kart i paska adresu, własna ikona na pasku zadań) — Edge w trybie aplikacji,
+    z osobnym profilem i BEZ przyspieszania sprzętowego: okno nie zabiera pamięci karty modelom (pomiar: przeglądarki
+    i inne programy brały ~850 MB karty i analiza trwała 3:40 zamiast ~1:40). Bez Edge / VIDSUM_PRZEGLADARKA=1 →
+    domyślna przeglądarka, jak dotąd."""
+    edge = None if os.environ.get("VIDSUM_PRZEGLADARKA") == "1" else _edge_exe()
+    if not edge:
+        webbrowser.open(url)
+        return
+    prof = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "okno"
+    args = [edge, f"--app={url}", f"--user-data-dir={prof}", "--disable-gpu", "--window-size=1400,900",
+            "--no-first-run", "--no-default-browser-check"]
+    try:
+        subprocess.Popen(args, close_fds=True)
+    except OSError:
+        webbrowser.open(url)
+
+
 def serve(port: int = 0, open_browser: bool = True, token: str | None = None, results: Path | None = None) -> None:
     token = token or _persistent_token()
     want = port or DEFAULT_PORT
@@ -575,7 +605,7 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
         url = f"http://127.0.0.1:{want}/?t={token}"
         print(f"VidSum już działa — otwieram: {url}")
         if open_browser:
-            webbrowser.open(url)
+            open_window(url)
         return
     app = App(results or default_results_dir(), token)
     try:
@@ -586,7 +616,7 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
     print(f"VidSum {__version__} — interfejs: {url}")
     print("Program działa w tle; wyłączysz go przyciskiem „Zakończ” w interfejsie.")
     if open_browser:
-        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+        threading.Timer(0.5, lambda: open_window(url)).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
