@@ -113,17 +113,25 @@ class _NoAuthOnRedirect(urllib.request.HTTPRedirectHandler):
         return new
 
 
-def _open(url: str, token: str, accept: str = "application/vnd.github+json", timeout: float = 60):
-    req = urllib.request.Request(url, headers={"Accept": accept, "Authorization": f"Bearer {token}",
-                                               "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "VidSum-aktualizacje"})
+def _open(url: str, token: str | None, accept: str = "application/vnd.github+json", timeout: float = 60):
+    """Zapytanie do GitHuba. Repozytorium jest publiczne (od 0.7.8) — klucz niepotrzebny; jeśli zapisany, idzie dalej
+    (prywatne repozytorium / wyższy limit zapytań)."""
+    h = {"Accept": accept, "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "VidSum-aktualizacje"}
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=h)
     opener = urllib.request.build_opener(_NoAuthOnRedirect)
     try:
         return opener.open(req, timeout=timeout)
     except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            raise UpdateError("GitHub odrzucił klucz (wygasł albo nie ma dostępu do repozytorium VidSum).") from e
+        if e.code == 401 or (e.code == 403 and token):
+            raise UpdateError("GitHub odrzucił klucz (wygasł albo nie ma dostępu do repozytorium VidSum). "
+                              "Usuń go w Ustawieniach → Aktualizacje — przy publicznym repozytorium nie jest potrzebny.") from e
+        if e.code == 403:
+            raise UpdateError("GitHub chwilowo ogranicza zapytania (limit na godzinę) — spróbuj za chwilę.") from e
         if e.code == 404:
-            raise UpdateError("Brak wydań albo klucz nie ma dostępu do repozytorium VidSum.") from e
+            raise UpdateError("Brak wydań" + (" albo klucz nie ma dostępu do repozytorium VidSum." if token else
+                              " albo repozytorium jest prywatne — wtedy wklej klucz w Ustawieniach → Aktualizacje.")) from e
         raise UpdateError(f"GitHub: błąd {e.code}.") from e
     except urllib.error.URLError as e:
         raise UpdateError(f"Brak połączenia z GitHubem ({e.reason}).") from e
@@ -148,9 +156,7 @@ def can_swap_code() -> bool:
 
 
 def check(token: str | None = None) -> dict:
-    token = token or token_get()
-    if not token:
-        raise UpdateError("Brak klucza GitHub — wklej go w Ustawieniach → Aktualizacje.")
+    token = token or token_get()                    # opcjonalny (repozytorium publiczne)
     with _open(f"{API}/repos/{REPO}/releases/latest", token) as r:
         rel = json.loads(r.read().decode("utf-8"))
     tag = rel.get("tag_name", "").lstrip("v")
@@ -242,9 +248,7 @@ def restart_ui() -> None:
 
 def apply(info: dict, token: str | None = None, log=print) -> str:
     """Pobiera i instaluje aktualizację. Zwraca „kod” (trzeba uruchomić ponownie) albo „pelna” (instalator uruchomiony)."""
-    token = token or token_get()
-    if not token:
-        raise UpdateError("Brak klucza GitHub.")
+    token = token or token_get()                    # opcjonalny (repozytorium publiczne)
     assets = info.get("_assets") or {}
     name = info.get("plik")
     if not name or name not in assets:

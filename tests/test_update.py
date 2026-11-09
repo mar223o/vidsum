@@ -98,3 +98,24 @@ def test_credential_manager_roundtrip(monkeypatch):
     finally:
         update.token_delete()
     assert update.token_get() is None
+
+
+def test_check_works_without_key_on_public_repo(monkeypatch):
+    """Od 0.7.8 repozytorium jest publiczne: bez klucza nie wysyłamy nagłówka Authorization."""
+    import urllib.request
+    seen = {}
+
+    class R(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    class Op:
+        def open(self, req, timeout=60):
+            seen["auth"] = req.get_header("Authorization")
+            return R(json.dumps({"tag_name": "v0.0.1", "assets": []}).encode())
+    monkeypatch.setattr(update, "token_get", lambda: None)
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *a: Op())
+    assert update.check()["jest_nowsza"] is False and seen["auth"] is None

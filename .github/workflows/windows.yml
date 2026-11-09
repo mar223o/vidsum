@@ -1,17 +1,46 @@
 name: Windows — testy i budowa VidSum
 
-# Budowa Windows tylko przy wydaniu (tag v*) albo ręcznie: minuty Windows w prywatnym repozytorium liczą się x2
-# (na komputerze testowym 90% limitu zużyte w listopadzie). Zwykłe zmiany sprawdza tani test na Linuksie (testy.yml).
+# Wydanie automatyczne (repozytorium publiczne — budowa na maszynach GitHuba jest darmowa): gdy na main trafi nowa
+# wersja w vidsum/__init__.py, a wydania v<wersja> jeszcze nie ma (albo nie ma w nim instalatora), GitHub buduje
+# instalator, paczkę aktualizacji i sam publikuje wydanie. Tag tworzy tu GitHub, nie człowiek.
 on:
   push:
+    branches: [main]
+    paths: ["vidsum/__init__.py", ".github/workflows/windows.yml"]
     tags: ["v*"]
   workflow_dispatch:
 
 permissions:
-  contents: write   # tylko do tworzenia Release przy tagu v*
+  contents: write   # tworzenie tagu i wydania
+
+concurrency:
+  group: wydanie
+  cancel-in-progress: false
 
 jobs:
+  wersja:
+    runs-on: ubuntu-latest
+    outputs:
+      ver: ${{ steps.v.outputs.ver }}
+      need: ${{ steps.v.outputs.need }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ver=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' vidsum/__init__.py)
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+          # wydanie już kompletne (jest instalator) — nic nie budujemy
+          if gh release view "v$ver" --json assets -q '.assets[].name' 2>/dev/null | grep -qx "VidSum-Setup-$ver.exe"; then
+            echo "need=false" >> "$GITHUB_OUTPUT"; echo "v$ver już wydane"
+          else
+            echo "need=true" >> "$GITHUB_OUTPUT"; echo "buduję v$ver"
+          fi
+
   build:
+    needs: wersja
+    if: needs.wersja.outputs.need == 'true'
     runs-on: windows-latest
     timeout-minutes: 75
     defaults:
@@ -300,23 +329,27 @@ jobs:
             ${{ env.ZIP_B }}.sha256
           retention-days: 7
 
-      - name: Release (tylko przy tagu v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Release (tag v<wersja> tworzy GitHub)
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: v${{ needs.wersja.outputs.ver }}
         run: |
           $files = @($env:SETUP, "$env:SETUP.sha256", $env:ZIP_C, "$env:ZIP_C.sha256", $env:META_C, "$env:META_C.sha256",
                      $env:ZIP_A, "$env:ZIP_A.sha256", $env:ZIP_B, "$env:ZIP_B.sha256")
-          gh release view $env:GITHUB_REF_NAME 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            # po jednym pliku, z ponowieniem: duże pliki wysyłane naraz kończyły się „HTTP 408 Upload body timed out”
-            foreach ($f in $files) {
-              $ok = $false
-              for ($i = 1; $i -le 4 -and -not $ok; $i++) {
-                gh release upload $env:GITHUB_REF_NAME $f --clobber
-                if ($LASTEXITCODE -eq 0) { $ok = $true } else { Write-Host "ponawiam $f ($i)"; Start-Sleep (15 * $i) }
-              }
-              if (-not $ok) { throw "nie udało się wysłać $f" }
-            }
+          $notes = "RAPORT_$($env:TAG.TrimStart('v')).md"
+          if (-not (Test-Path $notes)) { $notes = "RAPORT_FAZA2.md" }
+          gh release view $env:TAG 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            # najpierw puste wydanie (tworzy tag na tym commicie), potem pliki po jednym
+            gh release create $env:TAG --target $env:GITHUB_SHA --title "VidSum $env:TAG" --notes-file $notes --latest
+            if ($LASTEXITCODE -ne 0) { throw "nie udało się utworzyć wydania $env:TAG" }
           }
-          else { gh release create $env:GITHUB_REF_NAME @files --title "VidSum $env:GITHUB_REF_NAME" --notes-file $(if (Test-Path "RAPORT_$($env:GITHUB_REF_NAME.TrimStart('v')).md") { "RAPORT_$($env:GITHUB_REF_NAME.TrimStart('v')).md" } else { "RAPORT_FAZA2.md" }) }
+          # po jednym pliku, z ponowieniem: duże pliki wysyłane naraz kończyły się „HTTP 408 Upload body timed out”
+          foreach ($f in $files) {
+            $ok = $false
+            for ($i = 1; $i -le 4 -and -not $ok; $i++) {
+              gh release upload $env:TAG $f --clobber
+              if ($LASTEXITCODE -eq 0) { $ok = $true } else { Write-Host "ponawiam $f ($i)"; Start-Sleep (15 * $i) }
+            }
+            if (-not $ok) { throw "nie udało się wysłać $f" }
+          }
