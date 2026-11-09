@@ -104,3 +104,10 @@ claude mcp add vidsum -- "C:\Users\Jan\Programy\VidSum\VidSum.cmd" --mcp
 ## Pomiar opisu kadrów
 
 `vidsum --pomiar-kadrow "folder analizy"` — te same kadry opisane trzema sposobami (czas, tokeny, opisy obok siebie) → `pomiar_kadrow.md`.
+
+## Autorzy
+- **mar223o** — pomysł, kierunek i decyzje o produkcie, testy na prawdziwych filmach (ok. 40%)
+- **Claude** (Anthropic) — kod, testy automatyczne, pomiary modeli (ok. 50%)
+- **GitHub** (Actions) — budowanie instalatora, testy i wydania (ok. 10%)
+
+Podział jest szacunkiem autorów, nie wyliczeniem.
