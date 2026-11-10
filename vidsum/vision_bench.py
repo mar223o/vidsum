@@ -164,7 +164,7 @@ def score_all(descs: dict, reference: dict, tol: float = 1.5) -> dict:
         used.add(t)
         s = score_description(descs[t], r)
         hits, total, wrong = hits + s["trafione"], total + s["z"], wrong + len(s["bledy"])
-        rows.append({"t": r["t"], "co_widac": r["co_widac"], "opis": descs[t].get("scena", ""), **s})
+        rows.append({"t": r["t"], "kadr_t": t, "co_widac": r["co_widac"], "opis": descs[t].get("scena", ""), **s})
     return {"trafnosc": round(hits / total, 2) if total else None, "bledne_slowa": wrong, "kadry": rows}
 
 
@@ -180,7 +180,9 @@ def compare_models(folder: Path, models: list[str], host: str | None = None, log
     ref = load_reference(a)
     text_model = (a.get("ustawienia") or {}).get("streszczenie", "")
     res: dict = {}
-    for m in models:
+    for name in models:
+        # „model@lekki” = skrócony opis (max 3 czynności, 5 obiektów), którego program używa przy włączonym OCR
+        m, light = name.split("@")[0], name.endswith("@lekki")
         same = text_model.endswith(":" + m) or text_model.endswith(m)
         eng = _Ollama(m, host, timeout=900, vision_ctx=TEXT_CTX if same else VISION_CTX)
         eng.check()
@@ -190,14 +192,14 @@ def compare_models(folder: Path, models: list[str], host: str | None = None, log
         t0 = time.time()
         descs = {}
         for tt, img in frames:
-            descs[tt] = eng.describe_frame(img, f"{int(tt // 60):02d}:{int(tt % 60):02d}")
+            descs[tt] = eng.describe_frame(img, f"{int(tt // 60):02d}:{int(tt % 60):02d}", light=light)
         wall = time.time() - t0
         eng.unload()
-        res[m] = {"wczytanie_s": round(load_s, 1), "opis_s": round(wall, 1), "s_na_kadr": round(wall / len(frames), 2),
+        res[name] = {"wczytanie_s": round(load_s, 1), "opis_s": round(wall, 1), "s_na_kadr": round(wall / len(frames), 2),
                   "opisy": {str(k): v for k, v in descs.items()},
                   "ocena": score_all(descs, ref) if ref else None}
-        log(f"  {m}: wczytanie {load_s:.1f} s, opis {wall:.1f} s ({wall / len(frames):.2f} s/kadr)"
-            + (f", trafność {res[m]['ocena']['trafnosc']}, błędne słowa {res[m]['ocena']['bledne_slowa']}" if ref else ""))
+        log(f"  {name}: wczytanie {load_s:.1f} s, opis {wall:.1f} s ({wall / len(frames):.2f} s/kadr)"
+            + (f", trafność {res[name]['ocena']['trafnosc']}, błędne słowa {res[name]['ocena']['bledne_slowa']}" if ref else ""))
     (folder / "porownanie_modeli_obrazu.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
     L = ["# Porównanie modeli obrazu (te same kadry)", "",
          f"Kadrów: {len(frames)}; wzorzec: {'tak — ' + ref['film'] if ref else 'brak (tylko czasy i opisy)'}", "",
@@ -208,13 +210,15 @@ def compare_models(folder: Path, models: list[str], host: str | None = None, log
     L += ["", "## Opisy obok siebie", ""]
     for tt, _ in frames:
         L.append(f"### {int(tt // 60):02d}:{int(tt % 60):02d}")
-        if ref:
-            r0 = next((r for r in ref["kadry"] if abs(r["t"] - tt) <= 1.5), None)
+        if ref:                                     # ten sam przydział kadr ↔ wzorzec co w ocenie (bez przesunięć)
+            first = next(iter(res.values()))["ocena"] or {}
+            r0 = next((r for r in first.get("kadry", []) if r.get("kadr_t") == tt), None)
             if r0:
                 L.append(f"- _naprawdę_: {r0['co_widac']}")
         for m in res:
             v = res[m]["opisy"].get(str(tt), {})
-            L.append(f"- **{m}**: {v.get('scena', '—')} — {', '.join(v.get('czynnosci', []))}")
+            L.append(f"- **{m}**: {v.get('scena', '—')} — {', '.join(v.get('czynnosci', []))}"
+                     + (f"; obiekty: {', '.join(v.get('obiekty', []))}" if v.get("obiekty") else ""))
         L.append("")
     out = folder / "porownanie_modeli_obrazu.md"
     out.write_text("\n".join(L) + "\n", encoding="utf-8")

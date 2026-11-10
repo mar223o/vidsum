@@ -1,0 +1,66 @@
+Porównanie modeli obrazu (te same kadry)
+Kadrów: 15; wzorzec: tak — The Perfect French Fry (Fallow), https://www.youtube.com/watch?v=BwNqsHb7YQU
+Model	Wczytanie	Opis kadrów	s/kadr	Trafność	Błędne słowa
+qwen3-vl:4b-instruct	10.0 s	29.9 s	1.99	0.76	0
+gemma3:4b	10.5 s	38.7 s	2.58	0.76	0
+Opisy obok siebie
+00:07
+naprawdę: dłonie kroją obranego ziemniaka nożem na drewnianej desce
+qwen3-vl:4b-instruct: Ręce kroją ziemniak na desce z drewna. — krojenie
+gemma3:4b: Ktoś kroi ziemniaka nożem na drewnianej desce. — Krojenie ziemniaka nożem, Trzymanie noża w dłoni, Przesuwanie noża po ziemniaku, Utrzymywanie równowagi ciała podczas krojenia
+00:13
+naprawdę: kucharz przycina ziemniaki nożem na desce
+qwen3-vl:4b-instruct: Kucharz w kuchni przetwarza ziemniaki. — krojenie, trimowanie, obieranie, wycina
+gemma3:4b: Kucharz kroi ziemniaki na desce, koncentrując się na precyzji. — Krojenie ziemniaków nożem, Trzymanie noża, Krojenie ziemniaków, Skręcanie głowy w dół
+00:19
+naprawdę: kucharz trzyma stalową miskę na desce (moczenie)
+qwen3-vl:4b-instruct: Kucharz w kuchni przetwarza warzywa w misce. — wymieszcza misę na desce, trzyma misę, wyciąga coś z miski, przygotowuje warzywa
+gemma3:4b: Kucharz w czarnym fartuchu moczy w zimnej wodzie zawartość metalowej miski. — Kucharz trzyma miskę z zawartością., Kucharz wlewa wodę do miski., Kucharz obserwuje zawartość miski., Kucharz delikatnie miesza zawartość miski.
+00:20
+naprawdę: kucharz trzyma stalową miskę na desce (moczenie)
+qwen3-vl:4b-instruct: Osoba wyciera ręce nad miską z warzywami. — wycieranie rąk, wycieranie rąk nad miską, wycieranie rąk nad miską z warzywami
+gemma3:4b: Kucharz wyciera dłonie z nadmiaru skrobi w srebrnym talerzu. — Wycieranie dłoni o talerz, Obracanie dłoni, Przesuwanie dłoni po talerzu, Utrzymywanie dłoni w powietrzu
+00:21
+naprawdę: mokre dłonie nad miską z pokrojonymi frytkami w wodzie
+qwen3-vl:4b-instruct: Ręce myją ziemniaki w misce pod kranem. — mycie, wlewanie wody, trzymanie miski, wstrzymanie wody
+gemma3:4b: Osoba myje ziemniaki w zlewie, używając strumienia wody. — Wlewanie wody do miski z ziemniakami, Trzymanie miski w dłoni, Przenoszenie ziemniaków z miski do zlewu, Wystawianie ziemniaków pod strumień wody
+00:22
+naprawdę: płukanie frytek w misce pod kranem
+qwen3-vl:4b-instruct: Kucharz w kuchni wycierka wodę z miski. — wycieranie, trzymanie miski, wycieranie wody, wycieranie wody z miski
+gemma3:4b: Kucharz w kuchni, wlewa wodę do miski, zgodnie z instrukcją. — Wlewanie wody do miski, Trzymanie miski ręką, Patrzenie w miskę, Przesuwanie miski
+00:26
+naprawdę: łyżka nad garnkiem z wodą — dodawanie sody
+qwen3-vl:4b-instruct: Ręka wlewa coś do garnka na naczyniu kuchennym. — wlewanie, wskazanie, wyciąganie, przygotowywanie
+gemma3:4b: Ręka dodaje płyn do dużego, ciemnoniebieskiego garnka na kuchence. — Wlewanie płynu z naczynia do garnka, Poruszanie ręką w pobliżu garnka, Utrzymanie ręki nad garnkiem, Mieszanie płynu w garnku
+00:27
+naprawdę: łyżka nad garnkiem z wodą — dodawanie sody
+qwen3-vl:4b-instruct: Kucharz dodaje coś do garnka na indukcyjnej plastry. — wlewanie, mieszanie, dodawanie, przygotowywanie
+gemma3:4b: Kucharz dodaje sól do bulionu w dużym garnku na kuchence. — Kucharz wlewa sól z widelca do garnka., Kucharz miesza sól widelcem w garnku., Kucharz pochyla się nad garnkiem., Kucharz trzyma widelkiem.
+00:43
+naprawdę: dłonie wrzucają frytki do gorącego oleju w garnku (napis 140 °C)
+qwen3-vl:4b-instruct: Kucharz dodaje składniki do garnka na indukcyjnej plastry. — dodawanie, mieszanie, wlewanie, podnoszenie
+gemma3:4b: Kucharz kontroluje temperaturę żółtka w garnku na indukcji. — Kucharz delikatnie miesza żółtka w garnku., Kucharz podnosi garnek, aby sprawdzić temperaturę., Kucharz delikatnie dotyka garnka.
+00:44
+naprawdę: dłonie wrzucają frytki do gorącego oleju w garnku (napis 140 °C)
+qwen3-vl:4b-instruct: Kucharz w kuchni dodaje składnik do garnka. — dodawanie, wyciąganie, przygotowywanie, wymieszanie
+gemma3:4b: Kucharz miesza zawartość dużego garnka, patrząc w kamerę. — Mieszanie zawartości garnka ręką, Patrzenie w kamerę, Podnoszenie ręki, Przesuwanie ręki w kierunku garnka
+00:47
+naprawdę: łyżka cedzakowa (pająk) miesza frytki w oleju
+qwen3-vl:4b-instruct: Kucharz mieszający zimny potrawę w garnku. — mieszanie, wstrzymanie
+gemma3:4b: Kucharz stale miesza kremowy płyn w dużym garnku na kuchence. — Mieszanie płynu za pomocą metalowej trzepaczki, Trzymający trzepaczkę, Mieszanie płynu w garnku, Utrzymywanie pozycji na kuchence
+00:49
+naprawdę: łyżka cedzakowa (pająk) miesza frytki w oleju
+qwen3-vl:4b-instruct: Kucharz trzyma ziemniaki w garnku. — trzymanie, podnoszenie, przenoszenie
+gemma3:4b: Kucharz przenosi gotowane frytki do metalowej tacy. — Przenoszenie frytek za pomocą wideł, Rozkładanie frytek na tacy, Utrzymanie równowagi podczas przenoszenia, Przesuwanie tacy w lewo
+00:53
+naprawdę: złote frytki wyjmowane cedzakiem z garnka z olejem
+qwen3-vl:4b-instruct: Kucharz smaży ziemniaki w garnku. — smażenie, podnoszenie, wyciąganie, wyciąganie z oleju
+gemma3:4b: Szef kuchni podnosi wrzącą porcję frytek, aby dopiec je do złota. — Podnosi widelec z frytkami, Przesuwa frytki widelcem, Wskazuje na napis 'fry until golden', Wyciąga rękę w kierunku potrawy
+00:55
+naprawdę: złote frytki wyjmowane cedzakiem z garnka z olejem
+qwen3-vl:4b-instruct: Ręka wyciąga z miski z papierem ziemniaki. — wyciąganie, przytrzymywanie, wyciąganie z miski, wyciąganie z papieru
+gemma3:4b: Kucharz dodaje frytki do miski z papierowym ręcznikiem. — Podnoszenie miski z frytkami, Wkładanie frytek do miski, Używanie wideł do podnoszenia frytek, Przesuwanie wideł z frytkami
+00:56
+naprawdę: smażone frytki w misce na papierowym ręczniku
+qwen3-vl:4b-instruct: Zdjęcie przedstawia wlewanie frytek na talerz. — wlewanie
+gemma3:4b: Kucharz dodaje frytki z dodatkowym chrupanie na talerz. — Kucharz podnosi talerz z frytkami., Kucharz wylewa frytki na talerz., Kucharz trzyma talerz., Kucharz dodaje napis 'extra crunch'.

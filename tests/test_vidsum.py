@@ -1475,6 +1475,10 @@ def test_compare_vision_models_writes_scored_table(tmp_path, monkeypatch):
     assert ctx == {"qwen3-vl:4b-instruct": llm.VISION_CTX, "gemma3:4b": llm.TEXT_CTX}   # gemma = ten sam co tekstowy
     md = out.read_text(encoding="utf-8")
     assert "_naprawdę_: dłonie wrzucają frytki" in md and "| gemma3:4b |" in md
+    seen_light: list = []
+    monkeypatch.setattr(llm.Ollama, "describe_frame", lambda self, img, lab, light=False: seen_light.append(light) or {"scena": "x"})
+    vision_bench.compare_models(tmp_path, ["qwen3-vl:4b-instruct@lekki"], log=lambda m: None)
+    assert seen_light == [True, True]
 
 
 def test_measured_0110_fixes():
@@ -1500,3 +1504,27 @@ def test_measured_0110_fixes():
             return json.dumps({"1": "", "2": "Przytnij końce i boki."} if "Trim" in prompt else {"1": ""})
     r = grounded_steps(Mute(), lines, "poradnik", "test")
     assert [s["tekst"] for s in r["kroki"]] == ["Obierz.", "Przytnij końce i boki."]
+
+
+def test_gemma_vs_qwen_from_measurement_0111():
+    """Pomiar 0.11.1 (--porownaj-modele-obrazu na Twoim komputerze): podobna trafność, ale gemma3:4b wstawia rzeczy,
+    których na kadrach nie ma (żółtka, trzepaczka, bulion, widelec); qwen3-vl w pełnym opisie — żadnej."""
+    import re
+    from vidsum.summary import fix_terms
+    from vidsum.vision_bench import WZORCE, score_all
+    ref = json.loads((WZORCE / "frytki_kadry.json").read_text(encoding="utf-8"))
+    txt = (DATA / "frytki_0110" / "porownanie_modeli_obrazu_0111.txt").read_text(encoding="utf-8")
+    times = [7.5, 13, 19, 20, 21, 22.5, 26, 27.5, 43, 44, 47.5, 49.5, 53.5, 55, 56.5]
+    got = {}
+    for m in ("qwen3-vl:4b-instruct", "gemma3:4b"):
+        ds = re.findall(re.escape(m) + r": (.*)", txt)
+        got[m] = score_all({t: {"scena": d} for t, d in zip(times, ds)}, ref)
+    assert got["qwen3-vl:4b-instruct"]["bledne_slowa"] == 0
+    assert got["gemma3:4b"]["bledne_slowa"] >= 8
+    assert {r["t"] for r in got["gemma3:4b"]["kadry"] if r["bledy"]} >= {28, 43, 48}
+    # poprawki z przebiegu 0.11.1
+    src = (DATA / "frytki_0110" / "transkrypcja.srt").read_text(encoding="utf-8")
+    assert fix_terms("Powinny łamać się bez pękających.", src) == "Powinny łamać się, ale nie pękać."
+    assert fix_terms("Zakończ posypując solą maldon.", src) == "Zakończ posypując solą Maldon."
+    assert fix_terms("To doda piękna chrupiącą warstwę.", src) == "To doda piękną, chrupiącą warstwę."
+    assert fix_terms("Połóż na tacę.", src) == "Połóż na tacy."

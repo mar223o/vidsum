@@ -1,21 +1,273 @@
 {
  "film": "The Perfect French Fry (Fallow), https://www.youtube.com/watch?v=BwNqsHb7YQU",
- "opis": "Wzorzec opisanych ręcznie kadrów z analizy 0.11.0 (15 kadrów, przysłane 10.11.2026). Każdy kadr: grupy słów (rdzenie), z których w opisie musi paść choć jedno z grupy, oraz słowa błędne (czego na kadrze nie ma).",
+ "opis": "Wzorzec opisanych ręcznie kadrów z analizy 0.11.0 (15 kadrów, przysłane 10.11.2026). Każdy kadr: grupy słów (rdzenie), z których w opisie musi paść choć jedno z grupy, oraz słowa błędne (czego na kadrze nie ma). 0.11.2: dopisane błędne słowa z porównania qwen/gemma (żółtka, trzepaczka, bulion, widelec, kremowy płyn).",
  "kadry": [
-  {"t": 8,  "co_widac": "dłonie kroją obranego ziemniaka nożem na drewnianej desce", "musi": [["ziemniak"], ["krój", "kroj", "kroi", "nóż", "noż", "tnie"], ["desk", "desc"]], "nie": []},
-  {"t": 13, "co_widac": "kucharz przycina ziemniaki nożem na desce", "musi": [["ziemniak"], ["krój", "kroj", "kroi", "przycin", "nóż", "noż", "tnie"]], "nie": []},
-  {"t": 19, "co_widac": "kucharz trzyma stalową miskę na desce (moczenie)", "musi": [["misk", "misc", "misę", "misa"]], "nie": []},
-  {"t": 20, "co_widac": "mokre dłonie nad miską z pokrojonymi frytkami w wodzie", "musi": [["misk", "misc"], ["frytk", "ziemniak", "słup"]], "nie": []},
-  {"t": 21, "co_widac": "płukanie frytek w misce pod kranem", "musi": [["kran", "wod"], ["misk", "misc"]], "nie": []},
-  {"t": 22, "co_widac": "kucharz trzyma miskę z frytkami na desce", "musi": [["misk", "misc", "misę", "misa"]], "nie": ["zlew"]},
-  {"t": 26, "co_widac": "łyżka nad garnkiem z wodą — dodawanie sody", "musi": [["garn"], ["łyżk", "łyżeczk", "sypie", "wsyp", "doda"]], "nie": ["nóż", "noż"]},
-  {"t": 28, "co_widac": "kucharz sypie proszek z łyżki do garnka", "musi": [["garn"], ["łyżk", "łyżeczk", "sypie", "wsyp", "doda"]], "nie": ["nóż", "noż"]},
-  {"t": 43, "co_widac": "dłonie wrzucają frytki do gorącego oleju w garnku (napis 140 °C)", "musi": [["olej", "tłuszcz", "smaż"], ["frytk", "ziemniak"]], "nie": ["czekolad"]},
-  {"t": 44, "co_widac": "kucharz wrzuca frytki do garnka z olejem", "musi": [["garn"], ["frytk", "ziemniak", "wrzuc"]], "nie": []},
-  {"t": 48, "co_widac": "łyżka cedzakowa (pająk) miesza frytki w oleju", "musi": [["frytk", "ziemniak"], ["cedzak", "łyżk", "sitk", "siatk", "sieć", "siec"]], "nie": ["zioł"]},
-  {"t": 50, "co_widac": "jasne frytki na cedzaku nad tacą z kratką", "musi": [["frytk", "ziemniak"], ["tac", "krat", "blach"]], "nie": []},
-  {"t": 54, "co_widac": "złote frytki wyjmowane cedzakiem z garnka z olejem", "musi": [["frytk", "ziemniak"], ["złot", "smaż", "olej"]], "nie": []},
-  {"t": 55, "co_widac": "smażone frytki w misce na papierowym ręczniku", "musi": [["frytk", "ziemniak"], ["misk", "misc", "papier"]], "nie": []},
-  {"t": 56, "co_widac": "frytki zsypywane z miski na talerz", "musi": [["frytk"], ["talerz"]], "nie": []}
+  {
+   "t": 8,
+   "co_widac": "dłonie kroją obranego ziemniaka nożem na drewnianej desce",
+   "musi": [
+    [
+     "ziemniak"
+    ],
+    [
+     "krój",
+     "kroj",
+     "kroi",
+     "nóż",
+     "noż",
+     "tnie"
+    ],
+    [
+     "desk",
+     "desc"
+    ]
+   ],
+   "nie": []
+  },
+  {
+   "t": 13,
+   "co_widac": "kucharz przycina ziemniaki nożem na desce",
+   "musi": [
+    [
+     "ziemniak"
+    ],
+    [
+     "krój",
+     "kroj",
+     "kroi",
+     "przycin",
+     "nóż",
+     "noż",
+     "tnie"
+    ]
+   ],
+   "nie": []
+  },
+  {
+   "t": 19,
+   "co_widac": "kucharz trzyma stalową miskę na desce (moczenie)",
+   "musi": [
+    [
+     "misk",
+     "misc",
+     "misę",
+     "misa"
+    ]
+   ],
+   "nie": []
+  },
+  {
+   "t": 20,
+   "co_widac": "mokre dłonie nad miską z pokrojonymi frytkami w wodzie",
+   "musi": [
+    [
+     "misk",
+     "misc"
+    ],
+    [
+     "frytk",
+     "ziemniak",
+     "słup"
+    ]
+   ],
+   "nie": [
+    "talerz"
+   ]
+  },
+  {
+   "t": 21,
+   "co_widac": "płukanie frytek w misce pod kranem",
+   "musi": [
+    [
+     "kran",
+     "wod"
+    ],
+    [
+     "misk",
+     "misc"
+    ]
+   ],
+   "nie": []
+  },
+  {
+   "t": 22,
+   "co_widac": "kucharz trzyma miskę z frytkami na desce",
+   "musi": [
+    [
+     "misk",
+     "misc",
+     "misę",
+     "misa"
+    ]
+   ],
+   "nie": [
+    "zlew"
+   ]
+  },
+  {
+   "t": 26,
+   "co_widac": "łyżka nad garnkiem z wodą — dodawanie sody",
+   "musi": [
+    [
+     "garn"
+    ],
+    [
+     "łyżk",
+     "łyżeczk",
+     "sypie",
+     "wsyp",
+     "doda"
+    ]
+   ],
+   "nie": [
+    "nóż",
+    "noż",
+    "płyn"
+   ]
+  },
+  {
+   "t": 28,
+   "co_widac": "kucharz sypie proszek z łyżki do garnka",
+   "musi": [
+    [
+     "garn"
+    ],
+    [
+     "łyżk",
+     "łyżeczk",
+     "sypie",
+     "wsyp",
+     "doda"
+    ]
+   ],
+   "nie": [
+    "nóż",
+    "noż",
+    "bulion",
+    "widel"
+   ]
+  },
+  {
+   "t": 43,
+   "co_widac": "dłonie wrzucają frytki do gorącego oleju w garnku (napis 140 °C)",
+   "musi": [
+    [
+     "olej",
+     "tłuszcz",
+     "smaż"
+    ],
+    [
+     "frytk",
+     "ziemniak"
+    ]
+   ],
+   "nie": [
+    "czekolad",
+    "żółt"
+   ]
+  },
+  {
+   "t": 44,
+   "co_widac": "kucharz wrzuca frytki do garnka z olejem",
+   "musi": [
+    [
+     "garn"
+    ],
+    [
+     "frytk",
+     "ziemniak",
+     "wrzuc"
+    ]
+   ],
+   "nie": []
+  },
+  {
+   "t": 48,
+   "co_widac": "łyżka cedzakowa (pająk) miesza frytki w oleju",
+   "musi": [
+    [
+     "frytk",
+     "ziemniak"
+    ],
+    [
+     "cedzak",
+     "łyżk",
+     "sitk",
+     "siatk",
+     "sieć",
+     "siec"
+    ]
+   ],
+   "nie": [
+    "zioł",
+    "trzepacz",
+    "krem"
+   ]
+  },
+  {
+   "t": 50,
+   "co_widac": "jasne frytki na cedzaku nad tacą z kratką",
+   "musi": [
+    [
+     "frytk",
+     "ziemniak"
+    ],
+    [
+     "tac",
+     "krat",
+     "blach"
+    ]
+   ],
+   "nie": []
+  },
+  {
+   "t": 54,
+   "co_widac": "złote frytki wyjmowane cedzakiem z garnka z olejem",
+   "musi": [
+    [
+     "frytk",
+     "ziemniak"
+    ],
+    [
+     "złot",
+     "smaż",
+     "olej"
+    ]
+   ],
+   "nie": [
+    "widel"
+   ]
+  },
+  {
+   "t": 55,
+   "co_widac": "smażone frytki w misce na papierowym ręczniku",
+   "musi": [
+    [
+     "frytk",
+     "ziemniak"
+    ],
+    [
+     "misk",
+     "misc",
+     "papier"
+    ]
+   ],
+   "nie": []
+  },
+  {
+   "t": 56,
+   "co_widac": "frytki zsypywane z miski na talerz",
+   "musi": [
+    [
+     "frytk"
+    ],
+    [
+     "talerz"
+    ]
+   ],
+   "nie": [
+    "napis"
+   ]
+  }
  ]
 }

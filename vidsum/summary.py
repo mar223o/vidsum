@@ -729,7 +729,13 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
      [(r"\busuń (je|go|ją|frytki|ziemniaki)\b", r"wyjmij \1")]),
     # 0.11.1 (pomiar 0.11.0): „break without snapping” = mają się łamać, a nie pękać; model odwracał sens
     (r"break without snapping", None, [(r"\b(powinny |mają |muszą )?pękać,? (?:ale )?bez łamania\b", r"\1łamać się, ale nie pękać"),
-                                       (r"\b(powinny |mają )?się łamać,? bez pękając\w*", r"\1łamać się, ale nie pękać")]),
+                                       (r"\b(powinny |mają )?się łamać,? bez pękając\w*", r"\1łamać się, ale nie pękać"),
+                                       (r"\b(powinny |mają )?łamać się,? bez pękając\w*", r"\1łamać się, ale nie pękać")]),
+    # pomiar 0.11.1: „solą maldon” (nazwa własna), „piękna chrupiącą warstwę”, „Połóż na tacę”
+    (r"maldon", None, [(r"\b(sol\w*|sól) maldon\b", r"\1 Maldon")]),
+    (r"crispy layer", None, [(r"\bpiękna,? chrupiącą warstwę\b", "piękną, chrupiącą warstwę"),
+                             (r"\bpięknego chrupiącego warstwa\b", "pięknej, chrupiącej warstwy")]),
+    (r"in a tray|on a tray", None, [(r"\b(połóż|rozłóż|ułóż) (?:je )?na tacę\b", r"\1 na tacy")]),
     # „for the final fry” → model: „na ostateczny smaż”; „fry until golden and crispy” → „Smaż, aż złoty i chrupiący”
     (r"final fry", None, [(r"\bna ostateczny smaż\b", "przed ostatecznym smażeniem"),
                           (r"\bna ostateczne smażenie\b", "przed ostatecznym smażeniem")]),

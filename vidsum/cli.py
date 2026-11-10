@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
         if len(args) < 2:
             print("Użycie: VidSum.exe --porownaj-modele-obrazu \"folder analizy\" [model1,model2]", file=sys.stderr)
             return 2
-        models = (args[2] if len(args) > 2 else "qwen3-vl:4b-instruct,gemma3:4b").split(",")
+        models = (args[2] if len(args) > 2 else "qwen3-vl:4b-instruct@lekki,qwen3-vl:4b-instruct,gemma3:4b").split(",")
         try:
             compare_models(Path(args[1]), [m.strip() for m in models if m.strip()])
         except Exception as e:
