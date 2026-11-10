@@ -1528,3 +1528,29 @@ def test_gemma_vs_qwen_from_measurement_0111():
     assert fix_terms("Zakończ posypując solą maldon.", src) == "Zakończ posypując solą Maldon."
     assert fix_terms("To doda piękna chrupiącą warstwę.", src) == "To doda piękną, chrupiącą warstwę."
     assert fix_terms("Połóż na tacę.", src) == "Połóż na tacy."
+
+
+def test_measured_0114_reask_one_line_each():
+    """Pomiar 0.11.4: ponowne pytanie o 2 linie naraz — model zamienił odpowiedzi miejscami i „Peel.” zginęło.
+    Teraz: krótkie polecenia ze słownika od razu, a każda linia do poprawy osobno."""
+    from vidsum.summary import fix_terms, grounded_steps
+    lines = [{"n": 1, "t": 1.1, "end": 2.6, "tekst": "This is the perfect French fry.", "pl": "", "ekran": []},
+             {"n": 2, "t": 12.6, "end": 12.9, "tekst": "Peel.", "pl": "", "ekran": []},
+             {"n": 3, "t": 13.0, "end": 13.9, "tekst": "Trim the ends and sides.", "pl": "", "ekran": []}]
+    asked = []
+
+    class Swap:
+        model = "atrapa"
+
+        def complete(self, prompt, as_json=False, **kw):
+            n = len(re.findall(r"^\d+\. ", prompt, re.M))
+            asked.append(n)
+            if n >= 3:            # pierwsze podejście: obca odpowiedź w 1, pusto w 2
+                return json.dumps({"1": "To jest idealny fry to.", "2": "", "3": "Przytnij końce i boki."})
+            return json.dumps({"1": "Wyjaśnienie: idealny frytek."})
+    r = grounded_steps(Swap(), lines, "poradnik", "test")
+    assert [s["tekst"] for s in r["kroki"]] == ["Obierz.", "Przytnij końce i boki."]
+    assert asked[0] == 3 and asked[1:] and all(n == 1 for n in asked[1:])   # poprawki pojedynczo
+    src = "For the final fry."
+    assert fix_terms("Ponownie zamroź lub schłodź, na ostateczny frit.", src) == "Ponownie zamroź lub schłodź, przed ostatecznym smażeniem."
+    assert fix_terms("Na ostatnie smażenie.", src) == "Przed ostatecznym smażeniem."

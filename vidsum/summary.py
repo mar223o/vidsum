@@ -737,8 +737,8 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
                              (r"\bpięknego chrupiącego warstwa\b", "pięknej, chrupiącej warstwy")]),
     (r"in a tray|on a tray", None, [(r"\b(połóż|rozłóż|ułóż) (?:je )?na tacę\b", r"\1 na tacy")]),
     # „for the final fry” → model: „na ostateczny smaż”; „fry until golden and crispy” → „Smaż, aż złoty i chrupiący”
-    (r"final fry", None, [(r"\bna ostateczny smaż\b", "przed ostatecznym smażeniem"),
-                          (r"\bna ostateczne smażenie\b", "przed ostatecznym smażeniem")]),
+    (r"final fry", None, [(r"\bna ostateczn\w* (?:smaż|frit|fryt|podsmaż)\w*", "przed ostatecznym smażeniem"),
+                          (r"\bna ostatnie smażenie\b", "przed ostatecznym smażeniem")]),
     (r"golden and crispy", None, [(r"\baż złoty i chrupiący\b", "aż będą złote i chrupiące"),
                                   (r"\baż złote i chrupiące\b", "aż będą złote i chrupiące")]),
     (r"extra crunch", None, [(r"\bdodatkowy chrupkość\b", "dodatkowa chrupkość"), (r"\bdodatkowy chrupkości\b", "dodatkowej chrupkości")]),
@@ -984,14 +984,20 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         extra, lost = check_step(body, [n], by_n)
         return not extra and not lost and not looks_foreign(body)
 
+    # krótkie polecenia ze słownika („Peel.”) — stałe tłumaczenie zamiast tego, co dał model
+    for n in out:
+        fixed = _SHORT_IMP.get(_short_cmd(by_n[n]["tekst"]))
+        if fixed:
+            out[n] = fixed
     bad = [n for n, txt in out.items() if not ok(n, txt)]
     # linia z liczbą w mowie, a pusta odpowiedź — liczba by zginęła (pomiar 0.7.7: 140 °C)
     bad += [n for n, txt in out.items() if not txt and _speech_nums([n], by_n) and n not in bad]
     bad += [n for n, txt in out.items() if not txt and _EN_IMP.match(by_n[n]["tekst"].strip()) and n not in bad]
     if bad:
         log(f"        kontrola kroków: {len(bad)} linii do poprawy (liczby albo język) — pytam o nie jeszcze raz")
-        again = run([[by_n[n] for n in sorted(bad)]][:1] if len(bad) <= chunk_lines else
-                    [[by_n[n] for n in sorted(bad)[i:i + chunk_lines]] for i in range(0, len(bad), chunk_lines)])
+        # 0.11.5: każda linia osobno (pomiar 0.11.4: przy dwóch liniach naraz model zamienił odpowiedzi miejscami —
+        # „Obierz.” trafiło do „This is the perfect French fry.”, a „Peel.” dostało „Wyjaśnienie: idealny fryz.”)
+        again = run([[by_n[n]] for n in sorted(bad)])
         for n in bad:
             txt = again.get(n, "")
             if txt and ok(n, txt) and (txt or not _speech_nums([n], by_n)):
