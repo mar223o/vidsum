@@ -594,3 +594,14 @@ def test_windows_children_die_with_program(tmp_path):
     assert not alive(child)
     assert alive(det)
     subprocess.run(["taskkill", "/PID", str(det), "/F"], capture_output=True)
+
+
+def test_preview_mode_setting(server):
+    """0.11.4: wybór w Ustawieniach — „zawsze” (wstępne streszczenie zawsze) albo „najszybciej” (tylko gdy nic nie
+    kosztuje, jak w 0.10.0: pomiar 1:15 zamiast 1:28)."""
+    base, app = server
+    assert app.options(app.settings).preview is True                       # domyślnie: zawsze
+    req(base, "/api/ustawienia", data=json.dumps({"tryb_podgladu": "najszybciej"}).encode(), method="POST")
+    assert app.options(app.settings).preview is None
+    req(base, "/api/ustawienia", data=json.dumps({"tryb_podgladu": "zawsze"}).encode(), method="POST")
+    assert app.options(app.settings).preview is True

@@ -93,6 +93,9 @@ def test_home_queue_settings_and_language(appsrv, width):
         page.select_option("#s_ocr", "false")
         page.wait_for_function("document.querySelector('#toast').innerText.includes('Zapisano')")
         assert app.settings["ocr"] is False
+        page.select_option("#s_tryb_podgladu", "najszybciej")
+        page.wait_for_function("document.querySelector('#s_tryb_podgladu').classList.contains('savedok')")
+        assert app.settings["tryb_podgladu"] == "najszybciej"
         page.click('.setnav [data-sec="diag"]')
         page.wait_for_selector("#diag .drow")
         for h in ("Interfejs", "Analiza", "Modele AI", "Pliki i pobieranie", "Diagnostyka", "Aktualizacje", "O programie", "Zamykanie"):

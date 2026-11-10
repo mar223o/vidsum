@@ -350,7 +350,7 @@ class App:
         d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
              "streszczenie": "auto", "model_tekstowy": DEFAULT_TEXT_MODEL, "tlumaczenia": "pl,en", "gpu_pobieranie": True,
              "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results),
-             "podglad": False, "tlumacz_wynik": True}
+             "podglad": False, "tlumacz_wynik": True, "tryb_podgladu": "zawsze"}
         try:
             saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
             if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":
@@ -383,7 +383,9 @@ class App:
                        text_model=s.get("model_tekstowy") or DEFAULT_TEXT_MODEL, translate=tl,
                        cuda_download=bool(s.get("gpu_pobieranie", True)),
                        cookies_from_browser=s.get("ciasteczka_z") or None,
-                       preview=True)          # 0.11.0: wstępne streszczenie zawsze częścią analizy (bez przełącznika)
+                       # 0.11.4: „zawsze” = wstępne streszczenie po ~20 s (całość ~1:28 na Twojej karcie, bo modele mowy/obrazu
+                       # i tekstu nie mieszczą się naraz w 8 GB); „najszybciej” = tylko gdy nic nie kosztuje (całość ~1:15)
+                       preview=None if s.get("tryb_podgladu") == "najszybciej" else True)
 
     def translate_result(self, p: Path, lang: str, st: dict | None = None) -> dict:
         """Tłumaczy wynik (analiza.json) na `lang`: tylko teksty nowe albo zmienione od poprzedniego tłumaczenia

@@ -512,7 +512,7 @@ const I18N = {
    set_ui_hint:"Język zmienia się od razu w całym programie, bez ponownego uruchamiania.",set_an:"Analiza",auto_detect:"automatycznie",on:"włączone",off:"wyłączone",
    set_ai:"Modele AI",sum_auto:"automatycznie (lokalnie)",sum_local:"lokalnie (Ollama)",s_text_model:"Model tekstowy (Ollama)",
    set_ai_hint:"Wszystko działa na tym komputerze. Ten sam model do obrazu i tekstu (np. gemma3:4b) oszczędza przełączania modeli na karcie.",
-   s_auto_tr:"Wersja angielska wyniku po analizie",q_translating:"tłumaczenie wyniku na angielski",set_next:"Zmiany analizy działają od następnego filmu.",set_autosave:"Zmiany zapisują się od razu.",set_files:"Pliki i pobieranie",open_out:"Otwórz folder wyników",set_diag:"Diagnostyka",set_about:"O programie",set_quit:"Zamykanie",
+   s_auto_tr:"Wersja angielska wyniku po analizie",q_translating:"tłumaczenie wyniku na angielski",set_next:"Zmiany analizy działają od następnego filmu.",s_preview:"Wstępne streszczenie",pv_always:"Zawsze — pierwszy wynik po ok. 20 s",pv_fast:"Najszybciej — cały wynik szybciej, bez wstępnego",pv_hint:"Pomiar na RTX 3070 Ti (film 58 s): „zawsze” — wstępne po 20 s, całość 1:28; „najszybciej” — całość 1:15. Gdy model obrazu i tekstowy to ten sam model, wstępne jest zawsze, bo nic nie kosztuje.",set_autosave:"Zmiany zapisują się od razu.",set_files:"Pliki i pobieranie",open_out:"Otwórz folder wyników",set_diag:"Diagnostyka",set_about:"O programie",set_quit:"Zamykanie",
    set_quit_hint:"Zamknięcie okna też kończy program. Trwająca analiza zostaje zapisana w kolejce; po ponownym uruchomieniu kolejka wraca wstrzymana.",
    downloaded:"pobrany",not_downloaded:"niepobrany",gpu:"Karta graficzna",gpu_cuda_ok:"NVIDIA, biblioteki CUDA pobrane",gpu_cuda_missing:"NVIDIA, biblioteki CUDA pobiorą się przy pierwszej analizie",
    gpu_none:"brak karty NVIDIA — mowa liczona na procesorze (wolniej)",version:"wersja",tech_name:"Nazwa techniczna",data_dir:"Dane programu",upd_current:v=>`Masz wersję ${v}`,
@@ -574,7 +574,7 @@ const I18N = {
    set_ui_hint:"The language changes right away across the whole app, no restart needed.",set_an:"Analysis",auto_detect:"automatic",on:"on",off:"off",
    set_ai:"AI models",sum_auto:"automatic (local)",sum_local:"local (Ollama)",s_text_model:"Text model (Ollama)",
    set_ai_hint:"Everything runs on this computer. Using the same model for vision and text (e.g. gemma3:4b) avoids swapping models on the GPU.",
-   s_auto_tr:"English version of the result after analysis",q_translating:"translating the result to English",set_next:"Analysis changes apply from the next video.",set_autosave:"Changes are saved right away.",set_files:"Files and downloads",open_out:"Open results folder",set_diag:"Diagnostics",set_about:"About",set_quit:"Quitting",
+   s_auto_tr:"English version of the result after analysis",q_translating:"translating the result to English",set_next:"Analysis changes apply from the next video.",s_preview:"Preliminary summary",pv_always:"Always — first result after ~20 s",pv_fast:"Fastest — whole result sooner, no preliminary",pv_hint:"Measured on an RTX 3070 Ti (58 s video): “always” — preliminary after 20 s, all done at 1:28; “fastest” — all done at 1:15. If the vision and text models are the same model, the preliminary summary is always made because it costs nothing.",set_autosave:"Changes are saved right away.",set_files:"Files and downloads",open_out:"Open results folder",set_diag:"Diagnostics",set_about:"About",set_quit:"Quitting",
    set_quit_hint:"Closing the window also quits the app. A running analysis is saved in the queue; after the next start the queue comes back paused.",
    downloaded:"downloaded",not_downloaded:"not downloaded",gpu:"Graphics card",gpu_cuda_ok:"NVIDIA, CUDA libraries downloaded",gpu_cuda_missing:"NVIDIA, CUDA libraries download on the first analysis",
    gpu_none:"no NVIDIA card — speech runs on the CPU (slower)",version:"version",tech_name:"Technical name",data_dir:"App data",upd_current:v=>`You have version ${v}`,
@@ -709,7 +709,7 @@ function renderChips(){
     if (location.hash.startsWith("#/ustawienia")) renderDiag();
   }
 }
-const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki"];
+const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","tryb_podgladu","max_kadrow","ciasteczka_z","wyniki"];
 const SBOOL = ["ocr","tlumacz_wynik"];
 /* ---------- Ustawienia (0.11.0): tylko opcje, które program naprawdę obsługuje ---------- */
 let setSec = "ui"; try { setSec = localStorage.getItem("vs_setsec") || "ui"; } catch {}
@@ -725,7 +725,8 @@ function renderSettings(){
     ["ui", t("set_ui"), `<div class="grid">${f(t("set_ui_lang"), `<select id="set_lang"><option value="pl">Polski</option><option value="en">English</option></select>`)}
       ${f(t("theme"), `<select id="set_theme"><option value="dark">${t("theme_dark")}</option><option value="light">${t("theme_light")}</option><option value="system">${t("theme_system")}</option></select>`)}</div>
       <p class="hint">${t("set_ui_hint")}</p>`],
-    ["an", t("set_an"), `<div class="grid">${f(t("s_lang"), sel("jezyk", [["auto", t("auto_detect")], ["pl", "polski"], ["en", "English"]]))}
+    ["an", t("set_an"), `<div class="grid">${f(t("s_preview"), sel("tryb_podgladu", [["zawsze", t("pv_always")], ["najszybciej", t("pv_fast")]]), true, t("pv_hint"))}
+      ${f(t("s_lang"), sel("jezyk", [["auto", t("auto_detect")], ["pl", "polski"], ["en", "English"]]))}
       ${f(t("s_whisper"), sel("whisper", [["large-v3-turbo", "large-v3-turbo"], ["small", "small"], ["medium", "medium"], ["large-v3", "large-v3"]]))}
       ${f(t("s_ocr"), sel("ocr", [["true", t("on")], ["false", t("off")]]))}
       ${f(t("s_vis_on"), sel("obraz", [["ollama", t("on")], ["brak", t("off")]]))}
