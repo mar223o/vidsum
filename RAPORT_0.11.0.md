@@ -34,7 +34,9 @@ uczciwie to, czego nie zrobiłem albo nie mogłem sprawdzić.
    wszystko jest w jednej kolumnie.
 9. **Zakładki „Przepis / Najważniejsze / Momenty…”** są teraz osobnymi przyciskami z odstępami i ikonami. Zaznaczona
    zakładka ma akcent. Logika zakładek bez zmian.
-10. **Czarne pasy:** wykrywane ostrożnie i ukrywane w odtwarzaczu. Przycisk „Pokaż cały kadr” je przywraca. Plik filmu
+10. **Czarne pasy:** wykrywane ostrożnie i ukrywane w odtwarzaczu. Program sam liczy czarne wiersze i kolumny
+    na 5 klatkach, bo filtr `cropdetect` jest tylko w kompilacjach GPL ffmpeg (wyłapał to test na Windows).
+    Przycisk „Pokaż cały kadr” je przywraca. Plik filmu
     się nie zmienia.
 11. **Czat:** stałe odmowy w języku pytania („Nie mam wystarczających informacji, aby odpowiedzieć na to pytanie.”, „To
     nie wynika z analizowanego nagrania.”). Wnioski mają etykietę „Wniosek (nie pada wprost w filmie):”. Gdy mowa
@@ -192,7 +194,8 @@ uczciwie to, czego nie zrobiłem albo nie mogłem sprawdzić.
   - Windows: dziecko ginie z programem, proces „odłączony” przeżywa;
   - tłumaczenie po analizie przed następnym filmem oraz wyłączenie w Ustawieniach;
   - ponowne tłumaczenie tylko zmienionych tekstów i nieaktualność po zmianie oryginału;
-  - czarne pasy: wykryte dokładnie (2,4:1 w 16:9); bez pasów i ciemna scena → nic nie ruszane;
+  - czarne pasy: wykryte dokładnie (2,4:1 w 16:9); bez pasów i ciemna scena → nic nie ruszane (także na Windows
+    z kompilacją LGPL ffmpeg);
   - przeglądarka (1280 i 390 px): kolejka na stronie głównej (przesuń, usuń, wstrzymaj), Ustawienia z diagnostyką,
     pełne przełączenie PL ↔ EN bez polskich tekstów w wersji angielskiej, brak poziomego przewijania; przycisk pasów
     w odtwarzaczu;

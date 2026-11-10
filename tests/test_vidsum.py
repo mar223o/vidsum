@@ -1404,11 +1404,6 @@ def test_black_bars_detected_only_when_burned_in(tmp_path):
                     "-vf", "pad=640:360:0:46:black", "-pix_fmt", "yuv420p", str(boxed)], check=True)
     i = probe(boxed)
     r = detect_bars(boxed, i.duration, i.width, i.height)
-    if not r:                                         # diagnostyka (różne kompilacje ffmpeg piszą różnie)
-        from vidsum.tools import run
-        err = run([ff, "-v", "info", "-ss", "5", "-i", str(boxed), "-t", "2", "-an", "-vf",
-                   "cropdetect=limit=24:round=2:reset=0", "-f", "null", "-"], check=False).stderr_text
-        pytest.fail("cropdetect: " + "\n".join(err.splitlines()[-12:]))
     assert r and r["x"] == 0 and r["w"] == 640 and abs(r["y"] - 46) <= 2 and abs(r["h"] - 268) <= 4, r
     plain = tmp_path / "bez.mp4"
     subprocess.run([ff, "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=10:duration=12",

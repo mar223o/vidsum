@@ -34,45 +34,68 @@ def probe(path: Path) -> MediaInfo:
     return MediaInfo(dur, v.get("width"), v.get("height"), a, fps)
 
 
-_CROP = re.compile(r"crop=(\d+):(\d+):(\d+):(\d+)")
+def _gray_frame(path: Path, t: float, w: int, h: int) -> bytes | None:
+    """Jedna klatka jako surowe bajty jasności (szarość) w rozmiarze w×h."""
+    r = run([find_tool("ffmpeg"), "-v", "error", "-ss", f"{t:.2f}", "-i", str(path), "-frames:v", "1", "-an",
+             "-vf", f"scale={w}:{h},format=gray", "-f", "rawvideo", "-"], check=False, timeout=60)
+    data = r.stdout if isinstance(r.stdout, bytes) else b""
+    return data if len(data) == w * h else None
+
+
+def _dark_edges(px: bytes, w: int, h: int, limit: int = 32) -> tuple[int, int, int, int]:
+    """Ile wierszy od góry/dołu i kolumn od lewej/prawej jest czarnych (prawie wszystkie piksele ≤ limit)."""
+    def dark(vals) -> bool:
+        vals = sorted(vals)
+        return vals[int(len(vals) * 0.98) - 1] <= limit       # 98% pikseli ciemnych (szum, logo w rogu nie psują)
+    rows = [dark(px[y * w:(y + 1) * w]) for y in range(h)]
+    cols = [dark(px[x::w]) for x in range(w)]
+
+    def lead(seq) -> int:
+        n = 0
+        for v in seq:
+            if not v:
+                break
+            n += 1
+        return n
+    return lead(rows), lead(rows[::-1]), lead(cols), lead(cols[::-1])
 
 
 def detect_bars(path: Path, duration: float, width: int | None, height: int | None,
                 points: tuple[float, ...] = (.1, .3, .5, .7, .9)) -> dict | None:
     """Czarne pasy wpalone w obraz (np. film 2,39:1 w kontenerze 16:9, pionowy film z pasami po bokach).
 
-    Ostrożnie, bo lepiej zostawić pasy niż uciąć treść:
-    - ffmpeg `cropdetect` w 5 miejscach filmu; wynik to SUMA obszarów z obrazem (pasem jest tylko to, co jest czarne
-      we wszystkich miejscach) — ciemna scena w jednym miejscu nie zmniejsza kadru;
-    - potrzeba co najmniej 3 udanych pomiarów;
+    Własny pomiar (filtr `cropdetect` jest tylko w kompilacjach GPL ffmpeg, a program ma LGPL): 5 klatek
+    pomniejszonych do ~200 px, liczone czarne wiersze/kolumny przy krawędziach. Ostrożnie:
+    - pasem jest tylko to, co czarne we WSZYSTKICH klatkach (najmniejszy pas) — ciemna scena nie zmniejsza kadru;
+    - potrzeba co najmniej 3 udanych klatek;
     - pas musi mieć ≥ 3% wymiaru, a zostać musi ≥ 50% obrazu.
-    Zwraca {"x", "y", "w", "h"} obszaru z obrazem albo None (bez pasów / niepewne). Plik zostaje bez zmian."""
+    Zwraca {"x", "y", "w", "h"} obszaru z obrazem (w pikselach oryginału) albo None. Plik zostaje bez zmian."""
     if not (width and height and duration > 0):
         return None
-    rects = []
+    sw = 200
+    sh = max(2, round(height * sw / width / 2) * 2)
+    edges = []
     for frac in points:
-        t = max(0.0, duration * frac - 1)
         try:
-            err = run([find_tool("ffmpeg"), "-v", "info", "-ss", f"{t:.2f}", "-i", str(path), "-t", "2", "-an",
-                       "-vf", "cropdetect=limit=24:round=2:reset=0", "-f", "null", "-"], check=False,
-                      timeout=60).stderr_text
+            px = _gray_frame(path, max(0.0, duration * frac), sw, sh)
         except Exception:
-            continue
-        found = _CROP.findall(err)
-        if found:
-            w, h, x, y = map(int, found[-1])
-            if w > 0 and h > 0:
-                rects.append((x, y, x + w, y + h))
-    if len(rects) < 3:
+            px = None
+        if px:
+            edges.append(_dark_edges(px, sw, sh))
+    if len(edges) < 3:
         return None
-    x0, y0 = min(r[0] for r in rects), min(r[1] for r in rects)
-    x1, y1 = max(r[2] for r in rects), max(r[3] for r in rects)
-    x1, y1 = min(x1, width), min(y1, height)
+    top, bot, left, right = (min(e[i] for e in edges) for i in range(4))
+    ky, kx = height / sh, width / sw
+    # zaokrąglenie do środka obrazu (pomniejszenie rozmywa granicę o ~1 piksel) — raczej zostaw cienki pas niż utnij
+    y0 = int((top + 1) * ky) if top else 0
+    y1 = height - (int((bot + 1) * ky) if bot else 0)
+    x0 = int((left + 1) * kx) if left else 0
+    x1 = width - (int((right + 1) * kx) if right else 0)
+    y0, x0 = y0 - y0 % 2, x0 - x0 % 2
     w, h = x1 - x0, y1 - y0
-    bars_x = (width - w) / width
-    bars_y = (height - h) / height
     if w < width * 0.5 or h < height * 0.5:
         return None                                   # „zostałoby” za mało — raczej ciemny film niż pasy
+    bars_x, bars_y = (width - w) / width, (height - h) / height
     if bars_x < 0.03 and bars_y < 0.03:
         return None                                   # brak pasów (albo kilka pikseli ramki)
     if bars_x < 0.03:
