@@ -234,17 +234,22 @@ Rules:
 1. Facts from the video: answer only from the material below and give the time as mm:ss.
 2. A number, amount, time or temperature that the video does NOT give: say clearly that the video does not give it,
    then say what the video says instead (for example a visual or physical cue). Do NOT invent the number.
-3. A general question about the topic (e.g. "what is X"): one or two sentences of general knowledge, start them with
+3. Information that is not in the material at all: say it plainly, e.g. "{no_info}", and do not guess.
+4. A conclusion you draw yourself (not said or shown directly): start it with "{inference}" so it is not taken as a fact.
+5. Speech and frames disagree: trust the transcript, mention the frame only as uncertain ("the frame seems to show…").
+6. A general question about the topic (e.g. "what is X"): one or two sentences of general knowledge, start them with
    "{general}", then one sentence linking it to the video.
-4. A question that has nothing to do with the video (news, other topics): say you only know this video and offer to answer
-   questions about it. Do not summarise the video.
-5. Small talk or a trivial question (e.g. arithmetic): answer it in one short sentence.
+7. A question that has nothing to do with the video (news, other topics): say "{off_topic}" and offer to answer
+   questions about the video. Do not summarise the video.
+8. Small talk or a trivial question (e.g. arithmetic): answer it in one short sentence.
 
 Examples (answer in the language of the question):
 Q: ile minut gotować według filmu?
 A: Film nie podaje czasu gotowania. Autor mówi, żeby gotować frytki do miękkości — mają się łamać, a nie pękać (00:29–00:31).
 Q: wypadek na autostradzie
-A: Znam tylko ten film (przepis na chrupiące frytki), więc nic o tym nie powiem. Zapytaj o przepis, kroki albo temperatury.
+A: To nie wynika z analizowanego nagrania — znam tylko ten film (przepis na chrupiące frytki). Zapytaj o przepis, kroki albo temperatury.
+Q: jakiej marki jest garnek?
+A: Nie mam wystarczających informacji, aby odpowiedzieć na to pytanie — w filmie nie pada nazwa marki, a z kadrów jej nie widać.
 Q: how long does the video say to boil them?
 A: The video does not give a boiling time. The author says to boil them until just tender — they should break without snapping (00:29–00:31).
 
@@ -264,6 +269,12 @@ QUESTION: {question}
 ANSWER:"""
 
 _GENERAL = {"pl": "Wiedza ogólna (nie z filmu):", "en": "General knowledge (not from the video):"}
+
+
+_NO_INFO = {"pl": "Nie mam wystarczających informacji, aby odpowiedzieć na to pytanie.",
+            "en": "I don't have enough information to answer that question."}
+_INFER = {"pl": "Wniosek (nie pada wprost w filmie):", "en": "Inference (not stated directly in the video):"}
+_OFF = {"pl": "To nie wynika z analizowanego nagrania.", "en": "That is not covered by the analysed recording."}
 
 
 def _guess_lang(text: str) -> str:
@@ -299,6 +310,7 @@ def build_chat_prompt(analysis: dict, question: str, history: list[dict]) -> str
             fr.append(f"[{_mmss(f.get('t', 0))}] {txt}")
     hist = "\n".join(f"{'User' if h['rola'] == 'user' else 'Assistant'}: {h['tekst']}" for h in history[-6:]) or "—"
     return CHAT_PROMPT.format(lang="Polish" if lang == "pl" else "English", general=_GENERAL[lang],
+                              no_info=_NO_INFO[lang], inference=_INFER[lang], off_topic=_OFF[lang],
                               meta=f"{z.get('tytul', '')} — {z.get('autor', '')}".strip(" —"),
                               thesis=d.get("teza") or "—", steps=steps, transcript=tr or "—",
                               frames="\n".join(fr)[:4000] or "—",

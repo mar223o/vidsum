@@ -545,3 +545,52 @@ def test_result_translated_after_analysis_before_next_video(tmp_path, monkeypatc
         time.sleep(0.05)
     time.sleep(0.2)
     assert order == [("analiza", "c")] and a.status == b.status == "gotowe"
+
+
+def test_old_uploads_cleaned_but_queued_kept(tmp_path, monkeypatch):
+    """0.11.0: przy starcie znikają stare wysłane filmy spoza kolejki; te w kolejce zostają."""
+    from vidsum import gui
+    from vidsum.pipeline import Options
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    up = tmp_path / "VidSum" / "wyslane"
+    old, queued, fresh = up / "stary", up / "wkolejce", up / "swiezy"
+    for d in (old, queued, fresh):
+        d.mkdir(parents=True)
+        (d / "f.mp4").write_bytes(b"x")
+    past = time.time() - 3 * 86400
+    for d in (old, queued):
+        os.utime(d, (past, past))
+    w = gui.Worker(tmp_path / "VidSum" / "kolejka.json", lambda s: Options())
+    w.set_paused(True)
+    w.submit(gui.Job("q", str(queued / "f.mp4"), "f.mp4", Options(), queued / "f.mp4"))
+    monkeypatch.setattr(gui, "Worker", lambda *a, **k: w)
+    gui.App(tmp_path / "wyniki", "tok")
+    assert not old.exists() and queued.exists() and fresh.exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="obiekt zadania (Job Object) jest tylko w Windows")
+def test_windows_children_die_with_program(tmp_path):
+    """0.11.0 (Windows): program w obiekcie zadania z „zabij przy zamknięciu” — twarde wyjście programu (os._exit,
+    jak przy zamknięciu okna albo awarii) kończy też jego proces potomny; proces „DETACHED” przeżywa."""
+    import subprocess
+    pidf, pidd = tmp_path / "child.pid", tmp_path / "det.pid"
+    code = (
+        "import os, subprocess, sys, time\n"
+        "from vidsum import procs\n"
+        "assert procs.setup_kill_on_close()\n"
+        "c = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open(r'{pidf}', 'w').write(str(c.pid))\n"
+        "d = procs.popen_detached([sys.executable, '-c', 'import time; time.sleep(20)'])\n"
+        f"open(r'{pidd}', 'w').write(str(d.pid))\n"
+        "time.sleep(0.5)\n"
+        "os._exit(0)\n")
+    subprocess.run([sys.executable, "-c", code], cwd=Path(__file__).parent.parent, timeout=60, check=True)
+    time.sleep(1.5)
+
+    def alive(pid: int) -> bool:
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True).stdout
+        return str(pid) in out
+    child, det = int(pidf.read_text()), int(pidd.read_text())
+    assert not alive(child)
+    assert alive(det)
+    subprocess.run(["taskkill", "/PID", str(det), "/F"], capture_output=True)

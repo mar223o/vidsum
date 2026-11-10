@@ -589,7 +589,22 @@ const t = (k, ...a) => { const v = (I18N[L] && I18N[L][k]) ?? I18N.pl[k] ?? k; r
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const api = (p, o = {}) => fetch(p, {...o, headers:{"X-Token":T, ...(o.headers||{})}}).catch(() => {
     throw new Error(t("offline")); }).then(async r => {
-  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || r.status); return j; });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(trErr(j.error || String(r.status))); return j; });
+/* komunikaty błędów z programu (po polsku) w języku interfejsu; szczegół techniczny po dwukropku zostaje bez zmian */
+const ERR_EN = {"Najpierw sprawdź aktualizacje.":"Check for updates first.","Trwa analiza — zaktualizuj po jej zakończeniu.":"An analysis is running — update after it finishes.",
+  "brak filmu":"no video","brak folderu":"no folder","brak tokenu":"missing token","brak wyników":"no results","brak":"none",
+  "film przeniesiony lub usunięty":"the video was moved or deleted","komentarze są tylko dla filmów z linku":"comments are only available for videos from a link",
+  "nie znaleziono":"not found","nieznana akcja":"unknown action","obsługiwane języki: pl, en":"supported languages: pl, en","puste pytanie":"empty question",
+  "pusty link":"empty link","tego filmu nie ma w oczekujących":"this video is not waiting in the queue","nie można ponowić":"cannot retry",
+  "Program się zamyka — nie przyjmuję nowych filmów.":"The app is closing — no new videos accepted.",
+  "Plik źródłowy już nie istnieje — dodaj film jeszcze raz.":"The source file no longer exists — add the video again.",
+  "Nie udało się odpowiedzieć":"Could not answer","nie udało się otworzyć folderu":"could not open the folder","nie udało się pobrać komentarzy":"could not load comments"};
+function trErr(m){
+  if (L !== "en" || !m) return m;
+  if (ERR_EN[m]) return ERR_EN[m];
+  const i = m.indexOf(":"); const head = i > 0 ? m.slice(0, i) : m;
+  return ERR_EN[head] ? ERR_EN[head] + m.slice(i) : m;
+}
 const fileUrl = (id, rel) => `/api/zadania/${id}/plik/${encodeURI(rel)}?t=${T}`;
 function toast(m){ const el=$("#toast"); el.textContent=m; el.classList.add("on"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("on"),Math.max(2400,m.length*55)); }
 function fmt(s){ s=Math.max(0,Math.round(s||0)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;

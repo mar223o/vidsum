@@ -260,6 +260,8 @@ class Worker:
             try:
                 job.out = analyze(job.source, job.opt, log)
                 job.status = "gotowe"
+                with self.cv:
+                    self.current = None                     # film gotowy — przy zamykaniu nie wraca do kolejki
                 if self.after and self.accepting:
                     try:
                         self.after(job)
@@ -305,7 +307,23 @@ class App:
         self.translations: dict = {}          # (id zadania, język) → {"stan", "postep", "error"} — tłumaczenie całości
         self._tr_lock = threading.Lock()
         self.worker = Worker(app_dir() / "kolejka.json", self.options, self.after_analysis)
+        self.cleanup_uploads()
         self.scan_library()
+
+    def cleanup_uploads(self, max_age_s: float = 24 * 3600) -> int:
+        """Wysłane filmy, których nie ma już w kolejce (np. po błędzie, który nie został ponowiony), starsze niż doba —
+        usuwane przy starcie. Pliki w kolejce zostają (ponowienie / odtworzenie kolejki)."""
+        root = app_dir() / "wyslane"
+        keep = {j.upload.parent.resolve() for j in self.worker.jobs.values() if j.upload}
+        n = 0
+        for d in root.glob("*") if root.is_dir() else []:
+            try:
+                if d.is_dir() and d.resolve() not in keep and time.time() - d.stat().st_mtime > max_age_s:
+                    shutil.rmtree(d, ignore_errors=True)
+                    n += 1
+            except OSError:
+                pass
+        return n
 
     def scan_library(self) -> None:
         """Biblioteka: wcześniejsze analizy z dysku (przetrwają ponowne uruchomienie programu)."""

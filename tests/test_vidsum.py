@@ -1318,6 +1318,11 @@ def test_chat_prompt_uses_transcript_and_steps_not_whole_summary():
     p = build_chat_prompt(a, "ile minut gotować?", [])
     assert "CAŁE STRESZCZENIE" not in p and "[00:29] Then boil the fries" in p and "- 00:52 Rozgrzej olej" in p
     assert "Polish" in p and "does NOT give" in p
+    # 0.11.0: jawne odmowy i oznaczanie wniosków w języku pytania
+    assert "Nie mam wystarczających informacji, aby odpowiedzieć na to pytanie." in p and "Wniosek (nie pada wprost" in p
+    assert "To nie wynika z analizowanego nagrania." in p
+    pe = build_chat_prompt(a, "what brand is the pot?", [])
+    assert "I don't have enough information to answer that question." in pe and "Inference (not stated" in pe
     assert _guess_lang("strzelanina w krakowie") == "pl" and _guess_lang("what is french fry") == "en"
     warned = check_chat_answer("Gotowanie frytek trwa około 20-25 minut.", a)
     assert "Tej liczby nie ma w filmie" in warned

@@ -17,9 +17,5 @@ Zadanie: MASTER EXECUTION PROMPT (19 etapów) — autonomicznie. Gałąź robocz
   `Dokumenty\VidSum`) poza folderem programu.
 
 ## Zadania
-1. [ ] Kolejka (backend+UI+kolejka.json)
-2. [ ] Zamykanie: Job Object (Windows), rejestr procesów potomnych, zapis kolejki, zwolnienie modeli
-3. [ ] Streszczenie: zawsze wstępne → pełne; język oryginału + tłumaczenie po etapach
-4. [ ] UI: Ustawienia, dashboard, streszczenie po lewej, zakładki rozdzielone, i18n, „Silnik wideo”, czarne pasy
-5. [ ] Czat: frazy odmowy
-6. [ ] Testy, raport RAPORT_0.11.0.md, wydanie
+Wszystkie zrobione w 0.11.0, oprócz punktów z RAPORT_0.11.0.md, sekcja H (m.in. streszczenie najpierw w języku
+oryginału i wznawianie od przerwanego etapu). Następny krok: pomiary na komputerze użytkownika.
