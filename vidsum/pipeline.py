@@ -95,9 +95,23 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if zasoby["przed"]:
         g = zasoby["przed"]
         log(f"  karta: {g['karta']} — zajęte {g['zajete_mb']} MB z {g['pamiec_mb']} MB przed startem, wolne {g['wolne_mb']} MB")
-        if g["zajete_mb"] > 1200:
+        # modele z POPRZEDNIEJ analizy (Ollama trzyma je 5 min) to nie „inne programy”: zwalniamy te, których ta analiza
+        # zaraz nie użyje. Pomiar 0.9.0: gemma3:4b po poprzedniej analizie zajmowała 3,1 GB → model obrazu wczytywał się
+        # 17 s zamiast ~10 s, kadry czekały na niego, a ostrzeżenie mówiło o „innych programach”.
+        first = (opt.summary_model or opt.text_model) if (opt.preview and opt.summary in ("auto", "ollama")) \
+            else (opt.vision_model if opt.vision == "ollama" else None)
+        left = [m for m in ollama_models(opt.ollama_host) if m.get("model") and m["model"] != first]
+        if left and (opt.vision == "ollama" or opt.summary in ("auto", "ollama")):
+            for m in left:
+                Ollama(m["model"], opt.ollama_host).unload()
+            mb = sum(round(m["rozmiar_mb"] * (m["na_karcie_proc"] or 0) / 100) for m in left)
+            g["modele_poprzednie"] = left
+            g["zajete_innych_mb"] = max(0, g["zajete_mb"] - mb)
+            log(f"  zwolniono z karty model(e) z poprzedniej analizy: "
+                + ", ".join(f"{m['model']} ({m['rozmiar_mb']} MB)" for m in left))
+        if g.get("zajete_innych_mb", g["zajete_mb"]) > 1200:
             names = ", ".join(x["nazwa"].rsplit(".", 1)[0] for x in g["programy"][:8])
-            log(f"  ! inne programy zajmują {g['zajete_mb']} MB karty ({names}…) — analiza może być wolniejsza; "
+            log(f"  ! inne programy zajmują {g.get('zajete_innych_mb', g['zajete_mb'])} MB karty ({names}…) — analiza może być wolniejsza; "
                 "zamknij przeglądarki, Discorda, Steama albo wyłącz w nich przyspieszanie sprzętowe")
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp = opt.out_root / "_pobrane"
@@ -824,6 +838,10 @@ def _resources_md(z: dict | None) -> list[str]:
     L = ["## Zasoby komputera (karta graficzna)", "",
          f"- Karta: **{g['karta']}**, pamięć {g['pamiec_mb']} MB",
          f"- Przed startem: zajęte **{g['zajete_mb']} MB** przez inne programy, wolne na modele **{g['wolne_mb']} MB**"]
+    if g.get("modele_poprzednie"):
+        L[-1] = (f"- Przed startem: zajęte **{g['zajete_mb']} MB**, z tego modele z poprzedniej analizy (zwolnione na starcie): "
+                 + ", ".join(f"`{m['model']}` {m['rozmiar_mb']} MB" for m in g["modele_poprzednie"])
+                 + f"; inne programy **{g['zajete_innych_mb']} MB**")
     w = z.get("w_trakcie") or {}
     if w.get("najmniej_wolnej_mb") is not None:
         L.append(f"- W trakcie analizy: najmniej wolnej pamięci {w['najmniej_wolnej_mb']} MB, "
@@ -838,7 +856,7 @@ def _resources_md(z: dict | None) -> list[str]:
     if progs:
         L.append(f"- Programy korzystające z karty przed startem ({len(progs)}): " + ", ".join(progs))
         L.append("  _Windows nie podaje, ile pamięci karty zajmuje każdy z nich — widać tylko sumę wyżej._")
-    if g["zajete_mb"] > 1200:
+    if g.get("zajete_innych_mb", g["zajete_mb"]) > 1200:
         L.append(f"- ⚠ Inne programy zajmowały ponad 1,2 GB karty — zamknięcie przeglądarek, Discorda, Steama "
                  "albo wyłączenie w nich przyspieszania sprzętowego zwykle przyspiesza analizę.")
     return L + [""]

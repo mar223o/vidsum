@@ -623,9 +623,11 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
     # par-fry = wstępne smażenie w oleju; model pisał „parzenie”/„parowanie” (pomiar 0.8.1) — to gotowanie na parze
     (r"par[- ]?fr", r"steam|na parze|parowar",
      [(rf"\bpar(?:zeni|owani){e}(?: wstępn\w*)?\b", w) for e, w in (("em", "wstępnym smażeniem"), ("e", "wstępne smażenie"),
-                                                                    ("a", "wstępnego smażenia"), ("u", "wstępnemu smażeniu"))]
+                                                                    ("a", "wstępnego smażenia"), ("u", "wstępnym smażeniu"))]
      + [(r"\bparzone\b", "wstępnie usmażone"), (r"\bparowane\b", "wstępnie usmażone"),
-        (r"\bpar(?:ować|zyć)\b", "wstępnie smażyć")]),
+        (r"\bpar(?:ować|zyć)\b", "wstępnie smażyć"),
+        (r"\b(?:parz|paruj)\b(?=\s*/|\s+(?:je|frytki|ziemniaki|w oleju))", "wstępnie smaż"),   # „parz/blanszuj w oleju”
+        (r"\bblansh(\w*)", r"blansz\1")]),                                  # „blanshować” (literówka modelu)
     # Maldon → „miód” (pomiar 0.8.2: „posypaniem miodnym solą”, „Miód z solą Maldon”) — w filmie nie ma miodu
     (r"maldon", r"honey|miód|miod", [(r"^\s*miód z sol\w* maldon\s*$", "sól Maldon"),          # sam tytuł punktu
                                     (r"\bmiodn\w+ (sol\w*)(?: maldon)?", r"\1 Maldon"),
@@ -1310,8 +1312,75 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         n = drop_unsupported_numbers(out, source + " " + timeline)
         if n:
             log(f"        usunięto {n} zdanie(a) z liczbą, której nie ma w filmie")
+        drop_false_missing(out, log)
         out["czas_czytania_s"] = reading_seconds(out)
     return out
+
+
+_MISSING = re.compile(r"brak|nie podan|nie poda|nie ma\b|nie wiemy|nie wiadomo|nie określ|nie wskaz|pomija|pominię", re.I)
+_SEP = r"(?:\s*,\s*|\s+(?:oraz|i|ani|lub)\s+)"
+# kategoria → (czy jest w krokach/składnikach, wzorzec pozycji z listy „brakuje informacji o …”)
+_HAVE = {
+    "temperatura": (re.compile(r"\d+\s*(?:°|stopni)", re.I),
+                    r"(?:dokładn\w*\s+|konkretn\w*\s+|odpowiedni\w*\s+)?temperatur\w*(?:\s+(?:olej\w*|tłuszcz\w*|smażeni\w*))?"),
+    "czas": (re.compile(r"\d+\s*(?:min|sek|godz|s\b)", re.I),
+             r"(?:dokładn\w*\s+|konkretn\w*\s+)?czas\w*(?:\s+(?:smażeni\w*|gotowani\w*|pieczeni\w*))?"),
+}
+
+
+def _drop_item(sent: str, item: str) -> str | None:
+    """Usuwa jedną pozycję z wyliczenia („…o czasie, proporcjach oraz temperaturze oleju.”). None = zdanie puste."""
+    m = re.search(_SEP + item + r"(?=[\s.,;:)]|$)", sent, re.I)
+    if m:
+        return sent[:m.start()] + sent[m.end():]
+    m = re.search(r"\bo\s+" + item + "(" + _SEP + r")?", sent, re.I)
+    if not m:
+        m = re.search(r"(?<=\s)" + item + _SEP, sent, re.I)       # „Nie podano temperatury, czasu ani ilości.”
+        if m:
+            return sent[:m.start()] + sent[m.end():]
+        return None if re.search(r"(?<=\s)" + item + r"\s*[.!]?$", sent, re.I) else sent
+    if m.group(1):                                   # pierwsza z kilku pozycji — „o” zostaje dla następnej
+        return sent[:m.start()] + "o " + sent[m.end():]
+    return None
+
+
+def drop_false_missing(summary: dict, log=lambda s: None) -> int:
+    """„Brakuje … temperatury oleju”, gdy kroki podają 140 i 190 stopni (pomiar 0.9.0, dwa przebiegi z rzędu).
+    Z „Szczerej oceny” i „Czego nie wiadomo” znika pozycja, której kroki przeczą; zdanie bez treści znika całe.
+    Zdanie, które samo cytuje liczbę (np. „w temperaturze 190 °C”), nie jest twierdzeniem o braku — zostaje."""
+    todo = summary.get("co_masz_zrobic") or {}
+    facts = " ".join([str(k.get("tekst", "")) for k in todo.get("kroki", []) if isinstance(k, dict)]
+                     + [str(x.get("ilosc", "")) for x in todo.get("skladniki", []) if isinstance(x, dict)])
+    have = [item for have_re, item in _HAVE.values() if have_re.search(facts)]
+    if not have:
+        return 0
+    n = 0
+
+    def clean(text: str) -> str:
+        nonlocal n
+        out = []
+        for sent in re.split(r"(?<=[.!?])\s+", text):
+            new = sent
+            if _MISSING.search(sent) and not re.search(r"\d", sent):
+                for item in have:
+                    if new is None:
+                        break
+                    if re.search(item, new, re.I):
+                        new = _drop_item(new, item)
+            if new != sent:
+                n += 1
+            if new and re.search(r"\w{3}", new):
+                out.append(re.sub(r"\s+([.,;])", r"\1", new).strip())
+        return " ".join(out)
+
+    if isinstance(summary.get("szczera_ocena"), str):
+        summary["szczera_ocena"] = clean(summary["szczera_ocena"])
+    if isinstance(summary.get("czego_nie_wiadomo"), list):
+        summary["czego_nie_wiadomo"] = [c for c in (clean(x) if isinstance(x, str) else x
+                                                    for x in summary["czego_nie_wiadomo"]) if c]
+    if n:
+        log(f"        usunięto {n} twierdzeń o braku informacji, które są w krokach (temperatura/czas)")
+    return n
 
 
 def _norm_words(t: str) -> list[str]:
@@ -1320,28 +1389,45 @@ def _norm_words(t: str) -> list[str]:
 
 def verify_quotes(summary: dict, segments: list[dict]) -> int:
     """Cytat musi naprawdę paść w filmie: ≥80% jego słów po kolei w transkrypcji (w oknie). Zmyślone usuwamy.
+    Przepuszczony cytat dostaje DOKŁADNY tekst i czas z transkrypcji (pomiar 0.9.0: „This will add a beautiful crispy
+    layer.” przy 0:13 — w filmie „This is going to add a beautiful crispy layer.” przy 0:34).
 
     Pomiar na komputerze testowym: mały model „zacytował” zdanie, którego w filmie nie było. Zwraca liczbę usuniętych."""
-    words = _norm_words(" ".join(s.get("text") or "" for s in segments))
-    text = " ".join(words)
+    words: list[str] = []
+    seg_of: list[int] = []
+    for k, sg in enumerate(segments):
+        ws = _norm_words(sg.get("text") or "")
+        words += ws
+        seg_of += [k] * len(ws)
     kept, removed = [], 0
     for q in summary.get("cytaty", []):
         qw = _norm_words(q.get("tekst", ""))
-        if not qw:
+        if not qw or not words:
             removed += 1
             continue
-        if " ".join(qw) in text:
-            kept.append(q)
-            continue
-        best = 0
         n = len(qw)
+        best, at = 0.0, 0
         for i in range(max(1, len(words) - n + 1)):
-            win = set(words[i:i + n + 3])
-            best = max(best, sum(1 for w in qw if w in win) / n)
-        if best >= 0.8:
-            kept.append(q)
-        else:
+            win = words[i:i + n + 3]
+            sc = sum(1 for w in qw if w in win) / n
+            if words[i:i + n] == qw:
+                sc = 1.01                                  # dosłownie — wygrywa
+            if sc > best:
+                best, at = sc, i
+        if best < 0.8:
             removed += 1
+            continue
+        # dokładny fragment: segmenty od pierwszego do ostatniego trafionego słowa
+        span = n if best > 1 else n + 3                    # dosłowny: dokładnie n słów (bez doklejania następnego zdania)
+        hit = [j for j in range(at, min(len(words), at + span)) if words[j] in qw]
+        a, b = seg_of[hit[0]], seg_of[hit[-1]]
+        exact = " ".join(str(segments[k].get("text") or "").strip() for k in range(a, b + 1))
+        q = {**q, "t": float(segments[a].get("start", q.get("t", 0)))}
+        if exact and len(_norm_words(exact)) <= 2 * n + 4:   # nie podmieniaj krótkiego cytatu całym długim zdaniem
+            q["tekst"] = exact
+        if any(k["tekst"] == q["tekst"] for k in kept):     # dwa „cytaty” tego samego zdania → jeden
+            continue
+        kept.append(q)
     summary["cytaty"] = kept
     return removed
 

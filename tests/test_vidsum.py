@@ -1239,3 +1239,67 @@ def test_vision_answer_dedupes_repeated_actions():
     v = _clean_vision({"scena": "Kucharz wyciera miskę.", "czynnosci": ["wycieranie", "wycieranie", "trzymanie miski"],
                        "obiekty": ["miska"], "cialo": "", "pewnosc": "wysoka"})
     assert v["czynnosci"] == ["wycieranie", "trzymanie miski"] and v["tekst_na_ekranie"] == []
+
+
+def test_quotes_get_exact_text_and_time_from_transcript():
+    """Pomiar 0.9.0: „This will add a beautiful crispy layer.” przy 0:13 (w filmie: „This is going to add…” przy 0:34)."""
+    from vidsum.summary import verify_quotes
+    segs = json.loads((Path(__file__).parent / "bench" / "data" / "frytki_077.json").read_text(encoding="utf-8"))["segmenty"]
+    d = {"cytaty": [{"t": 13, "tekst": "This will add a beautiful crispy layer.", "tlumaczenie": "To doda…"},
+                    {"t": 13, "tekst": "To add a beautiful crisping layer."},
+                    {"t": 5, "tekst": "This is it. This is the perfect French fry."},
+                    {"t": 1, "tekst": "Fry them in honey for ten minutes."}]}
+    assert verify_quotes(d, segs) == 1                                    # zmyślony (miód) usunięty
+    assert [(q["t"], q["tekst"]) for q in d["cytaty"]] == [
+        (34.13, "This is going to add a beautiful crispy layer."),        # dokładny tekst i czas, bez duplikatu
+        (0.0, "This is it. This is the perfect French fry.")]             # bez doklejania następnego zdania
+    assert d["cytaty"][0]["tlumaczenie"] == "To doda…"
+
+
+def test_false_missing_claims_are_removed():
+    """Pomiar 0.9.0 (dwa przebiegi): „brakuje … dokładnej temperatury oleju”, a kroki mają 140 i 190 stopni."""
+    from vidsum.summary import drop_false_missing
+    todo = {"kroki": [{"tekst": "Rozgrzej olej do 140 stopni."}, {"tekst": "Rozgrzej olej do 190 stopni."}], "skladniki": []}
+    d = {"co_masz_zrobic": todo,
+         "szczera_ocena": "Dobry przepis. Jednak brakuje informacji o czasie smażenia, proporcjach składników oraz "
+                          "dokładnej temperaturze oleju. Film skupia się na technice.",
+         "czego_nie_wiadomo": ["Nie podano temperatury oleju.", "Czy smażyć w wysokiej temperaturze oleju (190°C) dłużej.",
+                               "Nie podano temperatury, czasu ani ilości."]}
+    assert drop_false_missing(d) == 3
+    assert d["szczera_ocena"] == ("Dobry przepis. Jednak brakuje informacji o czasie smażenia, proporcjach składników. "
+                                  "Film skupia się na technice.")
+    assert d["czego_nie_wiadomo"] == ["Czy smażyć w wysokiej temperaturze oleju (190°C) dłużej.",   # cytuje liczbę
+                                      "Nie podano czasu ani ilości."]
+    d2 = {"co_masz_zrobic": {"kroki": [{"tekst": "Smaż na złoto."}]}, "szczera_ocena": "Brakuje temperatury oleju."}
+    assert drop_false_missing(d2) == 0 and d2["szczera_ocena"] == "Brakuje temperatury oleju."    # naprawdę brak
+
+
+def test_measured_091_term_fixes():
+    from vidsum.summary import fix_terms
+    src = "And par-fry them. Or blanch them."
+    assert fix_terms("gotuj z sodą i parz/blanszuj w oleju.", src) == "gotuj z sodą i wstępnie smaż/blanszuj w oleju."
+    assert fix_terms("o odpowiednim parowaniu w oleju", src) == "o odpowiednim wstępnym smażeniu w oleju"
+    assert fix_terms("wstępnie smażyć/blanshować", src) == "wstępnie smażyć/blanszować"
+    assert fix_terms("parz herbatę", src) == "parz herbatę"
+
+
+def test_leftover_models_from_previous_analysis_are_freed(tmp_path, ollama, monkeypatch):
+    """Pomiar 0.9.0: gemma z poprzedniej analizy zajmowała 3,1 GB („inne programy: 5515 MB”), model obrazu wczytywał się
+    17 s zamiast ~10 s. Teraz: zwolniona na starcie, a raport mówi, co to było."""
+    import vidsum.cuda as cuda
+    import vidsum.pipeline as pl
+    monkeypatch.setattr(cuda, "gpu_snapshot", lambda: {"karta": "RTX test", "pamiec_mb": 8192, "zajete_mb": 5515,
+                                                       "wolne_mb": 2503, "programy": [{"nazwa": "steam.exe", "pamiec_mb": None}]})
+    monkeypatch.setattr(cuda, "ollama_models", lambda host=None: [{"model": "fake-txt", "rozmiar_mb": 3101, "na_karcie_proc": 100}])
+    logs: list[str] = []
+    out = pl.analyze(str(DATA / "bez_audio.mp4"), pl.Options(out_root=tmp_path, ollama_host=ollama, vision_model="fake-vl",
+                                                            text_model="fake-txt", max_frames=3, translate=[], ocr=False),
+                     log=logs.append)
+    calls = FakeOllama.calls
+    free = next(i for i, c in enumerate(calls) if c.get("model") == "fake-txt" and c.get("keep_alive") == 0)
+    first_img = next(i for i, c in enumerate(calls) if c.get("messages") and c["messages"][0].get("images"))
+    assert free < first_img
+    assert any("z poprzedniej analizy: fake-txt (3101 MB)" in m for m in logs)
+    assert any("inne programy zajmują 2414 MB" in m for m in logs)          # 5515 − 3101: tylko naprawdę inne programy
+    rep = (out / "raport.md").read_text(encoding="utf-8")
+    assert "modele z poprzedniej analizy (zwolnione na starcie): `fake-txt` 3101 MB; inne programy **2414 MB**" in rep
