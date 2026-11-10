@@ -188,3 +188,30 @@ def test_result_language_switch_in_browser(tmp_path, monkeypatch):
         assert not [e for e in errors if "film" not in e], errors
     finally:
         srv.shutdown()
+
+
+def test_retranslation_only_changed_texts_and_staleness():
+    """0.11.0: oryginał jest źródłem prawdy — po zmianie oryginału tłumaczenie jest nieaktualne, a ponowne
+    tłumaczy tylko zmienione teksty (reszta z pamięci)."""
+    from vidsum.translate_all import is_current, source_hash, translate_analysis
+    r = _analysis("en")
+    eng = EchoEN()
+    first = translate_analysis(eng, r, "en")
+    r["tlumaczenie_calosci"] = {"en": first}
+    assert is_current(r, "en") and first["zrodlo_hash"] == source_hash(r) and first["z_pamieci"] == 0
+    r["streszczenie"]["dane"]["teza"] = "Dwa smażenia w 140 i 190 stopniach."        # oryginał się zmienił
+    assert not is_current(r, "en")
+    seen = []
+
+    class Spy(EchoEN):
+        def complete(self, prompt, as_json=False, **kw):
+            seen.extend(re.findall(r"^\d+\. (.*)$", prompt.split("LINES:")[1], re.M))
+            return super().complete(prompt, as_json, **kw)
+    second = translate_analysis(Spy(), r, "en", cache=first["pamiec"])
+    assert seen == ["Dwa smażenia w 140 i 190 stopniach."]                         # tylko zmieniony tekst
+    assert second["dane"]["teza"] == "EN: Dwa smażenia w 140 i 190 stopniach."
+    assert second["dane"]["tytul"] == "EN: Idealne frytki" and second["z_pamieci"] > 5
+    r["tlumaczenie_calosci"]["en"] = second
+    assert is_current(r, "en")
+    legacy = {"tlumaczenie_calosci": {"en": {"dane": {}}}, **{k: v for k, v in r.items() if k != "tlumaczenie_calosci"}}
+    assert is_current(legacy, "en")                                                  # sprzed 0.11 (bez odcisku)

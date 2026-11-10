@@ -80,12 +80,12 @@ def test_settings_roundtrip_and_whitelist(server, tmp_path):
 
 
 def test_quick_preview_is_automatic_without_switch(server):
-    """0.10.0: szybki podgląd to część analizy, a nie osobny tryb — z programu zawsze „automatycznie” (None),
-    także gdy w starych ustawieniach został przełącznik."""
+    """0.11.0: wstępne streszczenie to stała część analizy z programu (zawsze włączone), a nie osobny tryb —
+    stary przełącznik w ustawieniach niczego nie zmienia."""
     base, app = server
-    assert app.options(app.settings).preview is None
-    req(base, "/api/ustawienia", data=json.dumps({"podglad": True}).encode(), method="POST")
-    assert app.options(app.settings).preview is None
+    assert app.options(app.settings).preview is True
+    req(base, "/api/ustawienia", data=json.dumps({"podglad": False}).encode(), method="POST")
+    assert app.options(app.settings).preview is True
 
 
 def test_upload_polish_name_and_results(server):
@@ -505,3 +505,43 @@ def test_shutdown_kills_child_processes_and_keeps_ollama(tmp_path, monkeypatch):
     with pytest.raises(tools.ToolError):
         tools.run([sys.executable, "-c", "pass"])                       # po zamknięciu nic nowego nie startuje
     assert json.loads((tmp_path / "VidSum" / "zamkniecie.json").read_text(encoding="utf-8"))["powod"] == "test"
+
+
+def test_result_translated_after_analysis_before_next_video(tmp_path, monkeypatch):
+    """0.11.0: po streszczeniu wynik tłumaczy się na angielski w wątku kolejki — następny film rusza dopiero potem
+    (karta graficzna po kolei); wyłączone w Ustawieniach → bez tłumaczenia."""
+    from vidsum import gui
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    order = []
+
+    def fake(src, opt, log):
+        out = tmp_path / Path(src).stem
+        out.mkdir(exist_ok=True)
+        (out / "analiza.json").write_text(json.dumps({"streszczenie": {"silnik": "ollama:gemma3:4b", "dane": {"teza": "x"}}}),
+                                          encoding="utf-8")
+        order.append(("analiza", Path(src).stem))
+        return out
+    monkeypatch.setattr(gui, "analyze", fake)
+
+    def tr(self, p, lang, st=None):
+        order.append(("tlumaczenie", p.parent.name, lang))
+        time.sleep(0.2)
+        return {}
+    monkeypatch.setattr(gui.App, "translate_result", tr)
+    app = gui.App(tmp_path / "wyniki", "tok")
+    a = app.worker.submit(gui.Job("a", str(tmp_path / "a.mp4"), "a", app.options(app.settings), None))
+    b = app.worker.submit(gui.Job("b", str(tmp_path / "b.mp4"), "b", app.options(app.settings), None))
+    for _ in range(100):
+        if len(order) == 4:
+            break
+        time.sleep(0.05)
+    assert order == [("analiza", "a"), ("tlumaczenie", "a", "en"), ("analiza", "b"), ("tlumaczenie", "b", "en")]
+    app.settings["tlumacz_wynik"] = False
+    order.clear()
+    app.worker.submit(gui.Job("c", str(tmp_path / "c.mp4"), "c", app.options(app.settings), None))
+    for _ in range(60):
+        if order:
+            break
+        time.sleep(0.05)
+    time.sleep(0.2)
+    assert order == [("analiza", "c")] and a.status == b.status == "gotowe"

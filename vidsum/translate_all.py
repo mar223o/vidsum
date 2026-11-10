@@ -8,6 +8,8 @@ Wynik ląduje w analiza.json pod "tlumaczenie_calosci"[jezyk].
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 import time
 from typing import Callable
 
@@ -64,8 +66,23 @@ def _slots(dane: dict, kadry: list[dict]) -> list[tuple[list, object, str]]:
     return out
 
 
+def source_hash(r: dict) -> str:
+    """Odcisk oryginału (streszczenie + opisy kadrów + transkrypcja). Inny odcisk = tłumaczenie nieaktualne."""
+    d = ((r.get("streszczenie") or {}).get("dane")) or {}
+    k = [(f.get("t"), (f.get("vision") or {})) for f in r.get("kadry") or []]
+    t = [(x.get("start"), x.get("text")) for x in ((r.get("transkrypcja") or {}).get("segmenty") or [])]
+    raw = json.dumps([d, k, t], ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def is_current(r: dict, tgt: str) -> bool:
+    """Tłumaczenie istnieje i powstało z obecnej wersji oryginału (stare, sprzed 0.11, bez odcisku — uznawane)."""
+    res = (r.get("tlumaczenie_calosci") or {}).get(tgt) or {}
+    return bool(res) and res.get("zrodlo_hash", source_hash(r)) == source_hash(r)
+
+
 def translate_analysis(engine, r: dict, tgt: str, log: Callable[[str], None] = lambda s: None,
-                       progress: Callable[[str], None] = lambda s: None) -> dict:
+                       progress: Callable[[str], None] = lambda s: None, cache: dict | None = None) -> dict:
     """Zwraca {"jezyk", "silnik", "dane", "kadry", "transkrypcja", "nieprzetlumaczone", "czas_s"}.
 
     Streszczenie i opisy kadrów program pisze po polsku: na "pl" zostają bez zmian, na "en" są tłumaczone.
@@ -76,14 +93,22 @@ def translate_analysis(engine, r: dict, tgt: str, log: Callable[[str], None] = l
     dane = copy.deepcopy(((r.get("streszczenie") or {}).get("dane")) or {})
     kadry = copy.deepcopy(r.get("kadry") or [])
     failed = 0
+    mem = dict(cache or {})                               # oryginał → tłumaczenie z poprzedniego razu
+    reused = 0
     if tgt != "pl":
         slots = _slots(dane, kadry)
-        progress(f"streszczenie i kadry: {len(slots)} tekstów")
-        if slots:
-            segs, failed = translate_segments(engine, [{"start": i, "end": i, "text": s[2]} for i, s in enumerate(slots)],
+        todo = [x for x in slots if x[2] not in mem]       # tylko teksty nowe albo zmienione od ostatniego tłumaczenia
+        reused = len(slots) - len(todo)
+        progress(f"streszczenie i kadry: {len(todo)} tekstów" + (f" (bez zmian: {reused})" if reused else ""))
+        if todo:
+            uniq = list(dict.fromkeys(x[2] for x in todo))
+            segs, failed = translate_segments(engine, [{"start": i, "end": i, "text": t} for i, t in enumerate(uniq)],
                                               "pl", tgt, log, chunk=20)
-            for (box, key, orig), seg in zip(slots, segs):
-                box[key] = seg["text"] or orig            # bez tłumaczenia — zostaje oryginał (policzony w failed)
+            for orig, seg in zip(uniq, segs):
+                if seg["text"]:
+                    mem[orig] = seg["text"]
+        for box, key, orig in slots:
+            box[key] = mem.get(orig) or orig              # bez tłumaczenia — zostaje oryginał (policzony w failed)
     marks = _MARK[tgt]
     for x in (dane.get("co_masz_zrobic") or {}).get("skladniki") or []:
         if isinstance(x, dict) and x.get("ilosc") in marks:
@@ -106,4 +131,5 @@ def translate_analysis(engine, r: dict, tgt: str, log: Callable[[str], None] = l
     return {"jezyk": tgt, "silnik": f"ollama:{getattr(engine, 'model', '?')}", "dane": dane,
             "kadry": [{"t": f.get("t"), "file": f.get("file"), "vision": f.get("vision")} for f in kadry],
             "transkrypcja": {"segmenty": tsegs, "zrodlo": how}, "nieprzetlumaczone": failed + tfail,
-            "czas_s": round(time.time() - t0, 1)}
+            "czas_s": round(time.time() - t0, 1), "zrodlo_hash": source_hash(r), "pamiec": mem,
+            "z_pamieci": reused}

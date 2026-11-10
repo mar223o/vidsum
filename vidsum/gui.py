@@ -62,6 +62,7 @@ class Job:
         self.started: float | None = None
         self.finished: float | None = None
         self.stage = ""                 # np. "2/4 kadry"
+        self.stage_extra = ""           # po analizie: "tlumaczenie" (wynik już gotowy)
         self.partial: dict = {}         # gotowe etapy w trakcie analizy (podgląd): transkrypcja, napisy, kadry…
         self.settings: dict = {}        # ustawienia w chwili dodania (do zapisu kolejki i ponowienia)
 
@@ -86,7 +87,7 @@ class Job:
         end = self.finished or time.time()
         return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-400:],
                 "error": self.error, "out": str(self.out) if self.out else None, "created": self.created,
-                "stage": self.stage, "czesciowe": list(self.partial) if self.status == "trwa" else [],
+                "stage": self.stage, "etap_po": self.stage_extra, "czesciowe": list(self.partial) if self.status == "trwa" else [],
                 "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card()}
 
 
@@ -97,7 +98,8 @@ class Worker:
     0.11.0: kolejność, usuwanie, pauza/wznowienie, ponawianie, bez dubli, zapis do kolejka.json
     (po ponownym uruchomieniu kolejka wraca wstrzymana — wznawiasz ją sam)."""
 
-    def __init__(self, state_file: Path | None = None, make_options=None):
+    def __init__(self, state_file: Path | None = None, make_options=None, after=None):
+        self.after = after                                  # po udanej analizie (np. tłumaczenie wyniku)
         self.jobs: dict[str, Job] = {}
         self.pending: list[Job] = []
         self.current: Job | None = None
@@ -258,6 +260,11 @@ class Worker:
             try:
                 job.out = analyze(job.source, job.opt, log)
                 job.status = "gotowe"
+                if self.after and self.accepting:
+                    try:
+                        self.after(job)
+                    except Exception:
+                        traceback.print_exc()
             except Exception as e:  # pokaż błąd w interfejsie, nie zabijaj serwera
                 if not self.accepting:
                     job.status, job.error = "przerwane", "przerwane przy zamykaniu programu"
@@ -295,9 +302,9 @@ class App:
         self.token = token
         self.settings_file = app_dir() / "ustawienia.json"
         self.settings = self._load_settings()
-        self.worker = Worker(app_dir() / "kolejka.json", self.options)
         self.translations: dict = {}          # (id zadania, język) → {"stan", "postep", "error"} — tłumaczenie całości
         self._tr_lock = threading.Lock()
+        self.worker = Worker(app_dir() / "kolejka.json", self.options, self.after_analysis)
         self.scan_library()
 
     def scan_library(self) -> None:
@@ -325,7 +332,7 @@ class App:
         d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
              "streszczenie": "auto", "model_tekstowy": DEFAULT_TEXT_MODEL, "tlumaczenia": "pl,en", "gpu_pobieranie": True,
              "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results),
-             "podglad": False}
+             "podglad": False, "tlumacz_wynik": True}
         try:
             saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
             if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":
@@ -358,7 +365,48 @@ class App:
                        text_model=s.get("model_tekstowy") or DEFAULT_TEXT_MODEL, translate=tl,
                        cuda_download=bool(s.get("gpu_pobieranie", True)),
                        cookies_from_browser=s.get("ciasteczka_z") or None,
-                       preview=None)          # 0.10.0: podgląd zawsze automatycznie (bez osobnego trybu)
+                       preview=True)          # 0.11.0: wstępne streszczenie zawsze częścią analizy (bez przełącznika)
+
+    def translate_result(self, p: Path, lang: str, st: dict | None = None) -> dict:
+        """Tłumaczy wynik (analiza.json) na `lang`: tylko teksty nowe albo zmienione od poprzedniego tłumaczenia
+        (pamięć oryginał → tłumaczenie), zapis z odciskiem oryginału. Oryginał zostaje źródłem prawdy."""
+        from .translate_all import translate_analysis
+        st = st if st is not None else {}
+        st.update(stan="trwa", postep="start")
+        try:
+            eng = Ollama(self.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
+            eng.ensure(lambda m: None)
+            r = json.loads(p.read_text(encoding="utf-8"))
+            old = ((r.get("tlumaczenie_calosci") or {}).get(lang) or {}).get("pamiec") or {}
+            res = translate_analysis(eng, r, lang, progress=lambda m: st.update(postep=m), cache=old)
+            with self._tr_lock:                       # zapis do analiza.json (bez gubienia innych zmian)
+                r = json.loads(p.read_text(encoding="utf-8"))
+                r.setdefault("tlumaczenie_calosci", {})[lang] = res
+                p.write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding="utf-8")
+            st.update(stan="gotowe", postep="", nieprzetlumaczone=res["nieprzetlumaczone"], czas_s=res["czas_s"])
+        except Exception as e:                        # Ollama nie działa itp.
+            st.update(stan="blad", error=str(e)[:300])
+        return st
+
+    def after_analysis(self, job: "Job") -> None:
+        """Po streszczeniu (w wątku kolejki, zanim ruszy następny film — karta graficzna po kolei): tłumaczenie wyniku
+        na drugi język programu (PL ↔ EN), gdy włączone w Ustawieniach. Wynik jest już widoczny; to dochodzi w tle."""
+        if not self.settings.get("tlumacz_wynik", True) or not job.out:
+            return
+        p = job.out / "analiza.json"
+        if not p.is_file():
+            return
+        from .translate_all import is_current
+        r = json.loads(p.read_text(encoding="utf-8"))
+        if (r.get("streszczenie") or {}).get("silnik") in (None, "brak"):
+            return                                    # bez streszczenia nie ma czego tłumaczyć
+        lang = "en"                                   # streszczenie powstaje po polsku → druga wersja: angielska
+        if is_current(r, lang):
+            return
+        job.stage_extra = "tlumaczenie"
+        st = self.translations[(job.id, lang)] = {"stan": "trwa", "postep": "start", "auto": True}
+        self.translate_result(p, lang, st)
+        job.stage_extra = ""
 
     def shutdown(self, reason: str = "") -> dict:
         """Porządne zamknięcie (0.11.0), w tej kolejności:
@@ -601,8 +649,8 @@ def make_handler(app: App):
             return self._json(out)
 
         def _translate_all(self, jid: str, lang: str, start: bool):
-            """Tłumaczenie całej analizy (0.9.0) w tle; GET = stan, POST = start (gdy jeszcze nie ma i nie trwa)."""
-            from .translate_all import LANGS, translate_analysis
+            """Tłumaczenie całej analizy w tle; GET = stan, POST = start (gdy brak albo nieaktualne i nie trwa)."""
+            from .translate_all import LANGS, is_current
             p = self._job_file(jid, "analiza.json")
             if not p or not p.is_file():
                 return self._json({"error": "brak wyników"}, 404)
@@ -611,27 +659,14 @@ def make_handler(app: App):
             key = (jid, lang)
             with app._tr_lock:
                 st = app.translations.get(key)
-                done = lang in (json.loads(p.read_text(encoding="utf-8")).get("tlumaczenie_calosci") or {})
+                done = is_current(json.loads(p.read_text(encoding="utf-8")), lang)
                 if done and not (st and st["stan"] == "trwa"):
                     return self._json({"stan": "gotowe"})
                 if not start or (st and st["stan"] == "trwa"):
-                    return self._json(st or {"stan": "brak"})
+                    return self._json(st or {"stan": "nieaktualne" if not done and lang in (json.loads(
+                        p.read_text(encoding="utf-8")).get("tlumaczenie_calosci") or {}) else "brak"})
                 st = app.translations[key] = {"stan": "trwa", "postep": "start"}
-
-            def job() -> None:
-                try:
-                    eng = Ollama(app.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
-                    eng.ensure(lambda m: None)
-                    res = translate_analysis(eng, json.loads(p.read_text(encoding="utf-8")), lang,
-                                             progress=lambda m: st.update(postep=m))
-                    with app._tr_lock:                       # zapis do analiza.json (bez gubienia innych zmian)
-                        r = json.loads(p.read_text(encoding="utf-8"))
-                        r.setdefault("tlumaczenie_calosci", {})[lang] = res
-                        p.write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding="utf-8")
-                    st.update(stan="gotowe", postep="", nieprzetlumaczone=res["nieprzetlumaczone"], czas_s=res["czas_s"])
-                except Exception as e:                        # Ollama nie działa itp.
-                    st.update(stan="blad", error=str(e)[:300])
-            threading.Thread(target=job, daemon=True).start()
+            threading.Thread(target=app.translate_result, args=(p, lang, st), daemon=True).start()
             return self._json(st, 202)
 
         # --- GET ---

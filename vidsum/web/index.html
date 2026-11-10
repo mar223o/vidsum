@@ -454,7 +454,7 @@ const I18N = {
    set_ui_hint:"Język zmienia się od razu w całym programie, bez ponownego uruchamiania.",set_an:"Analiza",auto_detect:"automatycznie",on:"włączone",off:"wyłączone",
    set_ai:"Modele AI",sum_auto:"automatycznie (lokalnie)",sum_local:"lokalnie (Ollama)",s_text_model:"Model tekstowy (Ollama)",
    set_ai_hint:"Wszystko działa na tym komputerze. Ten sam model do obrazu i tekstu (np. gemma3:4b) oszczędza przełączania modeli na karcie.",
-   set_files:"Pliki i pobieranie",open_out:"Otwórz folder wyników",set_diag:"Diagnostyka",set_about:"O programie",set_quit:"Zamykanie",
+   s_auto_tr:"Wersja angielska wyniku po analizie",q_translating:"tłumaczenie wyniku na angielski",set_files:"Pliki i pobieranie",open_out:"Otwórz folder wyników",set_diag:"Diagnostyka",set_about:"O programie",set_quit:"Zamykanie",
    set_quit_hint:"Zamknięcie okna też kończy program. Trwająca analiza zostaje zapisana w kolejce; po ponownym uruchomieniu kolejka wraca wstrzymana.",
    downloaded:"pobrany",not_downloaded:"niepobrany",gpu:"Karta graficzna",gpu_cuda_ok:"NVIDIA, biblioteki CUDA pobrane",gpu_cuda_missing:"NVIDIA, biblioteki CUDA pobiorą się przy pierwszej analizie",
    gpu_none:"brak karty NVIDIA — mowa liczona na procesorze (wolniej)",version:"wersja",tech_name:"Nazwa techniczna",data_dir:"Dane programu",upd_current:v=>`Masz wersję ${v}`,
@@ -516,7 +516,7 @@ const I18N = {
    set_ui_hint:"The language changes right away across the whole app, no restart needed.",set_an:"Analysis",auto_detect:"automatic",on:"on",off:"off",
    set_ai:"AI models",sum_auto:"automatic (local)",sum_local:"local (Ollama)",s_text_model:"Text model (Ollama)",
    set_ai_hint:"Everything runs on this computer. Using the same model for vision and text (e.g. gemma3:4b) avoids swapping models on the GPU.",
-   set_files:"Files and downloads",open_out:"Open results folder",set_diag:"Diagnostics",set_about:"About",set_quit:"Quitting",
+   s_auto_tr:"English version of the result after analysis",q_translating:"translating the result to English",set_files:"Files and downloads",open_out:"Open results folder",set_diag:"Diagnostics",set_about:"About",set_quit:"Quitting",
    set_quit_hint:"Closing the window also quits the app. A running analysis is saved in the queue; after the next start the queue comes back paused.",
    downloaded:"downloaded",not_downloaded:"not downloaded",gpu:"Graphics card",gpu_cuda_ok:"NVIDIA, CUDA libraries downloaded",gpu_cuda_missing:"NVIDIA, CUDA libraries download on the first analysis",
    gpu_none:"no NVIDIA card — speech runs on the CPU (slower)",version:"version",tech_name:"Technical name",data_dir:"App data",upd_current:v=>`You have version ${v}`,
@@ -636,7 +636,8 @@ function renderChips(){
     if (location.hash.startsWith("#/ustawienia")) renderDiag();
   }
 }
-const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","max_kadrow","ciasteczka_z","wyniki"];
+const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki"];
+const SBOOL = ["ocr","tlumacz_wynik"];
 /* ---------- Ustawienia (0.11.0): tylko opcje, które program naprawdę obsługuje ---------- */
 function renderSettings(){
   const f = (k, lab, ctl, wide) => `<label class="f${wide ? " wide" : ""}"><span>${lab}</span>${ctl}</label>`;
@@ -658,6 +659,7 @@ function renderSettings(){
       ${f("streszczenie", t("s_summary"), sel("streszczenie", [["auto", t("sum_auto")], ["ollama", t("sum_local")], ["claude", "Claude (Pro)"], ["brak", t("off")]]))}
       ${f("model_tekstowy", t("s_text_model"), `<input id="s_model_tekstowy" spellcheck="false">`)}
       ${f("model_obrazu", t("s_vision"), `<input id="s_model_obrazu" spellcheck="false">`)}
+      ${f("tlumacz_wynik", t("s_auto_tr"), sel("tlumacz_wynik", [["true", t("on")], ["false", t("off")]]))}
     </div><p class="hint">${t("set_ai_hint")}</p></section>
     <section class="panel sets"><h2>${t("set_files")}</h2><div class="grid">
       ${f("wyniki", t("s_out"), `<input id="s_wyniki" spellcheck="false">`, true)}
@@ -681,7 +683,7 @@ function renderSettings(){
   $("#set_lang").onchange = e => { L = e.target.value; applyLang(); api("/api/ustawienia",{method:"POST",body:JSON.stringify({jezyk_ui:L})}).catch(()=>{}); };
   $("#set_theme").onchange = e => setTheme(e.target.value);
   $("#save").onclick = async () => {
-    const b = {}; for (const k of SKEYS){ const el = $("#s_"+k); if (!el) continue; const v = el.value; b[k] = k==="max_kadrow" ? (v? Number(v): null) : k==="ocr" ? v==="true" : v; }
+    const b = {}; for (const k of SKEYS){ const el = $("#s_"+k); if (!el) continue; const v = el.value; b[k] = k==="max_kadrow" ? (v? Number(v): null) : SBOOL.includes(k) ? v==="true" : v; }
     try { settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify(b)}); toast(t("saved")); loadStatus(); } catch(e){ toast(e.message); }
   };
   $("#openOut").onclick = () => api("/api/otworz-wyniki", {method:"POST"}).catch(e => toast(e.message));
@@ -757,7 +759,7 @@ function qThumb(j){
 }
 function qRow(j, idx, n){
   const st = j.status, pend = st === "w_kolejce";
-  const stage = st === "trwa" ? (j.stage ? `${t("stage_of", j.stage)} · ${t("stage_"+j.stage)}` : t("stage_0")) : "";
+  const stage = j.etap_po ? t("q_translating") : st === "trwa" ? (j.stage ? `${t("stage_of", j.stage)} · ${t("stage_"+j.stage)}` : t("stage_0")) : "";
   const timer = j.elapsed != null ? `<span class="timer" data-start="${st==="trwa" ? Date.now()/1000 - j.elapsed : ""}">${fmt(j.elapsed)}</span>` : "";
   const acts = [];
   if (pend) {
