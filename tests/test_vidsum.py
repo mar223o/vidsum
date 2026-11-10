@@ -928,7 +928,8 @@ def test_grounded_steps_fix_wrong_number_english_and_keep_order():
     assert g["wyjasnienia"][0]["tekst"] == "tłuszcz z kaczki dodaje smaku."
     assert g["skladniki"] == [{"nazwa": "sól Maldon", "ilosc": "brak danych", "zrodlo": "mowa"}]   # bez zmyśleń
     assert g["sprzet"] == ["garnek"]
-    assert sum(p.startswith("You turn numbered lines") for p in eng.prompts) == 2   # druga runda raz
+    rounds = [p for p in eng.prompts if p.startswith("You turn numbered lines")]
+    assert len(rounds) >= 2 and all(len(re.findall(r"^\d+\. ", p, re.M)) == 1 for p in rounds[1:])   # poprawki pojedynczo (0.11.5)
 
 
 def test_repair_cannot_invent_numbers():
