@@ -86,18 +86,28 @@ def test_home_queue_settings_and_language(appsrv, width):
         assert app.worker.paused and [j.id for j in app.worker.pending] == ["trzeci"]
         # Ustawienia: prawdziwe sekcje, diagnostyka z silnikiem wideo
         page.click('nav a[data-nav="set"]')
-        page.wait_for_selector("#diag .drow")
+        page.wait_for_selector(".setnav")
         txt = page.inner_text("#app")
+        # zapis od razu po zmianie (bez przycisku „Zapisz”)
+        page.click('.setnav [data-sec="an"]')
+        page.select_option("#s_ocr", "false")
+        page.wait_for_function("document.querySelector('#toast').innerText.includes('Zapisano')")
+        assert app.settings["ocr"] is False
+        page.click('.setnav [data-sec="diag"]')
+        page.wait_for_selector("#diag .drow")
         for h in ("Interfejs", "Analiza", "Modele AI", "Pliki i pobieranie", "Diagnostyka", "Aktualizacje", "O programie", "Zamykanie"):
             assert h in txt, h
         assert "Silnik wideo" in page.inner_text("#diag")
         page.screenshot(path=str(shots / f"ustawienia_{width}.png"), full_page=True)
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
         # zmiana języka w Ustawieniach: cały program po angielsku, bez restartu
+        page.click('.setnav [data-sec="ui"]')
         page.select_option("#set_lang", "en")
         page.wait_for_function("document.documentElement.lang === 'en'")
+        page.click('.setnav [data-sec="diag"]')
+        page.wait_for_selector("#diag .drow")
         whole = page.inner_text("body")
-        assert "Settings" in whole and "Diagnostics" in whole and "Video engine" in whole
+        assert "Settings" in whole and "Diagnostics" in whole and "Video engine" in page.inner_text("#diag")
         assert not PL_ONLY.search(whole), PL_ONLY.findall(whole)
         page.click('nav a[data-nav="home"]')
         page.wait_for_selector("#queue .qi")

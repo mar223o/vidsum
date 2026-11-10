@@ -230,6 +230,17 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
         shots = Path(os.environ.get("VIDSUM_SHOTS") or out)
         page.screenshot(path=str(shots / f"zakladki_{width}.png"))
+        # 0.11.3: na szerokim ekranie wynik mieści się na jednym ekranie we wszystkich trybach — przewija się kolumna
+        if width >= 1000:
+            assert "Otwórz film na YouTube" in page.inner_text("#rhead")
+            assert page.get_attribute("#rhead a.srclink", "href") == "https://www.youtube.com/watch?v=x"
+            for m in ("bal", "read", "video"):
+                page.click(f'#modes button[data-m="{m}"]')
+                page.wait_for_timeout(150)
+                assert page.evaluate("document.documentElement.scrollHeight <= window.innerHeight + 1"), (m, width, page.evaluate(
+                    "[document.documentElement.scrollHeight, innerHeight, ...[...document.querySelectorAll('#res, .layout, .layout>section, main')].map(e => e.className + ':' + Math.round(e.getBoundingClientRect().bottom))]"))
+                assert page.evaluate("[...document.querySelectorAll('.layout>section')].every(s => s.getBoundingClientRect().bottom <= innerHeight + 1)"), m
+                page.screenshot(path=str(shots / f"tryb_{m}_{width}.png"))
         # rozdziały: pasek całego filmu i udział każdego rozdziału (od autora + z analizy)
         page.click('#tabs button[data-tab="cha"]')
         assert page.locator(".chstrip").count() == 2 and page.locator(".chstrip.au button").count() == 2
