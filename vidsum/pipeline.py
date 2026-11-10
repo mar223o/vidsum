@@ -81,6 +81,13 @@ def _emit(opt: Options, kind: str, data) -> None:
             pass
 
 
+def _vision_ollama(opt: "Options") -> Ollama:
+    """Model obrazu; gdy to ten sam model co tekstowy — z kontekstem tekstu (bez przeładowań między kadrami a tekstem)."""
+    from .llm import TEXT_CTX, VISION_CTX
+    same = opt.vision_model == (opt.summary_model or opt.text_model)
+    return Ollama(opt.vision_model, opt.ollama_host, vision_ctx=TEXT_CTX if same else VISION_CTX)
+
+
 def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     t0 = time.time()
     trail: list[str] = []                       # pełny przebieg (co, kiedy, nad czym) → przebieg.log w wynikach
@@ -129,7 +136,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if opt.vision == "ollama" and not pv_first and re.match(r"https?://", str(inp).strip(), re.I):
         def early_preload() -> None:
             t_l = time.time()
-            Ollama(opt.vision_model, opt.ollama_host).preload()
+            _vision_ollama(opt).preload()
             early["s"] = round(time.time() - t_l, 1)
         early_thread = threading.Thread(target=early_preload, daemon=True)
         early_thread.start()
@@ -241,7 +248,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             if need_whisper and device == "cuda" and speech_thread:
                 speech_thread.join()       # najpierw Whisper na karcie (oba naraz mogłyby nie zmieścić się w 8 GB)
             t_l = time.time()
-            Ollama(opt.vision_model, opt.ollama_host).preload()
+            _vision_ollama(opt).preload()
             timings["obraz_wczytanie_s"] = round(time.time() - t_l, 1)
             log(f"        model obrazu wczytany do karty ({time.time() - t_l:.1f} s)")
         preload_job = preload
@@ -255,7 +262,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             from .cuda import free_vram_mb
             free = free_vram_mb()
             if free is None or free < 2500:
-                Ollama(opt.vision_model, opt.ollama_host).unload()
+                _vision_ollama(opt).unload()
                 early_thread = None
             else:
                 preload_job = None
@@ -456,7 +463,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     vision_engine = None
     refine_thread = None
     if opt.vision == "ollama":
-        vision_engine = Ollama(opt.vision_model, opt.ollama_host)
+        vision_engine = _vision_ollama(opt)
         vision_engine.check()
         if preload_thread and preload_thread.is_alive():
             log("        model obrazu jeszcze się wczytuje…")

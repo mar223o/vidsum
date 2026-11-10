@@ -124,8 +124,11 @@ def ollama_parallel() -> int:
 
 
 class Ollama:
-    def __init__(self, model: str, host: str | None = None, timeout: float = 600):
+    def __init__(self, model: str, host: str | None = None, timeout: float = 600, vision_ctx: int = VISION_CTX):
         self.model = model
+        # kontekst opisu kadrów; gdy ten sam model robi też tekst (0.10.1) — taki sam jak dla tekstu, bo Ollama
+        # przeładowuje model przy każdej zmianie num_ctx
+        self.vision_ctx = vision_ctx
         self.host = (host or os.environ.get("OLLAMA_HOST") or "http://127.0.0.1:11434").rstrip("/")
         if not self.host.startswith("http"):
             self.host = "http://" + self.host
@@ -158,7 +161,7 @@ class Ollama:
         r = self._post("/api/chat", {
             "model": self.model, "stream": False, "format": FRAME_SCHEMA_LIGHT if light else FRAME_SCHEMA,
             "keep_alive": "5m",
-            "options": {"temperature": 0, "num_predict": 250 if light else 400, "num_ctx": VISION_CTX},
+            "options": {"temperature": 0, "num_predict": 250 if light else 400, "num_ctx": self.vision_ctx},
             "messages": [{"role": "user", "content": (VISION_PROMPT_LIGHT if light else VISION_PROMPT).format(t=t_label),
                           "images": [b64]}],
         })
@@ -240,11 +243,12 @@ class Ollama:
             log(f"        model {self.model} nie jest pobrany — pobieram (jednorazowo)…")
             self.pull(log)
 
-    def preload(self, num_ctx: int = VISION_CTX) -> None:
+    def preload(self, num_ctx: int | None = None) -> None:
         """Wczytuje model do pamięci karty z wyprzedzeniem (pusty prompt) — na komputerze testowym samo wczytanie
         modelu obrazu zajmowało ~20 s przed pierwszym kadrem; tak dzieje się to w tle, w czasie OCR/kadrów."""
         try:
-            self._post("/api/generate", {"model": self.model, "keep_alive": "10m", "options": {"num_ctx": num_ctx}})
+            self._post("/api/generate", {"model": self.model, "keep_alive": "10m",
+                                         "options": {"num_ctx": num_ctx or self.vision_ctx}})
         except LLMError:
             pass
 

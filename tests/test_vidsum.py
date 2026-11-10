@@ -1356,6 +1356,17 @@ def test_automatic_preview_only_when_it_costs_nothing(tmp_path, ollama, monkeypa
     got.clear()
     pl.analyze(film, pl.Options(vision="brak", **o), log=lambda m: None)
     assert "wstepne" in got
+    # 0.10.1: kadry na innym modelu → mały kontekst; na tym samym co tekst → kontekst tekstu (bez przeładowań w Ollamie)
+    from vidsum.llm import TEXT_CTX, VISION_CTX
+    ctx = lambda: {c["options"]["num_ctx"] for c in FakeOllama.calls
+                   if c.get("messages") and c["messages"][0].get("images")}
+    FakeOllama.calls.clear()
+    pl.analyze(film, pl.Options(vision_model="fake-vl", **o), log=lambda m: None)
+    assert ctx() == {VISION_CTX}
+    FakeOllama.calls.clear()
+    got.clear()
+    pl.analyze(film, pl.Options(vision_model="fake-txt", **o), log=lambda m: None)
+    assert ctx() == {TEXT_CTX} and "wstepne" in got
 
 
 def test_author_description_chapters_and_comments_parsing():
