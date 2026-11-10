@@ -139,6 +139,8 @@ class App:
         self.worker = Worker()
         self.settings_file = app_dir() / "ustawienia.json"
         self.settings = self._load_settings()
+        self.translations: dict = {}          # (id zadania, język) → {"stan", "postep", "error"} — tłumaczenie całości
+        self._tr_lock = threading.Lock()
         self.scan_library()
 
     def scan_library(self) -> None:
@@ -366,6 +368,40 @@ def make_handler(app: App):
             hist_file.write_text(json.dumps(history, ensure_ascii=False, indent=1), encoding="utf-8")
             return self._json({"odpowiedz": answer, "historia": history})
 
+        def _translate_all(self, jid: str, lang: str, start: bool):
+            """Tłumaczenie całej analizy (0.9.0) w tle; GET = stan, POST = start (gdy jeszcze nie ma i nie trwa)."""
+            from .translate_all import LANGS, translate_analysis
+            p = self._job_file(jid, "analiza.json")
+            if not p or not p.is_file():
+                return self._json({"error": "brak wyników"}, 404)
+            if lang not in LANGS:
+                return self._json({"error": "obsługiwane języki: pl, en"}, 400)
+            key = (jid, lang)
+            with app._tr_lock:
+                st = app.translations.get(key)
+                done = lang in (json.loads(p.read_text(encoding="utf-8")).get("tlumaczenie_calosci") or {})
+                if done and not (st and st["stan"] == "trwa"):
+                    return self._json({"stan": "gotowe"})
+                if not start or (st and st["stan"] == "trwa"):
+                    return self._json(st or {"stan": "brak"})
+                st = app.translations[key] = {"stan": "trwa", "postep": "start"}
+
+            def job() -> None:
+                try:
+                    eng = Ollama(app.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
+                    eng.ensure(lambda m: None)
+                    res = translate_analysis(eng, json.loads(p.read_text(encoding="utf-8")), lang,
+                                             progress=lambda m: st.update(postep=m))
+                    with app._tr_lock:                       # zapis do analiza.json (bez gubienia innych zmian)
+                        r = json.loads(p.read_text(encoding="utf-8"))
+                        r.setdefault("tlumaczenie_calosci", {})[lang] = res
+                        p.write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding="utf-8")
+                    st.update(stan="gotowe", postep="", nieprzetlumaczone=res["nieprzetlumaczone"], czas_s=res["czas_s"])
+                except Exception as e:                        # Ollama nie działa itp.
+                    st.update(stan="blad", error=str(e)[:300])
+            threading.Thread(target=job, daemon=True).start()
+            return self._json(st, 202)
+
         # --- GET ---
         def do_GET(self):
             u = urllib.parse.urlparse(self.path)
@@ -399,6 +435,9 @@ def make_handler(app: App):
             if m:
                 job = app.worker.jobs.get(m.group(1))
                 return self._json(job.partial if job else {}, 200 if job else 404)
+            m = re.fullmatch(r"/api/zadania/(\w+)/tlumacz", u.path)
+            if m:
+                return self._translate_all(m.group(1), (qs.get("jezyk") or [""])[0], start=False)
             m = re.fullmatch(r"/api/zadania/(\w+)/czat", u.path)
             if m:
                 p = self._job_file(m.group(1), "czat.json")
@@ -484,6 +523,9 @@ def make_handler(app: App):
                 job = Job(secrets.token_hex(4), src, src, app.options(app.settings), None)
                 app.worker.submit(job)
                 return self._json(job.to_dict())
+            m = re.fullmatch(r"/api/zadania/(\w+)/tlumacz", u.path)
+            if m:
+                return self._translate_all(m.group(1), str(self._body().get("jezyk") or ""), start=True)
             m = re.fullmatch(r"/api/zadania/(\w+)/pytanie", u.path)
             if m:
                 return self._ask(m.group(1), (self._body().get("pytanie") or "").strip())
