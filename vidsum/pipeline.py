@@ -105,7 +105,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     # a kadry były gotowe wcześniej i czekały na model)
     early: dict = {}
     early_thread = None
-    if opt.vision == "ollama" and re.match(r"https?://", str(inp).strip(), re.I):
+    # szybki podgląd (0.8.3): model tekstowy idzie na kartę PIERWSZY, zaraz po transkrypcji; model obrazu wczytuje się
+    # dopiero po podglądzie. Pomiar 0.8.2: wczytany wcześniej model obrazu był wypychany przez tekstowy i wczytywał się
+    # drugi raz, a pusta przez chwilę karta myliła decyzję o Whisperze równolegle z kadrami (kadry 3,5 s zamiast 1,9 s).
+    pv_first = bool(opt.preview and opt.summary in ("auto", "ollama") and opt.vision == "ollama")
+    if opt.vision == "ollama" and not pv_first and re.match(r"https?://", str(inp).strip(), re.I):
         def early_preload() -> None:
             t_l = time.time()
             Ollama(opt.vision_model, opt.ollama_host).preload()
@@ -211,7 +215,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
 
     # model obrazu wczytuje się do karty W TLE, w czasie OCR i wycinania kadrów
     preload_thread = None
-    if opt.vision == "ollama":
+    if opt.vision == "ollama" and not pv_first:
         def preload() -> None:
             if need_whisper and device == "cuda" and speech_thread:
                 speech_thread.join()       # najpierw Whisper na karcie (oba naraz mogłyby nie zmieścić się w 8 GB)
@@ -286,6 +290,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         tr_box["tr"] = tr
         tr_box["s"] = round(time.time() - t_speech, 1)
         _emit(opt, "transkrypcja", {"jezyk": tr.language, "segmenty": [asdict(x) for x in tr.segments]})
+        start_preview()                          # napisy serwisu są od razu — podgląd startuje teraz, w czasie OCR i kadrów
         if caps_then_whisper:
             wav = extract_audio(src.path, out / "_audio.wav")
             log(f"  [1/4] mowa: napisy serwisu (automatyczne) jako podgląd; dokładna transkrypcja Whisperem na GPU "
@@ -440,6 +445,14 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             log("        czekam na szybki podgląd (model tekstowy na karcie)…")
             pv["thread"].join(timeout=180)
         pv["vision_on"] = True
+        if pv_first:                             # model obrazu na kartę PRZED decyzją o Whisperze obok niego
+            t_l = time.time()
+            try:
+                vision_engine.preload()
+                timings["obraz_wczytanie_s"] = round(time.time() - t_l, 1)
+                log(f"        model obrazu wczytany do karty ({time.time() - t_l:.1f} s, po podglądzie)")
+            except LLMError:
+                pass
         log(f"  [3/4] opis kadrów ({opt.vision_model})…")
         failed: list[str] = []
         done = [0]
@@ -451,7 +464,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             t_f = time.time()
             for attempt in (1, 2):   # Ollama sama podnosi model po awarii — jedna ponowna próba
                 try:
-                    f.vision = vision_engine.describe_frame(out / f.file, ts(f.t))
+                    # OCR czyta napisy → model obrazu ich nie przepisuje (krótsza odpowiedź, szybciej)
+                    f.vision = (vision_engine.describe_frame(out / f.file, ts(f.t), light=True) if opt.ocr
+                                else vision_engine.describe_frame(out / f.file, ts(f.t)))
                     break
                 except LLMError as e:
                     err = e

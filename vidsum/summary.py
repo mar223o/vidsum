@@ -624,7 +624,17 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
     (r"par[- ]?fr", r"steam|na parze|parowar",
      [(rf"\bpar(?:zeni|owani){e}(?: wstępn\w*)?\b", w) for e, w in (("em", "wstępnym smażeniem"), ("e", "wstępne smażenie"),
                                                                     ("a", "wstępnego smażenia"), ("u", "wstępnemu smażeniu"))]
-     + [(r"\bparzone\b", "wstępnie usmażone")]),
+     + [(r"\bparzone\b", "wstępnie usmażone"), (r"\bparowane\b", "wstępnie usmażone"),
+        (r"\bpar(?:ować|zyć)\b", "wstępnie smażyć")]),
+    # Maldon → „miód” (pomiar 0.8.2: „posypaniem miodnym solą”, „Miód z solą Maldon”) — w filmie nie ma miodu
+    (r"maldon", r"honey|miód|miod", [(r"^\s*miód z sol\w* maldon\s*$", "sól Maldon"),          # sam tytuł punktu
+                                    (r"\bmiodn\w+ (sol\w*)(?: maldon)?", r"\1 Maldon"),
+                                    (r"\bmi(?:ód|odem|odu|odzie) z (sol\w*) maldon", r"\1 Maldon"),
+                                    (r"\bmi(?:ód|odem|odu) z (sol\w*)", r"\1 Maldon")]),
+    # „drop in” = wrzuć (model: „Wyrzuć frytki” = wyrzuć do śmieci); „remove them” po smażeniu = wyjmij
+    (r"\bdrop (?:\w+ )*?in\b|\bdrop (?:\w+ )*?into\b", None, [(r"\bwyrzuć\b", "wrzuć"), (r"\bwyrzucić\b", "wrzucić")]),
+    (r"\bremove (?:them|it|the \w+)\b", r"\bremove (?:them|it|the \w+) from (?:the )?(?:list|recipe)",
+     [(r"\busuń (je|go|ją|frytki|ziemniaki)\b", r"wyjmij \1")]),
 ]
 
 
@@ -782,6 +792,7 @@ def _fix_name(name: str, spoken: str) -> str:
     name = re.sub(r"\bsol\b", "sól", name)
     if re.search(r"maldon", spoken, re.I):
         name = re.sub(r"\bmal(?:d)?on\b", "Maldon", name, flags=re.I)
+        name = re.sub(r"^maldon (?:salt|sól)$|^(?:salt|sól) maldon$", "sól Maldon", name, flags=re.I)
     return name.strip()
 
 
@@ -915,12 +926,30 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
             q = "brak danych"
         seen.append(name)
         out_ingr.append({"nazwa": name, "ilosc": q, "zrodlo": "mowa"})
+    out_ingr = _merge_variety(out_ingr)
     out_equip = []
     for x in _lst(ingr_raw.get("sprzet") or ingr_raw.get("sprzęt") or ingr_raw.get("equipment")):
         name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
         if name and _stems(name) & _stems(spoken_pl) and not any(_same_step(name, o) for o in out_equip):
             out_equip.append(name)
     return {"kroki": steps, "wyjasnienia": merge_notes(notes), "skladniki": out_ingr, "sprzet": out_equip}
+
+
+_BASE = r"^(ziemniak\w*|pomidor\w*|jabł\w*|cebul\w*|papryk\w*|mąk\w*|ryż\w*)$"
+
+
+def _merge_variety(ingr: list[dict]) -> list[dict]:
+    """Odmiana jako osobny składnik (pomiar 0.8.2: „Agria” i „ziemniaki”) → jeden: „ziemniaki agria”.
+    Odmiana = jednowyrazowa nazwa z wielkiej litery, a na liście jest też goły produkt (ziemniaki, pomidory…)."""
+    base = next((i for i, x in enumerate(ingr) if re.match(_BASE, x["nazwa"].strip(), re.I)), None)
+    var = [i for i, x in enumerate(ingr) if re.fullmatch(r"[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+", x["nazwa"].strip())
+           and not re.match(_BASE, x["nazwa"].strip(), re.I) and x["nazwa"].strip().lower() not in ("sól", "cukier", "woda")]
+    if base is None or len(var) != 1:
+        return ingr
+    b, v = ingr[base], ingr[var[0]]
+    merged = {**b, "nazwa": f"{b['nazwa'].strip()} {v['nazwa'].strip().lower()}",
+              "ilosc": b["ilosc"] if b["ilosc"] != "brak danych" else v["ilosc"]}
+    return [merged if i == base else x for i, x in enumerate(ingr) if i != var[0]]
 
 
 def merge_notes(notes: list[dict]) -> list[dict]:

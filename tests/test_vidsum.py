@@ -1059,7 +1059,7 @@ def test_ingredients_keep_potato_starch_and_fix_names():
                                    {"nazwa": "skrobia ziemniaczana", "ilosc": "brak danych"},
                                    {"nazwa": "malon sol", "ilosc": "brak danych"}], "sprzet": []})
     names = [x["nazwa"] for x in grounded_steps(eng, speech_lines(segs), "przepis", "")["skladniki"]]
-    assert names == ["ziemniaki", "skrobia ziemniaczana", "Maldon sól"]
+    assert names == ["ziemniaki", "skrobia ziemniaczana", "sól Maldon"]
 
 
 def test_highlight_snaps_to_step_with_its_number():
@@ -1165,6 +1165,13 @@ def test_quick_preview_on_text_model_before_frames(tmp_path, ollama, monkeypatch
     assert len(qi) == 1 and calls[qi[0]]["model"] == "fake-txt" and calls[qi[0]]["options"]["num_ctx"] != VISION_CTX
     first_frame = next(i for i, c in enumerate(calls) if c["messages"][0].get("images"))
     assert qi[0] < first_frame                                          # podgląd przed opisem kadrów
+    # 0.8.3: model obrazu NIE jest wczytywany przed podglądem (wypychał go model tekstowy i wczytywał się drugi raz)
+    every = FakeOllama.calls
+    q_all = next(i for i, c in enumerate(every) if c.get("messages") and "QUICK PRELIMINARY" in c["messages"][0]["content"])
+    assert all(c.get("model") != "fake-vl" for c in every[:q_all])
+    # OCR włączony → lekki opis kadru: bez przepisywania napisów, krótsze listy
+    fr = calls[first_frame]
+    assert "tekst_na_ekranie" not in fr["format"]["properties"] and fr["format"]["properties"]["obiekty"]["maxItems"] == 5
     r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
     assert r["podglad"]["po_s"] > 0 and r["streszczenie"]["dane"].get("wstepne") is None   # pełne zastąpiło wstępne
     assert "Szybki podgląd" in (out / "raport.md").read_text(encoding="utf-8")
@@ -1197,3 +1204,38 @@ def test_quick_summary_guards_numbers_and_long_transcripts():
     txt, cut = quick_lines(long, 5000)
     assert cut and len(txt) <= 5000 and txt.startswith("[0s]") and "[5" in txt.splitlines()[-1][:3]
     assert quick_summary(e, [], "", 60) is None
+
+
+def test_measured_083_term_fixes():
+    """Pomiar 0.8.2 u użytkownika: „posypaniem miodnym solą”, „Miód z solą Maldon”, „parować/blanszować”,
+    „Wyrzuć frytki” (drop in), „Usuń je” (remove them); „Agria” + „ziemniaki” jako dwa składniki."""
+    from vidsum.summary import _fix_name, _merge_variety, fix_terms
+    src = ("We're going to drop in our fries. And par-fry them. Remove them. "
+           "Finish with a sprinkle of maldon salt.")
+    assert fix_terms("Zakończ posypaniem miodnym solą.", src) == "Zakończ posypaniem solą Maldon."
+    assert fix_terms("Miód z solą Maldon", src) == "Sól Maldon"
+    assert fix_terms("parować/blanszować w oleju", src) == "wstępnie smażyć/blanszować w oleju"
+    assert fix_terms("Wyrzuć frytki.", src) == "Wrzuć frytki."
+    assert fix_terms("Usuń je.", src) == "Wyjmij je."
+    assert fix_terms("Usuń nadmiar skrobi.", src) == "Usuń nadmiar skrobi."
+    assert fix_terms("Dodaj miód.", "Add honey and maldon salt") == "Dodaj miód."         # miód jest w filmie
+    assert fix_terms("Wyrzuć skórki.", "Throw away the peel") == "Wyrzuć skórki."        # bez „drop in”
+    assert _fix_name("Maldon salt", "maldon") == "sól Maldon"
+    m = _merge_variety([{"nazwa": "Agria", "ilosc": "brak danych"}, {"nazwa": "ziemniaki", "ilosc": "brak danych"},
+                        {"nazwa": "sól", "ilosc": "brak danych"}])
+    assert [x["nazwa"] for x in m] == ["ziemniaki agria", "sól"]
+
+
+
+def test_frame_count_scales_with_short_videos():
+    """0.8.3: do 2 min kadr na ~4 s (10–20). Pomiar 0.8.2: 20 kadrów dla 58 s, sąsiednie prawie identyczne."""
+    from vidsum.media import plan_for
+    assert [plan_for(d).max_frames for d in (20, 58, 80, 120, 300)] == [10, 15, 20, 20, 45]
+    assert plan_for(58, 30).max_frames == 30                               # ręczny limit wygrywa
+
+
+def test_vision_answer_dedupes_repeated_actions():
+    from vidsum.llm import _clean_vision
+    v = _clean_vision({"scena": "Kucharz wyciera miskę.", "czynnosci": ["wycieranie", "wycieranie", "trzymanie miski"],
+                       "obiekty": ["miska"], "cialo": "", "pewnosc": "wysoka"})
+    assert v["czynnosci"] == ["wycieranie", "trzymanie miski"] and v["tekst_na_ekranie"] == []

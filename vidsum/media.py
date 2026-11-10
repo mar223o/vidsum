@@ -86,7 +86,9 @@ def plan_for(duration: float, max_frames: int | None = None) -> SamplingPlan:
     """Dobiera gęstość kadrów do długości: krótki przepis gęsto, 40 min rzadziej."""
     if max_frames is None:
         # mniej kadrów = szybciej; większość treści i tak niesie mowa, kadry ją uzupełniają
-        max_frames = 20 if duration <= 120 else 45 if duration <= 600 else 100
+        # do 2 min: kadr na ~4 s (min. 10, maks. 20). Pomiar 0.8.2 (frytki 58 s): 20 kadrów co 2–3 s, sąsiednie
+        # prawie takie same („wycieranie wody z miski” ×3), a opis kadrów był najdłuższym etapem (38 s z 99)
+        max_frames = max(10, min(20, int(duration / 4 + 0.5))) if duration <= 120 else 45 if duration <= 600 else 100
     base = max(3.0, min(30.0, duration / max(1, max_frames * 0.7)))
     return SamplingPlan(base_interval=round(base, 2), max_frames=max_frames)
 

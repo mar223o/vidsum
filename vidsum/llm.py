@@ -42,6 +42,19 @@ FRAME_SCHEMA = {"type": "object", "properties": {
     "pewnosc": {"type": "string", "enum": ["wysoka", "srednia", "niska"]}},
     "required": ["scena", "czynnosci", "obiekty", "tekst_na_ekranie", "napisy_na_przedmiotach", "cialo", "pewnosc"]}
 
+# wersja LEKKA (0.8.3), gdy napisy na ekranie czyta OCR: bez przepisywania napisów i krótsze listy — mniej tokenów
+# na kadr (czas opisu kadru rośnie z liczbą wypisanych tokenów). Napisy z ekranu i tak biorą się z OCR (dokładniejszy).
+FRAME_SCHEMA_LIGHT = {"type": "object", "properties": {
+    "scena": {"type": "string"}, "czynnosci": _ARR(3), "obiekty": _ARR(5), "cialo": {"type": "string"},
+    "pewnosc": {"type": "string", "enum": ["wysoka", "srednia", "niska"]}},
+    "required": ["scena", "czynnosci", "obiekty", "cialo", "pewnosc"]}
+VISION_PROMPT_LIGHT = (VISION_PROMPT.split('"tekst_na_ekranie"')[0]
+                       + '"cialo": ustawienie ciała / pozycja / zakres ruchu, jeśli widać osobę ćwiczącą (inaczej pusty string),\n'
+                       + '"pewnosc": "wysoka" | "srednia" | "niska".\n'
+                       + "NIE przepisuj napisów z ekranu (czyta je osobny program). Każdą czynność wymień raz.\n"
+                       + VISION_PROMPT.split('"pewnosc": "wysoka" | "srednia" | "niska".\n')[1]
+                       .replace('najwyżej 6 "obiekty" i 4 "czynnosci"', 'najwyżej 5 "obiekty" i 3 "czynnosci"'))
+
 VISION_KEYS = {"scena": "", "czynnosci": [], "obiekty": [], "tekst_na_ekranie": [], "napisy_na_przedmiotach": [],
                "cialo": "", "pewnosc": "niska"}
 
@@ -75,7 +88,7 @@ def _clean_vision(d: dict) -> dict:
             if isinstance(v, str):
                 v = [v] if v.strip() else []
             v = [fix(str(x)) for x in (v or []) if str(x).strip()]
-            v = [x for x in v if x]
+            v = list(dict.fromkeys(x for x in v if x))          # bez powtórzeń („wycieranie, wycieranie”)
         else:
             v = "" if v is None else fix(str(v))
         out[k] = v
@@ -140,12 +153,14 @@ class Ollama:
         if want not in names:
             raise LLMError(f"Brak modelu '{self.model}' w Ollamie. Uruchom: ollama pull {self.model}")
 
-    def describe_frame(self, image: Path, t_label: str) -> dict:
+    def describe_frame(self, image: Path, t_label: str, light: bool = False) -> dict:
         b64 = base64.b64encode(Path(image).read_bytes()).decode("ascii")
         r = self._post("/api/chat", {
-            "model": self.model, "stream": False, "format": FRAME_SCHEMA, "keep_alive": "5m",
-            "options": {"temperature": 0, "num_predict": 400, "num_ctx": VISION_CTX},
-            "messages": [{"role": "user", "content": VISION_PROMPT.format(t=t_label), "images": [b64]}],
+            "model": self.model, "stream": False, "format": FRAME_SCHEMA_LIGHT if light else FRAME_SCHEMA,
+            "keep_alive": "5m",
+            "options": {"temperature": 0, "num_predict": 250 if light else 400, "num_ctx": VISION_CTX},
+            "messages": [{"role": "user", "content": (VISION_PROMPT_LIGHT if light else VISION_PROMPT).format(t=t_label),
+                          "images": [b64]}],
         })
         txt = r.get("message", {}).get("content", "")
         try:
