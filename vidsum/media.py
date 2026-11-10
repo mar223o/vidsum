@@ -34,6 +34,54 @@ def probe(path: Path) -> MediaInfo:
     return MediaInfo(dur, v.get("width"), v.get("height"), a, fps)
 
 
+_CROP = re.compile(r"crop=(\d+):(\d+):(\d+):(\d+)")
+
+
+def detect_bars(path: Path, duration: float, width: int | None, height: int | None,
+                points: tuple[float, ...] = (.1, .3, .5, .7, .9)) -> dict | None:
+    """Czarne pasy wpalone w obraz (np. film 2,39:1 w kontenerze 16:9, pionowy film z pasami po bokach).
+
+    Ostrożnie, bo lepiej zostawić pasy niż uciąć treść:
+    - ffmpeg `cropdetect` w 5 miejscach filmu; wynik to SUMA obszarów z obrazem (pasem jest tylko to, co jest czarne
+      we wszystkich miejscach) — ciemna scena w jednym miejscu nie zmniejsza kadru;
+    - potrzeba co najmniej 3 udanych pomiarów;
+    - pas musi mieć ≥ 3% wymiaru, a zostać musi ≥ 50% obrazu.
+    Zwraca {"x", "y", "w", "h"} obszaru z obrazem albo None (bez pasów / niepewne). Plik zostaje bez zmian."""
+    if not (width and height and duration > 0):
+        return None
+    rects = []
+    for frac in points:
+        t = max(0.0, duration * frac - 1)
+        try:
+            err = run([find_tool("ffmpeg"), "-v", "info", "-ss", f"{t:.2f}", "-i", str(path), "-t", "2", "-an",
+                       "-vf", "cropdetect=limit=24:round=2:reset=0", "-f", "null", "-"], check=False,
+                      timeout=60).stderr_text
+        except Exception:
+            continue
+        found = _CROP.findall(err)
+        if found:
+            w, h, x, y = map(int, found[-1])
+            if w > 0 and h > 0:
+                rects.append((x, y, x + w, y + h))
+    if len(rects) < 3:
+        return None
+    x0, y0 = min(r[0] for r in rects), min(r[1] for r in rects)
+    x1, y1 = max(r[2] for r in rects), max(r[3] for r in rects)
+    x1, y1 = min(x1, width), min(y1, height)
+    w, h = x1 - x0, y1 - y0
+    bars_x = (width - w) / width
+    bars_y = (height - h) / height
+    if w < width * 0.5 or h < height * 0.5:
+        return None                                   # „zostałoby” za mało — raczej ciemny film niż pasy
+    if bars_x < 0.03 and bars_y < 0.03:
+        return None                                   # brak pasów (albo kilka pikseli ramki)
+    if bars_x < 0.03:
+        x0, w = 0, width                              # pas za mały — w tej osi nic nie ruszamy
+    if bars_y < 0.03:
+        y0, h = 0, height
+    return {"x": x0, "y": y0, "w": w, "h": h}
+
+
 def extract_audio(path: Path, wav: Path) -> Path:
     run([find_tool("ffmpeg"), "-y", "-v", "error", "-i", str(path), "-vn", "-ac", "1",
          "-ar", "16000", "-c:a", "pcm_s16le", str(wav)])

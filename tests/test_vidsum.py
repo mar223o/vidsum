@@ -1385,3 +1385,30 @@ def test_author_description_chapters_and_comments_parsing():
     got = parse_comments(raw, limit=10)
     assert [c["autor"] for c in got] == ["@b", "@a", "@c"] and got[2]["odpowiedz"] is True
     assert len(parse_comments(raw, limit=1)) == 1
+
+
+def test_black_bars_detected_only_when_burned_in(tmp_path):
+    """0.11.0: pasy wpalone w obraz (film 2,4:1 w ramce 16:9) są wykrywane dokładnie; film bez pasów i film z ciemną
+    sceną — bez wyniku (lepiej nie ruszać niż uciąć treść)."""
+    import subprocess
+    from vidsum.media import detect_bars, probe
+    from vidsum.tools import find_tool
+    ff = find_tool("ffmpeg")
+    boxed = tmp_path / "pasy.mp4"
+    subprocess.run([ff, "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=640x268:rate=10:duration=12",
+                    "-vf", "pad=640:360:0:46:black", "-pix_fmt", "yuv420p", str(boxed)], check=True)
+    i = probe(boxed)
+    r = detect_bars(boxed, i.duration, i.width, i.height)
+    assert r and r["x"] == 0 and r["w"] == 640 and abs(r["y"] - 46) <= 2 and abs(r["h"] - 268) <= 4, r
+    plain = tmp_path / "bez.mp4"
+    subprocess.run([ff, "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=10:duration=12",
+                    "-pix_fmt", "yuv420p", str(plain)], check=True)
+    i = probe(plain)
+    assert detect_bars(plain, i.duration, i.width, i.height) is None
+    # ciemna scena w środku filmu (czarne 4 s) nie może zmniejszyć kadru
+    dark = tmp_path / "ciemna.mp4"
+    subprocess.run([ff, "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=10:duration=12",
+                    "-vf", "drawbox=enable='between(t,4,8)':x=0:y=0:w=640:h=300:color=black:t=fill",
+                    "-pix_fmt", "yuv420p", str(dark)], check=True)
+    i = probe(dark)
+    assert detect_bars(dark, i.duration, i.width, i.height) is None

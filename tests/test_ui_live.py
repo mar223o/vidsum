@@ -202,7 +202,8 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
     d["momenty"] = [{"t": 41.4, "tekst": "Olej 140"}]
     d["cytaty"] = [{"t": 34.0, "tekst": "This is going to add a beautiful crispy layer.", "tlumaczenie": "Chrupka warstwa."}]
     r["zrodlo"].update({"rodzaj": "link", "url": "https://www.youtube.com/watch?v=x", "opis": "Przepis na frytki.\n0:00 Start\n1:00 Smażenie",
-                        "rozdzialy_autora": [{"start": 0, "end": 60, "tytul": "Start"}, {"start": 60, "end": 238, "tytul": "Smażenie"}]})
+                        "rozdzialy_autora": [{"start": 0, "end": 60, "tytul": "Start"}, {"start": 60, "end": 238, "tytul": "Smażenie"}],
+                        "obraz_bez_pasow": {"x": 0, "y": 40, "w": 360, "h": 560}})
     (out / "analiza.json").write_text(json.dumps(r, ensure_ascii=False), encoding="utf-8")
     (out / "komentarze.json").write_text(json.dumps({"stan": "gotowe", "dostepne": True, "pobrano": "2026-11-10 12:00",
                                                      "komentarze": [{"autor": "@ola", "tekst": "Najlepsze frytki!", "polubienia": 12,
@@ -258,6 +259,10 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
         if width == 1280:
             page.screenshot(path=str(shots / "kinowy.png"))
         page.keyboard.press("Escape")
+        # czarne pasy: przycisk przełącza między kadrem bez pasów a całym kadrem
+        assert page.inner_text('[data-a="bars"]').strip() == "Pokaż cały kadr"
+        page.click('[data-a="bars"]')
+        page.wait_for_function("document.querySelector('[data-a=bars]').innerText.includes('Ukryj')")
         assert not page.evaluate("document.querySelector('#res').classList.contains('cinema')")
         b.close()
     assert not errors, errors

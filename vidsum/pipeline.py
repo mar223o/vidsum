@@ -153,6 +153,17 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                         "url": src.webpage_url, "szerokosc": info.width, "wysokosc": info.height})
     gaps: list[str] = []
     timings: dict[str, float] = {"pobieranie_s": t_fetch} if src.kind == "link" else {}
+    # 0.11.0: czarne pasy wpalone w obraz — tylko do wyświetlania w odtwarzaczu (plik zostaje bez zmian); w tle, CPU
+    bars: dict = {}
+
+    def find_bars() -> None:
+        try:
+            from .media import detect_bars
+            bars["r"] = detect_bars(src.path, info.duration, info.width, info.height)
+        except Exception:
+            bars["r"] = None
+    bars_thread = threading.Thread(target=find_bars, daemon=True)
+    bars_thread.start()
 
     # Kolejność (od 0.7.2, cel: minutowy film ≈ minuta): OCR na CPU w tle, Whisper na GPU od razu (bez czekania na OCR),
     # kadry równolegle; po opisie kadrów — druga, dokładniejsza transkrypcja z podpowiedziami z napisów (GPU, kilka s).
@@ -755,7 +766,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                    "tytul": src.title, "autor": src.uploader, "plik": src.path.name,
                    "sha256": src_sha, "dlugosc_s": round(info.duration, 2),
                    "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio,
-                   "film": film_ref, "opis": src.description, "rozdzialy_autora": src.chapters},
+                   "film": film_ref, "opis": src.description, "rozdzialy_autora": src.chapters,
+                   "obraz_bez_pasow": (bars_thread.join(timeout=30) or bars.get("r"))},
         "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets,
                        "obraz": f"ollama:{opt.vision_model}" if vision_engine else "brak",
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,

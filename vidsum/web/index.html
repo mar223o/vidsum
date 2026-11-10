@@ -230,7 +230,7 @@ blockquote.pull::before{content:"";position:absolute;left:0;top:14px;bottom:14px
 .tabs button svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
 .tabs button:hover{color:var(--ink)}
 /* tryb kinowy */
-.pbar{display:flex;justify-content:flex-end;margin:8px 2px 0}
+.pbar{display:flex;justify-content:flex-end;gap:4px;flex-wrap:wrap;margin:8px 2px 0}
 .pbar:empty{display:none}
 .linkbtn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--muted);font:500 13px var(--sans);cursor:pointer;padding:4px 6px;border-radius:8px}
 .linkbtn:hover{color:var(--ink);background:var(--hl)}
@@ -475,7 +475,7 @@ const I18N = {
    t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_poradnik:"Kroki",t_todo_inne:"Wnioski",
    t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
    map_hint:"Kliknij gałąź: szczegóły i przewinięcie filmu. Powiększanie: przyciski albo Ctrl + kółko myszy (na pełnym ekranie samo kółko), przeciąganie — przesuwanie.",
-   map_full:"Pełny ekran",map_reset:"Dopasuj",t_tr:"Transkrypcja",t_fr:"Kadry",t_desc:"Opis",t_com:"Komentarze",desc_h:"Opis od autora",desc_note:"Tekst autora z serwisu, nie wynik analizy.",au_ch:"Rozdziały od autora",model_ch:"Rozdziały z analizy",of_film:p=>`${p}% filmu`,com_h:"Komentarze widzów",com_note:"Opinie widzów z serwisu, nie fakty z filmu.",com_get:"Pobierz komentarze",com_wait:"Pobieram komentarze…",com_none:"Pod filmem nie ma komentarzy albo serwis ich nie udostępnił.",com_from:(n,d)=>`Najpopularniejsze: ${n}, pobrane ${d}`,com_reply:"odpowiedź",likes:"polubień",cinema:"Tryb kinowy",cinema_off:"Zamknij tryb kinowy",expand_all:"Rozwiń wszystkie",collapse_all:"Zwiń wszystkie",
+   map_full:"Pełny ekran",map_reset:"Dopasuj",t_tr:"Transkrypcja",t_fr:"Kadry",t_desc:"Opis",t_com:"Komentarze",desc_h:"Opis od autora",desc_note:"Tekst autora z serwisu, nie wynik analizy.",au_ch:"Rozdziały od autora",model_ch:"Rozdziały z analizy",of_film:p=>`${p}% filmu`,com_h:"Komentarze widzów",com_note:"Opinie widzów z serwisu, nie fakty z filmu.",com_get:"Pobierz komentarze",com_wait:"Pobieram komentarze…",com_none:"Pod filmem nie ma komentarzy albo serwis ich nie udostępnił.",com_from:(n,d)=>`Najpopularniejsze: ${n}, pobrane ${d}`,com_reply:"odpowiedź",likes:"polubień",cinema:"Tryb kinowy",bars_show:"Pokaż cały kadr",bars_hide:"Ukryj czarne pasy",bars_hint:"Program wykrył czarne pasy wpalone w obraz i je ukrywa. Plik filmu się nie zmienia.",cinema_off:"Zamknij tryb kinowy",expand_all:"Rozwiń wszystkie",collapse_all:"Zwiń wszystkie",
    things:n=>`${n} ${n===1?"rzecz":n<5?"rzeczy":"rzeczy"}, które się liczą`,moments:n=>`${n} momentów wartych uwagi`,
    quotes:"Słowami autora",chapters:"Spis treści",transcript:"Transkrypcja",frames:"Kadry i co na nich widać",
    ingredients:"Składniki",steps:"Kroki",equipment:"Sprzęt",time:"Czas",exercises:"Ćwiczenia",tips:"Wskazówki",
@@ -537,7 +537,7 @@ const I18N = {
    t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_poradnik:"Steps",t_todo_inne:"Takeaways",
    t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
    map_hint:"Click a branch: details and jump in the video. Zoom: buttons or Ctrl + mouse wheel (wheel alone in full screen), drag to pan.",
-   map_full:"Full screen",map_reset:"Fit",t_tr:"Transcript",t_fr:"Frames",t_desc:"Description",t_com:"Comments",desc_h:"Description from the author",desc_note:"The author's text from the site, not an analysis result.",au_ch:"Chapters from the author",model_ch:"Chapters from the analysis",of_film:p=>`${p}% of the video`,com_h:"Viewer comments",com_note:"Viewers' opinions from the site, not facts from the video.",com_get:"Load comments",com_wait:"Loading comments…",com_none:"The video has no comments, or the site did not provide them.",com_from:(n,d)=>`Top comments: ${n}, loaded ${d}`,com_reply:"reply",likes:"likes",cinema:"Cinema mode",cinema_off:"Exit cinema mode",expand_all:"Expand all",collapse_all:"Collapse all",
+   map_full:"Full screen",map_reset:"Fit",t_tr:"Transcript",t_fr:"Frames",t_desc:"Description",t_com:"Comments",desc_h:"Description from the author",desc_note:"The author's text from the site, not an analysis result.",au_ch:"Chapters from the author",model_ch:"Chapters from the analysis",of_film:p=>`${p}% of the video`,com_h:"Viewer comments",com_note:"Viewers' opinions from the site, not facts from the video.",com_get:"Load comments",com_wait:"Loading comments…",com_none:"The video has no comments, or the site did not provide them.",com_from:(n,d)=>`Top comments: ${n}, loaded ${d}`,com_reply:"reply",likes:"likes",cinema:"Cinema mode",bars_show:"Show full frame",bars_hide:"Hide black bars",bars_hint:"Black bars burned into the picture were detected and are hidden. The video file is unchanged.",cinema_off:"Exit cinema mode",expand_all:"Expand all",collapse_all:"Collapse all",
    things:n=>`The ${n} things that mattered`,moments:n=>`${n} moments worth jumping to`,
    quotes:"In their words",chapters:"The contents",transcript:"Transcript",frames:"Frames and what's in them",
    ingredients:"Ingredients",steps:"Steps",equipment:"Equipment",time:"Time",exercises:"Exercises",tips:"Tips",
@@ -573,7 +573,9 @@ try { cinema = localStorage.getItem("vs_cinema") === "1"; } catch {}
 /* tryb kinowy: film na całą szerokość, reszta przygaszona; przełączanie bez przeładowania filmu */
 function cinemaBtn(){
   const el = $("#pbar"); if (!el) return;
-  el.innerHTML = cur && !cur.live ? `<button class="linkbtn" data-a="cinema" aria-pressed="${cinema}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M7 10h10"/></svg>${t(cinema ? "cinema_off" : "cinema")}</button>` : "";
+  const bars = cur && !cur.live && cur.r?.zrodlo?.obraz_bez_pasow;
+  el.innerHTML = (bars ? `<button class="linkbtn" data-a="bars" aria-pressed="${!cur.fullFrame}" title="${esc(t("bars_hint"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8h18M3 16h18"/></svg>${t(cur.fullFrame ? "bars_hide" : "bars_show")}</button>` : "") +
+    (cur && !cur.live ? `<button class="linkbtn" data-a="cinema" aria-pressed="${cinema}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M7 10h10"/></svg>${t(cinema ? "cinema_off" : "cinema")}</button>` : "");
   $("#res")?.classList.toggle("cinema", cinema && !!cur && !cur.live);
 }
 function setCinema(on){
@@ -1190,6 +1192,11 @@ function playerHtml(r){
   const poster = r.kadry?.[0]?.file ? fileUrl(cur.id, r.kadry[0].file) : "";
   if (cur.live) return `<div class="player"><div class="nofilm" style="${ar}background-image:url('${poster}')"><span class="ph">${t("live_video")}</span></div></div>`;
   // stała wysokość od początku (proporcje z analizy): wczytanie filmu nie przesuwa tego, co czytasz niżej
+  const c = z.obraz_bez_pasow, crop = c && !cur.fullFrame && z.szerokosc && z.wysokosc;
+  if (crop) {   // pasy wpalone w obraz: okno odtwarzacza w proporcjach treści, film „cover” dokładnie na tę treść
+    const px = z.szerokosc > c.w ? (c.x / (z.szerokosc - c.w) * 100).toFixed(2) : 50, py = z.wysokosc > c.h ? (c.y / (z.wysokosc - c.h) * 100).toFixed(2) : 50;
+    return `<div class="player"><video id="vid" style="aspect-ratio:${c.w}/${c.h};max-width:calc(72vh * ${c.w} / ${c.h});margin:0 auto;object-fit:cover;object-position:${px}% ${py}%" src="/api/zadania/${cur.id}/film?t=${T}" poster="${poster}" controls preload="metadata" playsinline></video></div>`;
+  }
   return `<div class="player"><video id="vid" style="${ar}" src="/api/zadania/${cur.id}/film?t=${T}" poster="${poster}" controls preload="metadata" playsinline></video></div>`;
 }
 function chatHtml(d){
@@ -1458,6 +1465,8 @@ $("#app").addEventListener("click", async e => {
   const a = e.target.closest("[data-a]"); if (!a || !cur) return;
   try {
     if (a.dataset.a === "cinema") { setCinema(!cinema); return; }
+    if (a.dataset.a === "bars") { cur.fullFrame = !cur.fullFrame; const v = $("#vid"), tm = v ? v.currentTime : 0;
+      $("#cplayer")._h = null; renderResult(); const v2 = $("#vid"); if (v2 && tm) v2.currentTime = tm; return; }
     if (a.dataset.a === "keyall") { cur.keyOpen = !cur.keyOpen; return stable(() => put("#tabc", renderTab(data()))); }
     if (a.dataset.a === "com") { cur.comBusy = true; cur.comErr = ""; stable(() => put("#tabc", renderTab(data())));
       try { cur.com = await api(`/api/zadania/${cur.id}/komentarze`, {method:"POST"}); }
