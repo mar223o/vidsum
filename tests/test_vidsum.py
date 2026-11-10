@@ -1417,3 +1417,86 @@ def test_black_bars_detected_only_when_burned_in(tmp_path):
                     "-pix_fmt", "yuv420p", str(dark)], check=True)
     i = probe(dark)
     assert detect_bars(dark, i.duration, i.width, i.height) is None
+
+
+def test_vision_reference_scores_qwen_run_0110():
+    """0.11.1: wzorzec 15 kadrów frytek (opisanych ręcznie z Twoich kadrów) i opisy qwen3-vl z przebiegu 0.11.0:
+    4 kadry z błędnym słowem (zlew, nóż zamiast łyżki, czekolada, zioła zamiast frytek)."""
+    from vidsum.vision_bench import load_reference, score_all
+    ref = load_reference({"zrodlo": {"url": "https://www.youtube.com/watch?v=BwNqsHb7YQU"}})
+    assert ref and len(ref["kadry"]) == 15
+    qwen = {8: "Ręce kroją ziemniak na desce z drewna. krojenie deska z drewna ziemniak nóż",
+            13: "Kucharz w kuchni trzyma ziemniak i kroje go. krojenie trimowanie ziemniak nóż deska do krojenia",
+            19: "Kucharz w kuchni przetwarza warzywa w misce. wymieszanie miseczka deska do krojenia woda",
+            20: "Osoba wyciera ręce nad miską z warzywami. miska warzywa ręce stół",
+            21: "Ręce myją ziemniaki w misce pod kranem. kran miseczka ziemniaki woda",
+            22: "Kucharz w kuchni wycierka zlew w misce. miseczka kawałek drewna woda",
+            26: "Ręka wlewa coś do garnka na naczyniu kuchennym. wlewanie garnka",
+            28: "Kucharz dodaje coś do garnka na naczyniu. wlewanie mieszanie garnek nóż",
+            43: "Kucharz dodaje składniki do garnka na indukcyjnej plastry. czekolada",
+            44: "Kucharz w kuchni dodaje składnik do garnka. garnki kuchnia",
+            48: "Kucharz mieszający zioła w garnku z siecią. sieć kuchenna zioła",
+            50: "Kucharz trzyma ziemniaki w garnku. ziemniaki garnki",
+            54: "Kucharz smaży ziemniaki w garnku. ziemniaki olej",
+            55: "Ręka wyciąga z miski z papierem ziemniaki. miska papier ziemniaki",
+            56: "Zdjęcie przedstawia wypuszczanie frytek na talerz. frytki talerz miska"}
+    s = score_all({t: {"scena": d} for t, d in qwen.items()}, ref)
+    assert s["bledne_slowa"] == 4
+    assert {r["t"] for r in s["kadry"] if r["bledy"]} == {22, 28, 43, 48}
+    assert 0.6 <= s["trafnosc"] <= 0.85                       # dużo ogólników („coś”, „składnik”) zamiast frytek i łyżki
+    perfect = {r["t"]: {"scena": " ".join(g[0] for g in r["musi"])} for r in ref["kadry"]}
+    assert score_all(perfect, ref)["trafnosc"] == 1.0
+
+
+def test_compare_vision_models_writes_scored_table(tmp_path, monkeypatch):
+    """0.11.1: `--porownaj-modele-obrazu`: każdy model opisuje te same kadry jak w programie; tabela czasów i ocen."""
+    from vidsum import llm, vision_bench
+    (tmp_path / "kadry").mkdir()
+    kadry = []
+    for t in (8, 43):
+        f = tmp_path / "kadry" / f"k{t}.jpg"
+        f.write_bytes(b"x")
+        kadry.append({"t": t, "file": f"kadry/k{t}.jpg"})
+    (tmp_path / "analiza.json").write_text(json.dumps({"zrodlo": {"url": "https://youtube.com/shorts/BwNqsHb7YQU",
+                                                                    "wejscie": "https://www.youtube.com/watch?v=BwNqsHb7YQU"},
+                                                         "ustawienia": {"streszczenie": "ollama:gemma3:4b"}, "kadry": kadry}))
+    said = {"qwen3-vl:4b-instruct": {8: "Ręce kroją ziemniak nożem na desce", 43: "Kucharz dodaje czekolada do garnka"},
+            "gemma3:4b": {8: "Dłonie kroją ziemniaka nożem na drewnianej desce", 43: "Dłonie wrzucają frytki do gorącego oleju"}}
+    ctx = {}
+    monkeypatch.setattr(llm.Ollama, "check", lambda self: None)
+    monkeypatch.setattr(llm.Ollama, "preload", lambda self, num_ctx=None: ctx.__setitem__(self.model, self.vision_ctx))
+    monkeypatch.setattr(llm.Ollama, "unload", lambda self: None)
+    monkeypatch.setattr(llm.Ollama, "describe_frame",
+                        lambda self, img, lab, light=False: {"scena": said[self.model][int(Path(img).stem[1:])]})
+    out = vision_bench.compare_models(tmp_path, ["qwen3-vl:4b-instruct", "gemma3:4b"], log=lambda m: None)
+    r = json.loads((tmp_path / "porownanie_modeli_obrazu.json").read_text(encoding="utf-8"))
+    assert r["gemma3:4b"]["ocena"]["trafnosc"] == 1.0 and r["gemma3:4b"]["ocena"]["bledne_slowa"] == 0
+    assert r["qwen3-vl:4b-instruct"]["ocena"]["bledne_slowa"] == 1
+    assert ctx == {"qwen3-vl:4b-instruct": llm.VISION_CTX, "gemma3:4b": llm.TEXT_CTX}   # gemma = ten sam co tekstowy
+    md = out.read_text(encoding="utf-8")
+    assert "_naprawdę_: dłonie wrzucają frytki" in md and "| gemma3:4b |" in md
+
+
+def test_measured_0110_fixes():
+    """Pomiar 0.11.0 (frytki): odwrócony sens „break without snapping”, „na ostateczny smaż”, „Smaż, aż złoty”,
+    „dodatkowy chrupkość”, „w wyższym tempie (190°C)”; zgubione „Peel.” — stałe tłumaczenie, gdy model dwa razy milczy."""
+    from vidsum.summary import _SHORT_IMP, _short_cmd, fix_terms, grounded_steps
+    src = (DATA / "frytki_0110" / "transkrypcja.srt").read_text(encoding="utf-8")
+    assert fix_terms("Gotuj do miękkości, powinny pękać bez łamania.", src).endswith("powinny łamać się, ale nie pękać.")
+    assert fix_terms("Schłodź, na ostateczny smaż.", src) == "Schłodź, przed ostatecznym smażeniem."
+    assert fix_terms("Smaż, aż złoty i chrupiący.", src) == "Smaż, aż będą złote i chrupiące."
+    assert fix_terms("Dodatkowy chrupkość.", src) == "Dodatkowa chrupkość."
+    assert fix_terms("i ostatecznie w wyższym tempie (190°C)", src) == "i ostatecznie w wyższej temperaturze (190°C)"
+    assert fix_terms("Smaż, aż złoty i chrupiący.", "Fry it.") == "Smaż, aż złoty i chrupiący."   # bez warunku — bez zmian
+    assert _short_cmd("Peel.") == "peel" and _short_cmd("And stir it.") == "stir" and _short_cmd("Peel the potatoes.") == ""
+    # model milczy przy „Peel.” w obu podejściach, a polskiego tłumaczenia linii jeszcze nie ma
+    lines = [{"n": 1, "t": 12.6, "end": 12.9, "tekst": "Peel.", "pl": "", "ekran": []},
+             {"n": 2, "t": 13.0, "end": 13.9, "tekst": "Trim the ends and sides.", "pl": "", "ekran": []}]
+
+    class Mute:
+        model = "atrapa"
+
+        def complete(self, prompt, as_json=False, **kw):
+            return json.dumps({"1": "", "2": "Przytnij końce i boki."} if "Trim" in prompt else {"1": ""})
+    r = grounded_steps(Mute(), lines, "poradnik", "test")
+    assert [s["tekst"] for s in r["kroki"]] == ["Obierz.", "Przytnij końce i boki."]

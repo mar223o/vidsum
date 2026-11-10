@@ -125,3 +125,98 @@ def run(folder: Path, model: str | None = None, host: str | None = None, log=pri
     out.write_text("\n".join(L) + "\n", encoding="utf-8")
     log(f"✔ wynik: {out}")
     return out
+
+
+# ---------------- 0.11.1: porównanie modeli obrazu na tych samych kadrach, z oceną według wzorca ----------------
+WZORCE = Path(__file__).parent / "wzorce"
+
+
+def load_reference(a: dict) -> dict | None:
+    """Wzorzec kadrów dla tego filmu (po adresie albo tytule), jeśli program go ma."""
+    z = a.get("zrodlo") or {}
+    key = f"{z.get('url') or ''} {z.get('wejscie') or ''} {z.get('tytul') or ''}"
+    for f in WZORCE.glob("*_kadry.json"):
+        ref = json.loads(f.read_text(encoding="utf-8"))
+        film = ref.get("film", "")
+        vid = re.search(r"v=([\w-]{11})", film)
+        if (vid and vid.group(1) in key) or (film.split(" (")[0] and film.split(" (")[0] in key):
+            return ref
+    return None
+
+
+def score_description(v: dict, ref: dict) -> dict:
+    """Ocena jednego opisu kadru: ile grup ze wzorca trafione (choć jedno słowo z grupy) i jakie błędne słowa padły."""
+    text = " ".join([v.get("scena", "")] + list(v.get("czynnosci", [])) + list(v.get("obiekty", []))).lower()
+    hit = [any(s in text for s in grp) for grp in ref["musi"]]
+    wrong = [s for s in ref.get("nie", []) if s in text]
+    return {"trafione": sum(hit), "z": len(hit), "bledy": wrong}
+
+
+def score_all(descs: dict, reference: dict, tol: float = 1.5) -> dict:
+    """descs: {czas: opis}. Zwraca trafność (0–1), liczbę błędnych słów i wynik każdego kadru."""
+    rows, hits, total, wrong = [], 0, 0, 0
+    used: set = set()
+    for r in reference["kadry"]:                   # każdy opis pasuje do najwyżej jednego kadru wzorca
+        free = [k for k in descs if k not in used]
+        t = min(free, key=lambda k: abs(float(k) - r["t"]), default=None)
+        if t is None or abs(float(t) - r["t"]) > tol:
+            continue
+        used.add(t)
+        s = score_description(descs[t], r)
+        hits, total, wrong = hits + s["trafione"], total + s["z"], wrong + len(s["bledy"])
+        rows.append({"t": r["t"], "co_widac": r["co_widac"], "opis": descs[t].get("scena", ""), **s})
+    return {"trafnosc": round(hits / total, 2) if total else None, "bledne_slowa": wrong, "kadry": rows}
+
+
+def compare_models(folder: Path, models: list[str], host: str | None = None, log=print) -> Path:
+    """Te same kadry opisane każdym modelem dokładnie tak jak w programie (pełny opis, 1 kadr na zapytanie):
+    czas wczytania, czas opisu, a gdy jest wzorzec — trafność i błędne słowa. Wynik: porownanie_modeli_obrazu.md/json."""
+    from .llm import TEXT_CTX, Ollama as _Ollama
+    folder = Path(folder)
+    a = json.loads((folder / "analiza.json").read_text(encoding="utf-8"))
+    frames = [(f["t"], folder / f["file"]) for f in a.get("kadry", []) if (folder / f["file"]).is_file()]
+    if not frames:
+        raise RuntimeError(f"Brak kadrów w {folder}")
+    ref = load_reference(a)
+    text_model = (a.get("ustawienia") or {}).get("streszczenie", "")
+    res: dict = {}
+    for m in models:
+        same = text_model.endswith(":" + m) or text_model.endswith(m)
+        eng = _Ollama(m, host, timeout=900, vision_ctx=TEXT_CTX if same else VISION_CTX)
+        eng.check()
+        t0 = time.time()
+        eng.preload()
+        load_s = time.time() - t0
+        t0 = time.time()
+        descs = {}
+        for tt, img in frames:
+            descs[tt] = eng.describe_frame(img, f"{int(tt // 60):02d}:{int(tt % 60):02d}")
+        wall = time.time() - t0
+        eng.unload()
+        res[m] = {"wczytanie_s": round(load_s, 1), "opis_s": round(wall, 1), "s_na_kadr": round(wall / len(frames), 2),
+                  "opisy": {str(k): v for k, v in descs.items()},
+                  "ocena": score_all(descs, ref) if ref else None}
+        log(f"  {m}: wczytanie {load_s:.1f} s, opis {wall:.1f} s ({wall / len(frames):.2f} s/kadr)"
+            + (f", trafność {res[m]['ocena']['trafnosc']}, błędne słowa {res[m]['ocena']['bledne_slowa']}" if ref else ""))
+    (folder / "porownanie_modeli_obrazu.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
+    L = ["# Porównanie modeli obrazu (te same kadry)", "",
+         f"Kadrów: {len(frames)}; wzorzec: {'tak — ' + ref['film'] if ref else 'brak (tylko czasy i opisy)'}", "",
+         "| Model | Wczytanie | Opis kadrów | s/kadr | Trafność | Błędne słowa |", "|---|---|---|---|---|---|"]
+    for m, r in res.items():
+        o = r["ocena"] or {}
+        L.append(f"| {m} | {r['wczytanie_s']} s | {r['opis_s']} s | {r['s_na_kadr']} | {o.get('trafnosc', '—')} | {o.get('bledne_slowa', '—')} |")
+    L += ["", "## Opisy obok siebie", ""]
+    for tt, _ in frames:
+        L.append(f"### {int(tt // 60):02d}:{int(tt % 60):02d}")
+        if ref:
+            r0 = next((r for r in ref["kadry"] if abs(r["t"] - tt) <= 1.5), None)
+            if r0:
+                L.append(f"- _naprawdę_: {r0['co_widac']}")
+        for m in res:
+            v = res[m]["opisy"].get(str(tt), {})
+            L.append(f"- **{m}**: {v.get('scena', '—')} — {', '.join(v.get('czynnosci', []))}")
+        L.append("")
+    out = folder / "porownanie_modeli_obrazu.md"
+    out.write_text("\n".join(L) + "\n", encoding="utf-8")
+    log(f"✔ wynik: {out}")
+    return out

@@ -727,6 +727,17 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
     (r"\bdrop (?:\w+ )*?in\b|\bdrop (?:\w+ )*?into\b", None, [(r"\bwyrzuć\b", "wrzuć"), (r"\bwyrzucić\b", "wrzucić")]),
     (r"\bremove (?:them|it|the \w+)\b", r"\bremove (?:them|it|the \w+) from (?:the )?(?:list|recipe)",
      [(r"\busuń (je|go|ją|frytki|ziemniaki)\b", r"wyjmij \1")]),
+    # 0.11.1 (pomiar 0.11.0): „break without snapping” = mają się łamać, a nie pękać; model odwracał sens
+    (r"break without snapping", None, [(r"\b(powinny |mają |muszą )?pękać,? (?:ale )?bez łamania\b", r"\1łamać się, ale nie pękać"),
+                                       (r"\b(powinny |mają )?się łamać,? bez pękając\w*", r"\1łamać się, ale nie pękać")]),
+    # „for the final fry” → model: „na ostateczny smaż”; „fry until golden and crispy” → „Smaż, aż złoty i chrupiący”
+    (r"final fry", None, [(r"\bna ostateczny smaż\b", "przed ostatecznym smażeniem"),
+                          (r"\bna ostateczne smażenie\b", "przed ostatecznym smażeniem")]),
+    (r"golden and crispy", None, [(r"\baż złoty i chrupiący\b", "aż będą złote i chrupiące"),
+                                  (r"\baż złote i chrupiące\b", "aż będą złote i chrupiące")]),
+    (r"extra crunch", None, [(r"\bdodatkowy chrupkość\b", "dodatkowa chrupkość"), (r"\bdodatkowy chrupkości\b", "dodatkowej chrupkości")]),
+    # temperatura smażenia → model: „w wyższym tempie (190°C)”
+    (r"\d{3} ?(?:degrees|°)|\b1[4-9]0\b", None, [(r"\bw wyższym tempie(?= \(?\d)", "w wyższej temperaturze")]),
 ]
 
 
@@ -892,6 +903,19 @@ def _num_line(ln: dict) -> str:
     return f"{ln['n']}. {ln['tekst']}" + (f"   [SCREEN: {' / '.join(ln['ekran'])}]" if ln["ekran"] else "")
 
 
+# 0.11.1 (pomiar 0.11.0): „Peel.” (0:13) zginęło — model dał pustą odpowiedź dwa razy, a polskie tłumaczenie linii
+# jeszcze się liczyło (idzie równolegle). Krótkie, jednowyrazowe polecenia kuchenne — stałe tłumaczenie.
+_SHORT_IMP = {"peel": "Obierz.", "drain": "Odcedź.", "stir": "Zamieszaj.", "season": "Dopraw.", "serve": "Podawaj.",
+              "boil": "Zagotuj.", "chop": "Posiekaj.", "slice": "Pokrój w plasterki.", "mix": "Wymieszaj.",
+              "rinse": "Opłucz.", "wash": "Umyj.", "whisk": "Ubij.", "flip": "Odwróć.", "cover": "Przykryj.",
+              "rest": "Odstaw.", "enjoy": "", "grate": "Zetrzyj.", "mash": "Rozgnieć.", "knead": "Zagnieć.", "bake": "Piecz."}
+
+
+def _short_cmd(text: str) -> str:
+    m = re.fullmatch(r"\s*(?:and |then |now )?(\w+)(?: (?:them|it|well))?[.!]?\s*", text, re.I)
+    return m.group(1).lower() if m else ""
+
+
 def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lambda s: None,
                    record=lambda *a: None, par: int = 1, chunk_lines: int = 20) -> dict:
     """Kroki i wyjaśnienia linia po linii (każdy krok wie, z której linii mowy pochodzi), składniki, sprzęt, etapy.
@@ -968,7 +992,7 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
                 out[n] = txt
             else:                                  # nadal źle: polskie tłumaczenie linii (jeśli liczby się zgadzają)
                 pl = by_n[n].get("pl", "")
-                out[n] = pl if pl and ok(n, pl) else ""
+                out[n] = pl if pl and ok(n, pl) else _SHORT_IMP.get(_short_cmd(by_n[n]["tekst"]), "")
 
     steps, notes = [], []
     for n in sorted(out):

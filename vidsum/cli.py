@@ -47,6 +47,18 @@ def main(argv: list[str] | None = None) -> int:
         print("✔ biblioteki CUDA załadowane" if not miss else f"✖ nie da się załadować: {', '.join(miss)}")
         print(f"  karty NVIDIA widoczne: {cuda.gpu_count()}")
         return 1 if miss else 0
+    if args[:1] == ["--porownaj-modele-obrazu"]:   # te same kadry: qwen vs gemma (czas + trafność według wzorca)
+        from .vision_bench import compare_models
+        if len(args) < 2:
+            print("Użycie: VidSum.exe --porownaj-modele-obrazu \"folder analizy\" [model1,model2]", file=sys.stderr)
+            return 2
+        models = (args[2] if len(args) > 2 else "qwen3-vl:4b-instruct,gemma3:4b").split(",")
+        try:
+            compare_models(Path(args[1]), [m.strip() for m in models if m.strip()])
+        except Exception as e:
+            print(f"✖ {e}", file=sys.stderr)
+            return 1
+        return 0
     if args[:1] == ["--pomiar-kadrow"]:        # pomiar sposobów opisu kadrów na tej karcie graficznej
         from .vision_bench import run as bench
         if len(args) < 2:

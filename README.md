@@ -109,6 +109,10 @@ claude mcp add vidsum -- "C:\Users\Jan\Programy\VidSum\VidSum.cmd" --mcp
 
 `vidsum --pomiar-kadrow "folder analizy"` — te same kadry opisane trzema sposobami (czas, tokeny, opisy obok siebie) → `pomiar_kadrow.md`.
 
+`vidsum --porownaj-modele-obrazu "folder analizy" [qwen3-vl:4b-instruct,gemma3:4b]` — te same kadry opisane każdym
+modelem tak jak w programie: czas wczytania i opisu, a dla filmów z wzorcem (`vidsum/wzorce`, np. frytki) trafność i błędne
+słowa → `porownanie_modeli_obrazu.md`.
+
 ## Autorzy
 - **mar223o** — pomysł, kierunek i decyzje o produkcie, testy na prawdziwych filmach (ok. 40%)
 - **Claude** (Anthropic) — kod, testy automatyczne, pomiary modeli (ok. 50%)

@@ -2,7 +2,7 @@
 # Budowanie:  pyinstaller packaging/vidsum.spec --noconfirm
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
-datas, binaries, hidden = [("../vidsum/web", "vidsum/web")], [], []
+datas, binaries, hidden = [("../vidsum/web", "vidsum/web"), ("../vidsum/wzorce", "vidsum/wzorce")], [], []
 for pkg in ("faster_whisper", "ctranslate2", "onnxruntime", "tokenizers", "rapidocr_onnxruntime"):
     d, b, h = collect_all(pkg)
     datas += d; binaries += b; hidden += h
