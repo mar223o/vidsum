@@ -244,7 +244,8 @@ def restart_ui() -> None:
     code = "import time, runpy, sys; time.sleep(2); sys.argv = ['vidsum', '--ui']; runpy.run_module('vidsum', run_name='__main__')"
     args = [str(pyw if os.name == "nt" else exe), "-c", code]
     flags = (0x08000000 | 0x00000008) if os.name == "nt" else 0          # CREATE_NO_WINDOW | DETACHED_PROCESS
-    subprocess.Popen(args, cwd=str(ROOT), creationflags=flags, close_fds=True)
+    from .procs import popen_detached
+    popen_detached(args, cwd=str(ROOT), creationflags=flags, close_fds=True)   # nowa instancja przeżywa starą
 
 
 def apply(info: dict, token: str | None = None, log=print) -> str:
@@ -261,7 +262,8 @@ def apply(info: dict, token: str | None = None, log=print) -> str:
         swap_code(dst, info["najnowsza"])
         shutil.rmtree(tmp, ignore_errors=True)
         return "kod"
-    subprocess.Popen([str(dst)], cwd=str(tmp))             # instalator sam zamknie działający VidSum
+    from .procs import popen_detached
+    popen_detached([str(dst)], cwd=str(tmp))               # instalator sam zamknie działający VidSum
     return "pelna"
 
 

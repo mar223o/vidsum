@@ -63,6 +63,7 @@ class Job:
         self.finished: float | None = None
         self.stage = ""                 # np. "2/4 kadry"
         self.partial: dict = {}         # gotowe etapy w trakcie analizy (podgląd): transkrypcja, napisy, kadry…
+        self.settings: dict = {}        # ustawienia w chwili dodania (do zapisu kolejki i ponowienia)
 
     def card(self) -> dict:
         """Dane do karty w Bibliotece (z analiza.json, w pamięci podręcznej)."""
@@ -90,24 +91,160 @@ class Job:
 
 
 class Worker:
-    """Jeden wątek, zadania po kolei — dwa filmy naraz nie zmieściłyby się w 8 GB VRAM."""
+    """Kolejka filmów: jeden wątek, zadania po kolei — dwa filmy naraz nie zmieściłyby się w 8 GB VRAM
+    (modele mowy i obrazu na tej samej karcie), a ffmpeg i Whisper i tak biorą wszystkie rdzenie.
 
-    def __init__(self):
+    0.11.0: kolejność, usuwanie, pauza/wznowienie, ponawianie, bez dubli, zapis do kolejka.json
+    (po ponownym uruchomieniu kolejka wraca wstrzymana — wznawiasz ją sam)."""
+
+    def __init__(self, state_file: Path | None = None, make_options=None):
         self.jobs: dict[str, Job] = {}
-        self.q: queue.Queue[Job] = queue.Queue()
-        self.lock = threading.Lock()
+        self.pending: list[Job] = []
+        self.current: Job | None = None
+        self.paused = False
+        self.accepting = True
+        self.cv = threading.Condition()
+        self.lock = self.cv                                 # zgodność: dawny self.lock
+        self.state_file = state_file
+        self.make_options = make_options                    # ustawienia (słownik) → Options — przy odtwarzaniu kolejki
+        self.restored = 0
+        if state_file:
+            self._restore()
         threading.Thread(target=self._loop, daemon=True).start()
 
-    def submit(self, job: Job) -> None:
-        with self.lock:
-            self.jobs[job.id] = job
-        self.q.put(job)
+    # --- operacje ---
+    def find_duplicate(self, source: str) -> Job | None:
+        key = _source_key(source)
+        with self.cv:
+            for j in ([self.current] if self.current else []) + self.pending:
+                if _source_key(j.source) == key:
+                    return j
+        return None
 
+    def submit(self, job: Job) -> Job:
+        """Dodaje film na koniec kolejki. Ten sam film już czeka albo trwa → zwraca tamto zadanie (bez dubla)."""
+        if not self.accepting:
+            raise RuntimeError("Program się zamyka — nie przyjmuję nowych filmów.")
+        dup = self.find_duplicate(job.source)
+        if dup:
+            return dup
+        with self.cv:
+            self.jobs[job.id] = job
+            job.status = "w_kolejce"
+            self.pending.append(job)
+            self._save()
+            self.cv.notify_all()
+        return job
+
+    def remove(self, jid: str) -> bool:
+        """Usuwa oczekujący film z kolejki (trwającego nie — najpierw musiałby się skończyć)."""
+        with self.cv:
+            job = next((j for j in self.pending if j.id == jid), None)
+            if not job:
+                return False
+            self.pending.remove(job)
+            self.jobs.pop(jid, None)
+            self._save()
+        if job.upload:
+            shutil.rmtree(job.upload.parent, ignore_errors=True)
+        return True
+
+    def move(self, jid: str, to: int) -> bool:
+        """Zmienia miejsce oczekującego filmu (0 = następny)."""
+        with self.cv:
+            job = next((j for j in self.pending if j.id == jid), None)
+            if not job:
+                return False
+            self.pending.remove(job)
+            self.pending.insert(max(0, min(int(to), len(self.pending))), job)
+            self._save()
+        return True
+
+    def retry(self, jid: str) -> Job | None:
+        """Ponawia film zakończony błędem albo przerwany — wraca na koniec kolejki z tymi samymi ustawieniami."""
+        with self.cv:
+            job = self.jobs.get(jid)
+            if not job or job.status not in ("blad", "przerwane"):
+                return None
+            if job.upload and not job.upload.exists():
+                job.error = "Plik źródłowy już nie istnieje — dodaj film jeszcze raz."
+                return None
+            job.status, job.error, job.log, job.partial = "w_kolejce", None, [], {}
+            job.started = job.finished = None
+            job.stage, job.out = "", None
+            self.pending.append(job)
+            self._save()
+            self.cv.notify_all()
+        return job
+
+    def set_paused(self, paused: bool) -> None:
+        with self.cv:
+            self.paused = bool(paused)
+            self._save()
+            self.cv.notify_all()
+
+    def state(self) -> dict:
+        with self.cv:
+            return {"wstrzymana": self.paused, "trwa": self.current.id if self.current else None,
+                    "oczekuje": [j.id for j in self.pending], "odtworzone": self.restored}
+
+    def stop_for_exit(self) -> Job | None:
+        """Zamykanie programu: nie przyjmuj nowych, zapisz kolejkę razem z trwającym filmem (wróci jako pierwszy)."""
+        with self.cv:
+            self.accepting = False
+            cur = self.current
+            self._save(include_current=True)
+            return cur
+
+    # --- zapis / odczyt ---
+    def _save(self, include_current: bool = False) -> None:
+        if not self.state_file:
+            return
+        items = ([self.current] if include_current and self.current else []) + self.pending
+        data = {"wersja": 1, "wstrzymana": self.paused or (include_current and bool(self.current)),
+                "zadania": [{"id": j.id, "zrodlo": j.source, "nazwa": j.label,
+                             "wyslany": str(j.upload) if j.upload else None, "ustawienia": j.settings,
+                             "przerwane": j is self.current} for j in items]}
+        try:
+            tmp = self.state_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+            os.replace(tmp, self.state_file)               # zapis atomowy — przerwany zapis nie psuje kolejki
+        except OSError:
+            pass
+
+    def _restore(self) -> None:
+        try:
+            data = json.loads(self.state_file.read_text(encoding="utf-8"))
+        except Exception:
+            return
+        for it in data.get("zadania") or []:
+            up = Path(it["wyslany"]) if it.get("wyslany") else None
+            if up and not up.exists():
+                continue                                    # wysłany plik zniknął — nie ma czego analizować
+            sett = it.get("ustawienia") or {}
+            opt = self.make_options(sett) if (self.make_options and sett) else Options()
+            if up:
+                opt.move_source = True
+            job = Job(it.get("id") or secrets.token_hex(4), it["zrodlo"], it.get("nazwa") or it["zrodlo"], opt, up)
+            job.settings = sett
+            if it.get("przerwane"):
+                job.log = ["↻ Analiza została przerwana przy zamykaniu programu — zacznie się od nowa po wznowieniu."]
+            self.jobs[job.id] = job
+            self.pending.append(job)
+        self.restored = len(self.pending)
+        self.paused = bool(self.pending) and bool(data.get("wstrzymana", True) or self.restored)
+
+    # --- wątek ---
     def _loop(self) -> None:
         while True:
-            job = self.q.get()
-            job.status = "trwa"
-            job.started = time.time()
+            with self.cv:
+                while self.paused or not self.pending or not self.accepting:
+                    self.cv.wait()
+                job = self.pending.pop(0)
+                self.current = job
+                job.status = "trwa"
+                job.started = time.time()
+                self._save(include_current=False)
             job.opt.on_partial = job.partial.__setitem__
 
             def log(msg: str, job=job) -> None:
@@ -122,13 +259,33 @@ class Worker:
                 job.out = analyze(job.source, job.opt, log)
                 job.status = "gotowe"
             except Exception as e:  # pokaż błąd w interfejsie, nie zabijaj serwera
-                job.status, job.error = "blad", f"{type(e).__name__}: {e}"
-                job.log.append("✖ " + job.error)
-                traceback.print_exc()
+                if not self.accepting:
+                    job.status, job.error = "przerwane", "przerwane przy zamykaniu programu"
+                else:
+                    job.status, job.error = "blad", f"{type(e).__name__}: {e}"
+                    job.log.append("✖ " + job.error)
+                    traceback.print_exc()
             finally:
                 job.finished = time.time()
-                if job.upload:
+                with self.cv:
+                    self.current = None
+                    if self.accepting:
+                        self._save()
+                if job.upload and job.status == "gotowe":
                     shutil.rmtree(job.upload.parent, ignore_errors=True)
+
+
+def _source_key(src: str) -> str:
+    """Klucz do wykrywania dubli w kolejce: link bez śledzących parametrów, ścieżka znormalizowana."""
+    s = str(src).strip().strip('"')
+    if re.match(r"https?://", s, re.I):
+        u = urllib.parse.urlsplit(s)
+        qs = [(k, v) for k, v in urllib.parse.parse_qsl(u.query) if k in ("v", "list")]
+        return f"{u.netloc.lower().removeprefix('www.')}{u.path.rstrip('/')}?{urllib.parse.urlencode(qs)}"
+    try:
+        return str(Path(s).resolve()).lower() if os.name == "nt" else str(Path(s).resolve())
+    except OSError:
+        return s
 
 
 # ---------------- serwer HTTP ----------------
@@ -136,9 +293,9 @@ class App:
     def __init__(self, results: Path, token: str):
         self.results = results
         self.token = token
-        self.worker = Worker()
         self.settings_file = app_dir() / "ustawienia.json"
         self.settings = self._load_settings()
+        self.worker = Worker(app_dir() / "kolejka.json", self.options)
         self.translations: dict = {}          # (id zadania, język) → {"stan", "postep", "error"} — tłumaczenie całości
         self._tr_lock = threading.Lock()
         self.scan_library()
@@ -202,6 +359,36 @@ class App:
                        cuda_download=bool(s.get("gpu_pobieranie", True)),
                        cookies_from_browser=s.get("ciasteczka_z") or None,
                        preview=None)          # 0.10.0: podgląd zawsze automatycznie (bez osobnego trybu)
+
+    def shutdown(self, reason: str = "") -> dict:
+        """Porządne zamknięcie (0.11.0), w tej kolejności:
+        1) nie przyjmuj nowych filmów, 2) zapisz kolejkę razem z trwającym filmem (po starcie wróci, wstrzymana),
+        3) zakończ własne procesy potomne (ffmpeg/ffprobe), 4) zwolnij z karty modele, których używała przerwana
+        analiza — samą Ollamę zostawiamy (to usługa użytkownika, nie nasz proces). Serwer zamyka wołający."""
+        from . import procs
+        procs.closing.set()
+        cur = self.worker.stop_for_exit()
+        killed = procs.kill_all()
+        unloaded = []
+        models = set()
+        if cur is not None:
+            if cur.opt.vision == "ollama":
+                models.add(cur.opt.vision_model)
+            if cur.opt.summary in ("auto", "ollama"):
+                models.add(cur.opt.summary_model or cur.opt.text_model)
+        for m in models:
+            try:
+                Ollama(m, cur.opt.ollama_host, timeout=3).unload()
+                unloaded.append(m)
+            except Exception:
+                pass
+        info = {"powod": reason, "przerwany_film": cur.label if cur else None, "zakonczone_procesy": killed,
+                "zwolnione_modele": unloaded, "czas": time.strftime("%Y-%m-%d %H:%M:%S")}
+        try:
+            (app_dir() / "zamkniecie.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
+        except OSError:
+            pass
+        return info
 
     def status(self) -> dict:
         st: dict = {"wersja": __version__}
@@ -449,6 +636,8 @@ def make_handler(app: App):
                 return self._json({k: v for k, v in app.update_info.items() if not k.startswith("_")})
             if u.path == "/api/ustawienia":
                 return self._json(app.settings)
+            if u.path == "/api/kolejka":
+                return self._json(app.worker.state())
             if u.path == "/api/zadania":
                 if qs.get("skanuj"):
                     app.scan_library()
@@ -519,8 +708,9 @@ def make_handler(app: App):
                     threading.Timer(0.5, lambda: os._exit(0)).start()
                 return
             if u.path == "/api/zakoncz":
-                # program działa w tle (bez okna) — wyłącza się przyciskiem w interfejsie
-                self._json({"ok": True})
+                # zamknięcie z interfejsu (Ustawienia → Zamknij program) albo przez nowszą wersję
+                info = app.shutdown("przycisk")
+                self._json({"ok": True, **info})
                 threading.Timer(0.3, lambda: os._exit(0)).start()
                 return
             if u.path == "/api/wyslij":
@@ -542,7 +732,11 @@ def make_handler(app: App):
                 opt = app.options(app.settings)
                 opt.move_source = True          # film zostaje w folderze wyników — do odtwarzacza
                 job = Job(secrets.token_hex(4), str(dst), name, opt, dst)
-                app.worker.submit(job)
+                job.settings = dict(app.settings)
+                try:
+                    job = app.worker.submit(job)
+                except RuntimeError as e:
+                    return self._json({"error": str(e)}, 409)
                 return self._json(job.to_dict())
             if u.path == "/api/link":
                 b = self._body()
@@ -550,8 +744,32 @@ def make_handler(app: App):
                 if not src:
                     return self._json({"error": "pusty link"}, 400)
                 job = Job(secrets.token_hex(4), src, src, app.options(app.settings), None)
-                app.worker.submit(job)
-                return self._json(job.to_dict())
+                job.settings = dict(app.settings)
+                try:
+                    dup = app.worker.find_duplicate(src)
+                    job = app.worker.submit(job)
+                except RuntimeError as e:
+                    return self._json({"error": str(e)}, 409)
+                return self._json({**job.to_dict(), "duplikat": bool(dup)})
+            if u.path == "/api/kolejka":
+                b = self._body()
+                act, jid = b.get("akcja"), str(b.get("id") or "")
+                w = app.worker
+                if act in ("pauza", "wznow"):
+                    w.set_paused(act == "pauza")
+                elif act == "usun":
+                    if not w.remove(jid):
+                        return self._json({"error": "tego filmu nie ma w oczekujących"}, 400)
+                elif act == "przesun":
+                    if not w.move(jid, b.get("pozycja", 0)):
+                        return self._json({"error": "tego filmu nie ma w oczekujących"}, 400)
+                elif act == "ponow":
+                    if not w.retry(jid):
+                        j = w.jobs.get(jid)
+                        return self._json({"error": (j.error if j else None) or "nie można ponowić"}, 400)
+                else:
+                    return self._json({"error": "nieznana akcja"}, 400)
+                return self._json(w.state())
             m = re.fullmatch(r"/api/zadania/(\w+)/tlumacz", u.path)
             if m:
                 return self._translate_all(m.group(1), str(self._body().get("jezyk") or ""), start=True)
@@ -672,7 +890,8 @@ def open_window(url: str) -> None:
     args = [edge, f"--app={url}", f"--user-data-dir={prof}", "--disable-gpu", "--window-size=1400,900",
             "--no-first-run", "--no-default-browser-check"]
     try:
-        subprocess.Popen(args, close_fds=True)
+        from .procs import popen_detached
+        popen_detached(args, close_fds=True)          # okno Edge nie należy do programu — nie znika z nim
     except OSError:
         webbrowser.open(url)
 
@@ -753,6 +972,12 @@ def style_title_bar(hwnd: int) -> list[int]:
     return out
 
 
+CLOSE_Q = {"pl": "Trwa analiza. Zamknąć program? Film zostanie zapisany w kolejce i po ponownym uruchomieniu "
+                  "przeanalizujesz go od nowa (kolejka wróci wstrzymana).",
+           "en": "An analysis is running. Quit? The video stays in the queue and you can analyse it again after the "
+                 "next start (the queue comes back paused)."}
+
+
 def run_window(url: str, app: "App | None" = None) -> bool:
     """Prawdziwe okno programu (pywebview na WebView2 — jest w każdym Windows 10/11, także bez przeglądarki Edge).
     Działa na głównym wątku i wraca, gdy okno zostanie zamknięte. False = brak pywebview/WebView2 → stara droga.
@@ -782,7 +1007,8 @@ def run_window(url: str, app: "App | None" = None) -> bool:
 
         def closing():
             if app and any(j.status == "trwa" for j in app.worker.jobs.values()):
-                return win.create_confirmation_dialog(BRAND, "Trwa analiza. Zamknąć program i ją przerwać?")
+                en = app.settings.get("jezyk_ui") == "en"
+                return win.create_confirmation_dialog(BRAND, CLOSE_Q["en" if en else "pl"])
             return True
         win.events.closing += closing
         store = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "okno"
@@ -811,15 +1037,18 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
         srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     url = f"http://127.0.0.1:{srv.server_address[1]}/?t={app.token}"
     print(f"{BRAND} {__version__} — interfejs: {url}")
-    print("Program działa w tle; wyłączysz go przyciskiem „Zakończ” w interfejsie.")
+    print("Program działa w tle; wyłączysz go w Ustawieniach → „Zamknij program” albo zamykając okno.")
     threading.Thread(target=fix_shortcut_icons, daemon=True).start()
+    from . import procs
+    procs.setup_kill_on_close()                    # Windows: dzieci (ffmpeg) giną razem z programem, nawet przy awarii
     if open_browser:
         # serwer w tle, okno programu na głównym wątku; zamknięcie okna kończy program
         th = threading.Thread(target=srv.serve_forever, daemon=True)
         th.start()
         if run_window(url, app):
+            app.shutdown("okno")                         # kolejka zapisana, procesy potomne zakończone
             srv.shutdown()
-            os._exit(0)                                  # także gdy trwała analiza (zamknięcie potwierdzone w oknie)
+            os._exit(0)                                  # wątki analizy (Whisper/OCR w tym procesie) kończą się razem z nim
         open_window(url)                                 # brak okna → Edge w trybie aplikacji / przeglądarka
         try:
             th.join()

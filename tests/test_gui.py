@@ -327,7 +327,7 @@ def test_native_window_asks_before_closing_during_analysis(monkeypatch, tmp_path
     monkeypatch.delenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", raising=False)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     job = types.SimpleNamespace(status="gotowe")
-    app = types.SimpleNamespace(worker=types.SimpleNamespace(jobs={"a": job}))
+    app = types.SimpleNamespace(worker=types.SimpleNamespace(jobs={"a": job}), settings={"jezyk_ui": "pl"})
     assert gui.run_window("http://127.0.0.1:1/?t=x", app) is True
     assert calls["url"] == "http://127.0.0.1:1/?t=x" and calls["title"].startswith("Vidsumly")
     import os
@@ -335,7 +335,9 @@ def test_native_window_asks_before_closing_during_analysis(monkeypatch, tmp_path
     close = win.events.closing[0]
     assert close() is True and "dialog" not in calls            # nic nie trwa — zamyka bez pytania
     job.status = "trwa"
-    assert close() is False and "Trwa analiza" in calls["dialog"]
+    assert close() is False and "Trwa analiza" in calls["dialog"] and "kolejce" in calls["dialog"]
+    app.settings["jezyk_ui"] = "en"                             # okno pytania w języku interfejsu
+    assert close() is False and "queue" in calls["dialog"]
 
 
 def test_native_window_missing_library_falls_back(monkeypatch):
@@ -400,3 +402,106 @@ def test_comments_endpoint_only_for_links_and_cached(server, monkeypatch):
     assert c["stan"] == "gotowe" and c["komentarze"][0]["tekst"] == "Super" and calls == ["https://www.youtube.com/watch?v=abc"]
     _, c2 = req(base, f"/api/zadania/{job['id']}/komentarze")
     assert c2["komentarze"] == c["komentarze"] and len(calls) == 1
+
+
+def test_queue_order_pause_remove_retry_dedup_and_restore(tmp_path, monkeypatch):
+    """0.11.0: kolejka — pauza, kolejność, usuwanie, bez dubli, błąd jednego filmu i ponowienie,
+    zapis do kolejka.json i odtworzenie (wstrzymanej) po ponownym uruchomieniu."""
+    from vidsum import gui
+    from vidsum.pipeline import Options
+    done, fail = [], {"b.mp4"}
+    gate = threading.Event()
+
+    def fake(src, opt, log):
+        if Path(src).name == "slow.mp4":
+            gate.wait(10)
+        if Path(src).name in fail:
+            raise RuntimeError("zepsuty plik")
+        done.append(Path(src).name)
+        return tmp_path
+    monkeypatch.setattr(gui, "analyze", fake)
+    state = tmp_path / "kolejka.json"
+    w = gui.Worker(state, lambda s: Options())
+    w.set_paused(True)
+    mk = lambda n: gui.Job(n.split(".")[0], str(tmp_path / n), n, Options(), None)
+    a, b, c, d = (w.submit(mk(n)) for n in ("a.mp4", "b.mp4", "c.mp4", "d.mp4"))
+    assert w.submit(mk("a.mp4")) is a and len(w.pending) == 4            # ten sam film drugi raz — bez dubla
+    assert w.move("c", 0) and w.remove("d") and not w.remove("zzz")
+    assert [j.id for j in w.pending] == ["c", "a", "b"]
+    saved = json.loads(state.read_text(encoding="utf-8"))
+    assert [z["id"] for z in saved["zadania"]] == ["c", "a", "b"] and saved["wstrzymana"] is True
+    time.sleep(0.3)
+    assert done == []                                                   # wstrzymana — nic nie rusza
+    w.set_paused(False)
+    for _ in range(100):
+        if b.status in ("gotowe", "blad") and len(done) == 2:
+            break
+        time.sleep(0.05)
+    assert done == ["c.mp4", "a.mp4"]
+    assert b.status == "blad" and "zepsuty" in b.error
+    fail.clear()
+    assert w.retry("b") is b
+    for _ in range(100):
+        if b.status == "gotowe":
+            break
+        time.sleep(0.05)
+    assert b.status == "gotowe" and done[-1] == "b.mp4"
+    # zamknięcie w trakcie analizy: trwający film wraca jako pierwszy, kolejka wstrzymana
+    s1 = w.submit(mk("slow.mp4"))
+    w.submit(mk("e.mp4"))
+    for _ in range(100):
+        if s1.status == "trwa":
+            break
+        time.sleep(0.02)
+    assert w.stop_for_exit() is s1
+    with pytest.raises(RuntimeError):
+        w.submit(mk("f.mp4"))                                           # zamyka się — nie przyjmuje nowych
+    gate.set()
+    w2 = gui.Worker(state, lambda s: Options())
+    assert [j.id for j in w2.pending] == ["slow", "e"] and w2.paused and w2.restored == 2
+    assert "przerwana" in w2.pending[0].log[0]
+
+
+def test_shutdown_kills_child_processes_and_keeps_ollama(tmp_path, monkeypatch):
+    """0.11.0: zamknięcie kończy własne procesy potomne (tu: długi proces jak ffmpeg), zapisuje kolejkę
+    i nie dotyka Ollamy (wywołuje tylko zwolnienie modeli przerwanej analizy)."""
+    import subprocess
+    from vidsum import gui, procs, tools
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    unloaded = []
+    monkeypatch.setattr(gui.Ollama, "unload", lambda self: unloaded.append(self.model))
+    app = gui.App(tmp_path / "wyniki", "tok")
+    started = threading.Event()
+    err = {}
+
+    def fake(src, opt, log):
+        started.set()
+        try:
+            tools.run([sys.executable, "-c", "import time; time.sleep(60)"])
+        except Exception as e:
+            err["e"] = e
+            raise
+    monkeypatch.setattr(gui, "analyze", fake)
+    job = gui.Job("x1", str(tmp_path / "film.mp4"), "film.mp4", app.options(app.settings), None)
+    app.worker.submit(job)
+    assert started.wait(5)
+    for _ in range(50):
+        if procs.running():
+            break
+        time.sleep(0.05)
+    child = procs.running()[0]
+    t0 = time.time()
+    info = app.shutdown("test")
+    assert child.poll() is not None and time.time() - t0 < 5           # proces potomny zakończony
+    assert info["zakonczone_procesy"] == 1 and info["przerwany_film"] == "film.mp4"
+    assert set(unloaded) == {"qwen3-vl:4b-instruct", app.settings["model_tekstowy"]}
+    for _ in range(50):
+        if job.status != "trwa":
+            break
+        time.sleep(0.05)
+    assert job.status == "przerwane" and "e" in err
+    q = json.loads((tmp_path / "VidSum" / "kolejka.json").read_text(encoding="utf-8"))
+    assert q["zadania"][0]["przerwane"] and q["wstrzymana"]
+    with pytest.raises(tools.ToolError):
+        tools.run([sys.executable, "-c", "pass"])                       # po zamknięciu nic nowego nie startuje
+    assert json.loads((tmp_path / "VidSum" / "zamkniecie.json").read_text(encoding="utf-8"))["powod"] == "test"

@@ -44,13 +44,25 @@ def run(args: list[str], *, check: bool = True, input_text: str | None = None,
     Lista argumentów (zamiast jednego stringa) sprawia, że ścieżki z polskimi znakami
     i spacjami przechodzą bez cytowania — na Windows przez CreateProcessW.
     """
+    from . import procs
     flags = 0
     if os.name == "nt":
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    proc = subprocess.run(
-        args, capture_output=True, input=input_text.encode("utf-8") if input_text else None,
-        timeout=timeout, creationflags=flags,
-    )
+    if procs.closing.is_set():
+        raise ToolError("Program się zamyka — nie uruchamiam nowych procesów.")
+    # Popen + rejestr (zamiast subprocess.run): przy zamykaniu programu proces jest kończony, nie zostaje sierotą
+    p = subprocess.Popen(args, stdin=subprocess.PIPE if input_text else None, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, creationflags=flags)
+    procs.register(p)
+    try:
+        out, err = p.communicate(input_text.encode("utf-8") if input_text else None, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        p.communicate()
+        raise
+    finally:
+        procs.unregister(p)
+    proc = subprocess.CompletedProcess(args, p.returncode, out, err)
     proc.stdout_text = proc.stdout.decode("utf-8", errors="replace")  # type: ignore[attr-defined]
     proc.stderr_text = proc.stderr.decode("utf-8", errors="replace")  # type: ignore[attr-defined]
     if check and proc.returncode != 0:
