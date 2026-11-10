@@ -24,7 +24,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import __version__
+from . import BRAND, __version__
 from .llm import DEFAULT_TEXT_MODEL, ClaudeCode, LLMError, Ollama
 from .pipeline import Options, analyze
 from .tools import ToolError, find_tool
@@ -201,7 +201,7 @@ class App:
                        text_model=s.get("model_tekstowy") or DEFAULT_TEXT_MODEL, translate=tl,
                        cuda_download=bool(s.get("gpu_pobieranie", True)),
                        cookies_from_browser=s.get("ciasteczka_z") or None,
-                       preview=bool(s.get("podglad", False)))
+                       preview=None)          # 0.10.0: podgląd zawsze automatycznie (bez osobnego trybu)
 
     def status(self) -> dict:
         st: dict = {"wersja": __version__}
@@ -359,7 +359,8 @@ def make_handler(app: App):
                     eng = Ollama(app.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
                     eng.ensure(lambda m: None)
                     silnik = f"ollama:{eng.model}"
-                answer = eng.complete(prompt)
+                from .summary import check_chat_answer
+                answer = check_chat_answer(eng.complete(prompt).strip(), analysis)
             except Exception as e:
                 return self._json({"error": f"Nie udało się odpowiedzieć: {e}"}, 400)
             now = time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -367,6 +368,31 @@ def make_handler(app: App):
                         {"rola": "asystent", "tekst": answer, "czas": now, "silnik": silnik}]
             hist_file.write_text(json.dumps(history, ensure_ascii=False, indent=1), encoding="utf-8")
             return self._json({"odpowiedz": answer, "historia": history})
+
+        def _comments(self, jid: str, fetch: bool):
+            """Komentarze widzów (0.10.0) — tylko dla linków, na żądanie; zapis w komentarze.json.
+            GET = zapisane (albo pusto), POST = pobierz przez yt-dlp (bez pobierania filmu)."""
+            p = self._job_file(jid, "analiza.json")
+            if not p or not p.is_file():
+                return self._json({"error": "brak wyników"}, 404)
+            cache = p.parent / "komentarze.json"
+            if cache.is_file() and not fetch:
+                return self._json(json.loads(cache.read_text(encoding="utf-8")))
+            z = json.loads(p.read_text(encoding="utf-8")).get("zrodlo") or {}
+            url = z.get("url") if z.get("rodzaj") == "link" else None
+            if not fetch:
+                return self._json({"stan": "brak", "dostepne": bool(url)})
+            if not url:
+                return self._json({"error": "komentarze są tylko dla filmów z linku"}, 400)
+            from .fetch import fetch_comments
+            try:
+                items = fetch_comments(url, cookies_from_browser=app.settings.get("ciasteczka_z") or None)
+            except Exception as e:
+                return self._json({"error": f"nie udało się pobrać komentarzy: {str(e)[:300]}"}, 400)
+            out = {"stan": "gotowe", "dostepne": True, "url": url, "pobrano": time.strftime("%Y-%m-%d %H:%M"),
+                   "komentarze": items}
+            cache.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+            return self._json(out)
 
         def _translate_all(self, jid: str, lang: str, start: bool):
             """Tłumaczenie całej analizy (0.9.0) w tle; GET = stan, POST = start (gdy jeszcze nie ma i nie trwa)."""
@@ -438,6 +464,9 @@ def make_handler(app: App):
             m = re.fullmatch(r"/api/zadania/(\w+)/tlumacz", u.path)
             if m:
                 return self._translate_all(m.group(1), (qs.get("jezyk") or [""])[0], start=False)
+            m = re.fullmatch(r"/api/zadania/(\w+)/komentarze", u.path)
+            if m:
+                return self._comments(m.group(1), fetch=False)
             m = re.fullmatch(r"/api/zadania/(\w+)/czat", u.path)
             if m:
                 p = self._job_file(m.group(1), "czat.json")
@@ -526,6 +555,9 @@ def make_handler(app: App):
             m = re.fullmatch(r"/api/zadania/(\w+)/tlumacz", u.path)
             if m:
                 return self._translate_all(m.group(1), str(self._body().get("jezyk") or ""), start=True)
+            m = re.fullmatch(r"/api/zadania/(\w+)/komentarze", u.path)
+            if m:
+                return self._comments(m.group(1), fetch=True)
             m = re.fullmatch(r"/api/zadania/(\w+)/pytanie", u.path)
             if m:
                 return self._ask(m.group(1), (self._body().get("pytanie") or "").strip())
@@ -578,7 +610,8 @@ def _running_instance(port: int) -> bool:
     import urllib.request
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2) as r:
-            return b"VidSum" in r.read(4096)
+            head = r.read(4096)
+            return b"VidSum" in head or b"Vidento" in head
     except Exception:
         return False
 
@@ -650,10 +683,14 @@ def fix_shortcut_icons() -> None:
         return
     ico = Path(__file__).parent / "web" / "vidsum.ico"
     mark = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "ikony_skrotow.txt"
-    if not ico.exists() or (mark.exists() and mark.read_text(encoding="utf-8").strip() == str(ico)):
+    # znacznik = ścieżka + rozmiar ikony: nowa ikona (0.10.0) → skróty odświeżane jeszcze raz
+    sig = f"{ico}|{ico.stat().st_size}" if ico.exists() else ""
+    if not ico.exists() or (mark.exists() and mark.read_text(encoding="utf-8").strip() == sig):
         return
     ps = ("$s=New-Object -ComObject WScript.Shell;"
           "$p=@(\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\VidSum\\VidSum.lnk\","
+          "\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidento\\Vidento.lnk\","
+          "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidento.lnk'),"
           "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'VidSum.lnk'));"
           "foreach($f in $p){ if(Test-Path $f){ $l=$s.CreateShortcut($f);"
           f" if($l.Arguments -like '*vidsum*'){{ $l.IconLocation='{ico},0'; $l.Save() }} }} }}")
@@ -661,7 +698,7 @@ def fix_shortcut_icons() -> None:
         subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], timeout=30,
                        capture_output=True, creationflags=0x08000000)
         mark.parent.mkdir(parents=True, exist_ok=True)
-        mark.write_text(str(ico), encoding="utf-8")
+        mark.write_text(sig, encoding="utf-8")
     except (OSError, subprocess.SubprocessError):
         pass
 
@@ -685,8 +722,33 @@ def _set_window_icon(title: str) -> None:
             h = u.LoadImageW(None, ico, 1, size, size, 0x10)   # IMAGE_ICON, LR_LOADFROMFILE
             if h:
                 u.SendMessageW(hwnd, 0x0080, which, h)  # WM_SETICON
+        style_title_bar(hwnd)
     except Exception:
         pass
+
+
+# pasek tytułu w kolorach programu (0.10.0): systemowo przez DWM, więc przeciąganie, dociąganie do krawędzi
+# i zmiana rozmiaru działają jak w każdym oknie. Kolory jako COLORREF (0x00BBGGRR). Windows 10 zna tylko tryb ciemny.
+TITLE_BAR = {"tlo": (13, 17, 26), "tekst": (233, 237, 245), "ramka": (61, 123, 255)}
+
+
+def _colorref(rgb: tuple[int, int, int]) -> int:
+    r, g, b = rgb
+    return (b << 16) | (g << 8) | r
+
+
+def style_title_bar(hwnd: int) -> list[int]:
+    """Ciemny pasek tytułu (20), jego kolor (35), kolor tekstu (36) i ramki okna (34). Zwraca wyniki HRESULT
+    (0 = przyjęte; Windows 10 odrzuca 34–36 — zostaje wtedy sam tryb ciemny)."""
+    import ctypes
+    from ctypes import wintypes
+    dwm = ctypes.windll.dwmapi
+    out = []
+    for attr, val in ((20, 1), (35, _colorref(TITLE_BAR["tlo"])), (36, _colorref(TITLE_BAR["tekst"])),
+                      (34, _colorref(TITLE_BAR["ramka"]))):
+        v = wintypes.DWORD(val)
+        out.append(dwm.DwmSetWindowAttribute(wintypes.HWND(hwnd), attr, ctypes.byref(v), ctypes.sizeof(v)))
+    return out
 
 
 def run_window(url: str, app: "App | None" = None) -> bool:
@@ -713,16 +775,16 @@ def run_window(url: str, app: "App | None" = None) -> bool:
     except Exception:
         pass
     try:
-        win = webview.create_window(f"VidSum {__version__}", url, width=1400, height=900, min_size=(900, 600),
+        win = webview.create_window(f"{BRAND} {__version__}", url, width=1400, height=900, min_size=(900, 600),
                                     text_select=True)
 
         def closing():
             if app and any(j.status == "trwa" for j in app.worker.jobs.values()):
-                return win.create_confirmation_dialog("VidSum", "Trwa analiza. Zamknąć program i ją przerwać?")
+                return win.create_confirmation_dialog(BRAND, "Trwa analiza. Zamknąć program i ją przerwać?")
             return True
         win.events.closing += closing
         store = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "okno"
-        webview.start(_set_window_icon, (f"VidSum {__version__}",), private_mode=False, storage_path=str(store))
+        webview.start(_set_window_icon, (f"{BRAND} {__version__}",), private_mode=False, storage_path=str(store))
         return True
     except Exception as e:
         print(f"Okno programu nie wystartowało ({type(e).__name__}: {e}) — otwieram w przeglądarce.")
@@ -736,7 +798,7 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
         pass                               # stara wersja zamknięta — uruchamiamy tę
     elif not port and _running_instance(want):
         url = f"http://127.0.0.1:{want}/?t={token}"
-        print(f"VidSum już działa — otwieram: {url}")
+        print(f"{BRAND} już działa — otwieram: {url}")
         if open_browser and not run_window(url):
             open_window(url)
         return
@@ -746,7 +808,7 @@ def serve(port: int = 0, open_browser: bool = True, token: str | None = None, re
     except OSError:                       # port zajęty przez inny program → dowolny wolny
         srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     url = f"http://127.0.0.1:{srv.server_address[1]}/?t={app.token}"
-    print(f"VidSum {__version__} — interfejs: {url}")
+    print(f"{BRAND} {__version__} — interfejs: {url}")
     print("Program działa w tle; wyłączysz go przyciskiem „Zakończ” w interfejsie.")
     threading.Thread(target=fix_shortcut_icons, daemon=True).start()
     if open_browser:

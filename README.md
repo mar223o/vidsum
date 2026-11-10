@@ -1,4 +1,7 @@
-# VidSum — prototyp (faza 1)
+# Vidento (dawniej VidSum) — prototyp (faza 1)
+
+Od 0.10.0 program nazywa się **Vidento**. Nazwa techniczna zostaje: polecenie `VidSum`, folder
+`%LOCALAPPDATA%\VidSum`, serwer MCP `vidsum` — stare skróty, ustawienia i wyniki działają dalej.
 
 Film (plik MP4 albo link) → **mowa** (Whisper) + **obraz** (kadry + lokalny model wizyjny) → oś czasu → **streszczenie**,
 w którym przy każdej informacji jest źródło: `[mowa]`, `[obraz]`, `[szacunek]` albo „brak danych”.

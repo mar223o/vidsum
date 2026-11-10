@@ -225,30 +225,108 @@ def to_markdown(s: dict) -> str:
 
 
 # ---------------- czat z filmem ----------------
-CHAT_PROMPT = """Odpowiadasz na pytanie o JEDEN konkretny film. Masz jego pełną oś czasu (mowa, napisy z ekranu,
-opisy kadrów) i streszczenie. Odpowiadaj po polsku, krótko i konkretnie (2–6 zdań albo krótka lista).
-Przy faktach z filmu podawaj czas `mm:ss`. Jeśli w filmie tego nie ma — powiedz to wprost („w filmie tego nie ma”)
-i dopiero potem, wyraźnie oznaczone jako [szacunek], możesz dodać ogólną wiedzę.
+CHAT_PROMPT = """You answer questions about ONE specific video. You have its transcript with times, the on-screen text,
+the steps that were extracted from it and its short summary. Answer in the language of the QUESTION ({lang}), briefly
+(1–4 sentences or a short list). Never repeat or paste the summary. Talk about the video in the third person
+("the author says…", "w filmie autor…"), never as "we".
 
-STRESZCZENIE:
-{summary}
+Rules:
+1. Facts from the video: answer only from the material below and give the time as mm:ss.
+2. A number, amount, time or temperature that the video does NOT give: say clearly that the video does not give it,
+   then say what the video says instead (for example a visual or physical cue). Do NOT invent the number.
+3. A general question about the topic (e.g. "what is X"): one or two sentences of general knowledge, start them with
+   "{general}", then one sentence linking it to the video.
+4. A question that has nothing to do with the video (news, other topics): say you only know this video and offer to answer
+   questions about it. Do not summarise the video.
+5. Small talk or a trivial question (e.g. arithmetic): answer it in one short sentence.
 
-OŚ CZASU:
-{timeline}
+Examples (answer in the language of the question):
+Q: ile minut gotować według filmu?
+A: Film nie podaje czasu gotowania. Autor mówi, żeby gotować frytki do miękkości — mają się łamać, a nie pękać (00:29–00:31).
+Q: wypadek na autostradzie
+A: Znam tylko ten film (przepis na chrupiące frytki), więc nic o tym nie powiem. Zapytaj o przepis, kroki albo temperatury.
+Q: how long does the video say to boil them?
+A: The video does not give a boiling time. The author says to boil them until just tender — they should break without snapping (00:29–00:31).
 
-DOTYCHCZASOWA ROZMOWA:
+VIDEO: {meta}
+SUMMARY (for context only): {thesis}
+STEPS:
+{steps}
+TRANSCRIPT:
+{transcript}
+FRAMES (what an image model saw; less reliable than the transcript, use them only when the transcript says nothing):
+{frames}
+
+CONVERSATION SO FAR:
 {history}
 
-PYTANIE: {question}
-"""
+QUESTION: {question}
+ANSWER:"""
+
+_GENERAL = {"pl": "Wiedza ogólna (nie z filmu):", "en": "General knowledge (not from the video):"}
+
+
+def _guess_lang(text: str) -> str:
+    """Język pytania: angielskie słowa pytające/łączniki → en, inaczej pl (użytkownik programu pisze głównie po polsku;
+    pomiar: „strzelanina w krakowie” bez polskich liter dostało odpowiedź po angielsku)."""
+    if re.search(r"[ąćęłńóśźż]", text, re.I):
+        return "pl"
+    en = len(re.findall(r"\b(what|how|is|are|the|why|when|where|which|who|does|do|did|can|should|tell|explain|"
+                        r"about|this|video|of|and|in|to|it)\b", text, re.I))
+    pl = len(re.findall(r"\b(co|jak|ile|czy|w|na|z|i|to|jest|się|według|filmu|film)\b", text, re.I))
+    return "en" if en > pl else "pl"
 
 
 def build_chat_prompt(analysis: dict, question: str, history: list[dict]) -> str:
     st = analysis.get("streszczenie") or {}
-    summary = st.get("markdown") or "—"
-    hist = "\n".join(f"{'Użytkownik' if h['rola'] == 'user' else 'Asystent'}: {h['tekst']}" for h in history[-8:]) or "—"
-    return CHAT_PROMPT.format(summary=summary, timeline=beats_as_text(analysis.get("os_czasu", [])),
+    d = st.get("dane") or {}
+    lang = _guess_lang(question)
+    z = analysis.get("zrodlo") or {}
+    steps = "\n".join(f"- {_mmss(k.get('t', 0))} {k.get('tekst', '')}"
+                       for k in ((d.get("co_masz_zrobic") or {}).get("kroki") or [])[:60]) or "—"
+    segs = (analysis.get("transkrypcja") or {}).get("segmenty") or []
+    tr = "\n".join(f"[{_mmss(x.get('start', 0))}] {x.get('text', '')}" for x in segs)
+    if len(tr) > 14000:                                   # długi film: początek i koniec zostają, środek skrócony
+        tr = tr[:9000] + "\n[…]\n" + tr[-5000:]
+    ocr = " | ".join(dict.fromkeys(x.get("text", "") for x in (analysis.get("napisy_ekranowe") or [])))[:1500]
+    if ocr:
+        tr += "\nON-SCREEN TEXT: " + ocr
+    fr = []
+    for f in (analysis.get("kadry") or [])[:40]:
+        v = f.get("vision") or {}
+        txt = "; ".join(x for x in [v.get("scena") or ""] + list(v.get("czynnosci") or [])[:2] if x)
+        if txt:
+            fr.append(f"[{_mmss(f.get('t', 0))}] {txt}")
+    hist = "\n".join(f"{'User' if h['rola'] == 'user' else 'Assistant'}: {h['tekst']}" for h in history[-6:]) or "—"
+    return CHAT_PROMPT.format(lang="Polish" if lang == "pl" else "English", general=_GENERAL[lang],
+                              meta=f"{z.get('tytul', '')} — {z.get('autor', '')}".strip(" —"),
+                              thesis=d.get("teza") or "—", steps=steps, transcript=tr or "—",
+                              frames="\n".join(fr)[:4000] or "—",
                               history=hist, question=question.strip()[:2000])
+
+
+def _mmss(t) -> str:
+    t = int(float(t or 0))
+    return f"{t // 60:02d}:{t % 60:02d}"
+
+
+def check_chat_answer(answer: str, analysis: dict) -> str:
+    """Odpowiedź czatu z liczbą z jednostką (minuty, stopnie, gramy…), której nie ma w filmie i która nie jest oznaczona
+    jako wiedza ogólna → dopisek ostrzegawczy. Pomiar 0.9.0: „Gotowanie trwa około 20–25 minut” (w filmie nie pada)."""
+    if any(g.split(" (")[0] in answer for g in _GENERAL.values()):
+        return answer
+    segs = (analysis.get("transkrypcja") or {}).get("segmenty") or []
+    src = " ".join(x.get("text", "") for x in segs) + " " + " ".join(
+        x.get("text", "") for x in (analysis.get("napisy_ekranowe") or []))
+    have = _nums(src)
+    unit = r"(?:min\w*|sek\w*|godz\w*|h\b|s\b|stopni\w*|°|g\b|gram\w*|kg|ml|l\b|litr\w*|cm|mm|łyż\w*|szklan\w*|minutes?|seconds?|hours?|degrees?)"
+    bad = [m.group(1) for m in re.finditer(r"(\d+(?:[.,]\d+)?)\s*(?:[-–]\s*\d+(?:[.,]\d+)?\s*)?" + unit, answer, re.I)
+           if m.group(1).replace(",", ".") not in have]
+    if not bad:
+        return answer
+    note = {"pl": "⚠ Tej liczby nie ma w filmie — to szacunek modelu, nie informacja z nagrania.",
+            "en": "⚠ This number is not in the video — it is the model's estimate, not information from the recording."}
+    return answer.rstrip() + "\n\n" + note[_guess_lang(answer)]
 
 
 # ---------------- streszczenie etapami (lokalne modele 4–8B) ----------------

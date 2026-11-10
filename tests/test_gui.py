@@ -79,12 +79,13 @@ def test_settings_roundtrip_and_whitelist(server, tmp_path):
     assert saved["jezyk_ui"] == "en"
 
 
-def test_quick_preview_switch_is_saved_and_used(server):
-    """Przełącznik „Szybki podgląd” (0.8.2): domyślnie wyłączony, zapisuje się w ustawieniach i trafia do analizy."""
+def test_quick_preview_is_automatic_without_switch(server):
+    """0.10.0: szybki podgląd to część analizy, a nie osobny tryb — z programu zawsze „automatycznie” (None),
+    także gdy w starych ustawieniach został przełącznik."""
     base, app = server
-    assert app.options(app.settings).preview is False
-    _, s = req(base, "/api/ustawienia", data=json.dumps({"podglad": True}).encode(), method="POST")
-    assert s["podglad"] is True and app.options(app.settings).preview is True
+    assert app.options(app.settings).preview is None
+    req(base, "/api/ustawienia", data=json.dumps({"podglad": True}).encode(), method="POST")
+    assert app.options(app.settings).preview is None
 
 
 def test_upload_polish_name_and_results(server):
@@ -174,7 +175,7 @@ def test_chat_with_video(server, tmp_path, monkeypatch):
     d.mkdir()
     fake = d / "claude"
     fake.write_text(f"#!{sys.executable}\nimport sys\np=sys.stdin.read()\n"
-                    "assert 'PYTANIE: Co jest w filmie?' in p and 'OŚ CZASU' in p\nprint('Kolorowe paski `00:01`.')\n")
+                    "assert 'QUESTION: Co jest w filmie?' in p and 'FRAMES' in p\nprint('Kolorowe paski `00:01`.')\n")
     fake.chmod(0o755)
     monkeypatch.setenv("PATH", str(d) + os.pathsep + os.environ["PATH"])
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
@@ -328,7 +329,7 @@ def test_native_window_asks_before_closing_during_analysis(monkeypatch, tmp_path
     job = types.SimpleNamespace(status="gotowe")
     app = types.SimpleNamespace(worker=types.SimpleNamespace(jobs={"a": job}))
     assert gui.run_window("http://127.0.0.1:1/?t=x", app) is True
-    assert calls["url"] == "http://127.0.0.1:1/?t=x" and calls["title"].startswith("VidSum")
+    assert calls["url"] == "http://127.0.0.1:1/?t=x" and calls["title"].startswith("Vidento")
     import os
     assert os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] == "--disable-gpu"
     close = win.events.closing[0]
@@ -367,3 +368,35 @@ def test_icon_served_without_token(server):
     _, svg = req(base, "/icon.svg", token=False)
     _, ico = req(base, "/favicon.ico", token=False)
     assert b"<svg" in svg and ico[:4] == b"\x00\x00\x01\x00"
+
+
+def test_title_bar_colors_match_palette():
+    """Pasek tytułu okna (0.10.0): kolory z palety jako COLORREF (0x00BBGGRR) — tło #0d111a, tekst #e9edf5, ramka #3d7bff."""
+    from vidsum.gui import TITLE_BAR, _colorref
+    assert _colorref(TITLE_BAR["tlo"]) == 0x001A110D
+    assert _colorref(TITLE_BAR["tekst"]) == 0x00F5EDE9
+    assert _colorref(TITLE_BAR["ramka"]) == 0x00FF7B3D
+
+
+def test_comments_endpoint_only_for_links_and_cached(server, monkeypatch):
+    """0.10.0: komentarze na żądanie — plik lokalny: niedostępne; link: pobrane raz i zapisane w komentarze.json."""
+    base, app = server
+    _, job = req(base, "/api/link", data=json.dumps({"zrodlo": str(DATA / "bez_audio.mp4")}).encode(), method="POST")
+    wait_done(base, job["id"])
+    _, st = req(base, f"/api/zadania/{job['id']}/komentarze")
+    assert st == {"stan": "brak", "dostepne": False}
+    with pytest.raises(urllib.error.HTTPError) as e:
+        req(base, f"/api/zadania/{job['id']}/komentarze", data=b"{}", method="POST")
+    assert "linku" in json.loads(e.value.read())["error"]
+    out = app.worker.jobs[job["id"]].out
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    r["zrodlo"].update({"rodzaj": "link", "url": "https://www.youtube.com/watch?v=abc"})
+    (out / "analiza.json").write_text(json.dumps(r), encoding="utf-8")
+    calls = []
+    import vidsum.fetch as f
+    monkeypatch.setattr(f, "fetch_comments", lambda url, limit=40, cookies_from_browser=None:
+                        calls.append(url) or [{"autor": "@a", "tekst": "Super", "polubienia": 2, "odpowiedz": False}])
+    _, c = req(base, f"/api/zadania/{job['id']}/komentarze", data=b"{}", method="POST")
+    assert c["stan"] == "gotowe" and c["komentarze"][0]["tekst"] == "Super" and calls == ["https://www.youtube.com/watch?v=abc"]
+    _, c2 = req(base, f"/api/zadania/{job['id']}/komentarze")
+    assert c2["komentarze"] == c["komentarze"] and len(calls) == 1

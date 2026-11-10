@@ -49,7 +49,10 @@ class Options:
     ocr: bool = True                           # gęsty OCR napisów na ekranie (+ podpowiedzi słów dla Whispera)
     move_source: bool = False                  # przenieś plik źródłowy do folderu wyników (wysłane z UI)
     on_partial: Callable | None = None         # wyniki etapów od razu, gdy gotowe (podgląd w UI): (rodzaj, dane)
-    preview: bool = False                      # szybki podgląd: wstępne streszczenie z mowy, potem pełne (0.8.2)
+    # szybki podgląd: wstępne streszczenie z mowy, potem pełne. None (domyślnie, 0.10.0) = automatycznie, gdy nic nie
+    # kosztuje: ten sam model do obrazu i tekstu (nic się nie przeładowuje) albo obraz wyłączony. True = zawsze
+    # (model tekstowy przed modelem obrazu, +kilkanaście s na karcie 8 GB). False = nigdy.
+    preview: bool | None = None
     extra: dict = field(default_factory=dict)
 
 
@@ -98,7 +101,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         # modele z POPRZEDNIEJ analizy (Ollama trzyma je 5 min) to nie „inne programy”: zwalniamy te, których ta analiza
         # zaraz nie użyje. Pomiar 0.9.0: gemma3:4b po poprzedniej analizie zajmowała 3,1 GB → model obrazu wczytywał się
         # 17 s zamiast ~10 s, kadry czekały na niego, a ostrzeżenie mówiło o „innych programach”.
-        first = (opt.summary_model or opt.text_model) if (opt.preview and opt.summary in ("auto", "ollama")) \
+        first = (opt.summary_model or opt.text_model) if (opt.preview is True and opt.summary in ("auto", "ollama")) \
             else (opt.vision_model if opt.vision == "ollama" else None)
         left = [m for m in ollama_models(opt.ollama_host) if m.get("model") and m["model"] != first]
         if left and (opt.vision == "ollama" or opt.summary in ("auto", "ollama")):
@@ -122,7 +125,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     # szybki podgląd (0.8.3): model tekstowy idzie na kartę PIERWSZY, zaraz po transkrypcji; model obrazu wczytuje się
     # dopiero po podglądzie. Pomiar 0.8.2: wczytany wcześniej model obrazu był wypychany przez tekstowy i wczytywał się
     # drugi raz, a pusta przez chwilę karta myliła decyzję o Whisperze równolegle z kadrami (kadry 3,5 s zamiast 1,9 s).
-    pv_first = bool(opt.preview and opt.summary in ("auto", "ollama") and opt.vision == "ollama")
+    pv_first = bool(opt.preview is True and opt.summary in ("auto", "ollama") and opt.vision == "ollama")
     if opt.vision == "ollama" and not pv_first and re.match(r"https?://", str(inp).strip(), re.I):
         def early_preload() -> None:
             t_l = time.time()
@@ -172,8 +175,12 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     pv_lock = threading.Lock()
 
     def start_preview() -> None:
-        if not opt.preview or opt.summary not in ("auto", "ollama"):
+        if opt.preview is False or opt.summary not in ("auto", "ollama"):
             return
+        tm = opt.summary_model or opt.text_model
+        same = opt.vision == "ollama" and opt.vision_model == tm
+        if opt.preview is None and opt.vision == "ollama" and not same:
+            return                                 # automatycznie tylko bez przerzucania modeli na karcie
         with pv_lock:
             tr0 = tr_box.get("tr")
             if pv["thread"] or pv["done"] or not (tr0 and tr0.segments):
@@ -206,8 +213,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                     _emit(opt, "wstepne", d)
                     log(f"        szybki podgląd gotowy ({pv['s']:.1f} s; {pv['po_s']:.0f} s od startu)")
                 pv["done"] = True
-                if opt.vision == "ollama":
-                    eng.unload()                   # miejsce na karcie dla modelu obrazu
+                if opt.vision == "ollama" and not same:
+                    eng.unload()                   # miejsce na karcie dla modelu obrazu (inny model niż tekstowy)
             pv["thread"] = threading.Thread(target=job, daemon=True)
             pv["thread"].start()
 
@@ -741,7 +748,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                    "tytul": src.title, "autor": src.uploader, "plik": src.path.name,
                    "sha256": src_sha, "dlugosc_s": round(info.duration, 2),
                    "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio,
-                   "film": film_ref},
+                   "film": film_ref, "opis": src.description, "rozdzialy_autora": src.chapters},
         "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets,
                        "obraz": f"ollama:{opt.vision_model}" if vision_engine else "brak",
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,

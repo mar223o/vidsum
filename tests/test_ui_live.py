@@ -184,3 +184,80 @@ def test_quick_preview_then_full_and_mind_map(live):
         page.screenshot(path=str(shots / "mapa.png"))
         b.close()
     assert not errors, errors
+
+
+@pytest.mark.parametrize("width", [1280, 1000, 820, 390])
+def test_breakdown_tabs_fit_and_new_tabs(live, width):
+    """0.10.0: pasek zakładek „Breakdown” w trybie Wideo mieści się bez przewijania w bok (zawija się), każda zakładka
+    ma ikonę; rozdziały mają paski proporcji (od autora osobno), najważniejsze są zwijane, jest opis od autora,
+    komentarze (z zapisanego pliku) i tryb kinowy, który nie przeładowuje filmu."""
+    base, app, job, out, segs = live
+    _final(out, segs)
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    d = r["streszczenie"]["dane"]
+    d["rozdzialy"] = [{"start": 0, "end": 60, "tytul": "Przygotowanie", "opis": "Obieranie.", "momenty": []},
+                      {"start": 60, "end": 238, "tytul": "Smażenie", "opis": "Dwa smażenia.", "momenty": []}]
+    d["najwazniejsze"] = [{"t": 41.4, "tytul": "Olej 140", "opis": "Pierwsze smażenie w 140 stopniach.", "zrodlo": "mowa"},
+                          {"t": 90.0, "tytul": "Olej 190", "opis": "Drugie smażenie w 190 stopniach.", "zrodlo": "mowa"}]
+    d["momenty"] = [{"t": 41.4, "tekst": "Olej 140"}]
+    d["cytaty"] = [{"t": 34.0, "tekst": "This is going to add a beautiful crispy layer.", "tlumaczenie": "Chrupka warstwa."}]
+    r["zrodlo"].update({"rodzaj": "link", "url": "https://www.youtube.com/watch?v=x", "opis": "Przepis na frytki.\n0:00 Start\n1:00 Smażenie",
+                        "rozdzialy_autora": [{"start": 0, "end": 60, "tytul": "Start"}, {"start": 60, "end": 238, "tytul": "Smażenie"}]})
+    (out / "analiza.json").write_text(json.dumps(r, ensure_ascii=False), encoding="utf-8")
+    (out / "komentarze.json").write_text(json.dumps({"stan": "gotowe", "dostepne": True, "pobrano": "2026-11-10 12:00",
+                                                     "komentarze": [{"autor": "@ola", "tekst": "Najlepsze frytki!", "polubienia": 12,
+                                                                     "odpowiedz": False}]}), encoding="utf-8")
+    job.status, job.finished = "gotowe", time.time()
+    with pw.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as e:
+            pytest.skip(f"brak Chromium: {e}")
+        page = b.new_page(viewport={"width": width, "height": 900})
+        errors: list[str] = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.add_init_script("try{localStorage.setItem('vs_mode','video');localStorage.removeItem('vs_cinema')}catch(e){}")
+        page.goto(f"{base}/?t={TOKEN}#/wynik/{job.id}")
+        page.wait_for_selector("#csum .summary p", timeout=8000)
+        tabs = page.locator("#tabs button")
+        assert tabs.count() == 10                     # todo key mom quo cha map tr fr desc com
+        assert page.locator("#tabs button svg").count() == 10
+        assert page.evaluate("(() => { const t = document.querySelector('#tabs'); return t.scrollWidth <= t.clientWidth + 1; })()")
+        assert page.evaluate("""(() => { const t = document.querySelector('#tabs').getBoundingClientRect();
+            return [...document.querySelectorAll('#tabs button')].every(b => { const r = b.getBoundingClientRect();
+              return r.left >= t.left - 1 && r.right <= t.right + 1; }); })()""")
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+        shots = Path(os.environ.get("VIDSUM_SHOTS") or out)
+        page.screenshot(path=str(shots / f"zakladki_{width}.png"))
+        # rozdziały: pasek całego filmu i udział każdego rozdziału (od autora + z analizy)
+        page.click('#tabs button[data-tab="cha"]')
+        assert page.locator(".chstrip").count() == 2 and page.locator(".chstrip.au button").count() == 2
+        assert "25% filmu" in page.inner_text("#tabc") and "75% filmu" in page.inner_text("#tabc")
+        w = page.evaluate("document.querySelector('.chstrip:not(.au) button:nth-child(2)').style.width")
+        assert w.startswith("74.7")
+        # najważniejsze: pierwszy rozwinięty, drugi zwinięty, „Rozwiń wszystkie”
+        page.click('#tabs button[data-tab="key"]')
+        assert page.evaluate("[...document.querySelectorAll('details.kp')].map(x => x.open)") == [True, False]
+        page.click('[data-a="keyall"]')
+        assert page.evaluate("[...document.querySelectorAll('details.kp')].map(x => x.open)") == [True, True]
+        # opis od autora: czasy klikalne
+        page.click('#tabs button[data-tab="desc"]')
+        assert "Przepis na frytki" in page.inner_text("#tabc") and page.locator("#tabc .desc .tsb").count() == 2
+        # komentarze z zapisanego pliku
+        page.click('#tabs button[data-tab="com"]')
+        page.wait_for_selector("#tabc .com")
+        assert "Najlepsze frytki!" in page.inner_text("#tabc") and "nie fakty" in page.inner_text("#tabc")
+        # tryb kinowy: film na całą szerokość, ten sam element <video>
+        page.evaluate("window._v = document.querySelector('#cplayer .player')")
+        page.click('[data-a="cinema"]')
+        assert page.evaluate("document.querySelector('#res').classList.contains('cinema')")
+        assert page.evaluate("window._v === document.querySelector('#cplayer .player')")
+        lay = page.evaluate("document.querySelector('.layout').getBoundingClientRect().width")
+        mid = page.evaluate("document.querySelector('.col-mid').getBoundingClientRect().width")
+        assert mid >= lay - 2
+        if width == 1280:
+            page.screenshot(path=str(shots / "kinowy.png"))
+        page.keyboard.press("Escape")
+        assert not page.evaluate("document.querySelector('#res').classList.contains('cinema')")
+        b.close()
+    assert not errors, errors

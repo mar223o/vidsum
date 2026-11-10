@@ -20,6 +20,8 @@ class Source:
     webpage_url: str | None = None
     subtitles: Path | None = None      # napisy z serwisu (od autora albo automatyczne)
     subtitles_kind: str | None = None  # "autor" | "automatyczne"
+    description: str | None = None     # opis od autora (YouTube itd.) — tekst autora, nie analiza
+    chapters: list | None = None       # rozdziały od autora: [{"start", "end", "tytul"}]
 
 
 def is_url(s: str) -> bool:
@@ -75,7 +77,45 @@ def download(url: str, workdir: Path, cookies_from_browser: str | None = None, s
         raise RuntimeError("yt-dlp nie zwrócił pobranego pliku.")
     sub, kind = pick_subtitles(info)
     return Source("link", url, path.resolve(), info.get("title"), info.get("uploader"),
-                  info.get("webpage_url") or url, sub, kind)
+                  info.get("webpage_url") or url, sub, kind, (info.get("description") or "").strip()[:5000] or None,
+                  author_chapters(info))
+
+
+def author_chapters(info: dict) -> list | None:
+    """Rozdziały, które autor sam podał (YouTube „chapters”) — dokładne, więc pokazywane osobno od rozdziałów modelu."""
+    out = []
+    for c in info.get("chapters") or []:
+        try:
+            out.append({"start": round(float(c["start_time"]), 1), "end": round(float(c["end_time"]), 1),
+                        "tytul": str(c.get("title") or "").strip()[:200]})
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out or None
+
+
+def fetch_comments(url: str, limit: int = 40, cookies_from_browser: str | None = None) -> list[dict]:
+    """Komentarze widzów (na żądanie, tylko linki): najpopularniejsze, bez pobierania filmu.
+    Zwraca [{"autor", "tekst", "polubienia", "odpowiedz"}] — tekst widzów, nie fakty o filmie."""
+    import yt_dlp
+    opts = {"skip_download": True, "getcomments": True, "quiet": True, "no_warnings": True,
+            "extractor_args": {"youtube": {"max_comments": [str(limit), "all", "0"], "comment_sort": ["top"]}}}
+    if cookies_from_browser:
+        opts["cookiesfrombrowser"] = (cookies_from_browser,)
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+    return parse_comments(info.get("comments") or [], limit)
+
+
+def parse_comments(raw: list[dict], limit: int = 40) -> list[dict]:
+    out = []
+    for c in raw:
+        text = str(c.get("text") or "").strip()
+        if not text:
+            continue
+        out.append({"autor": str(c.get("author") or "").strip(), "tekst": text[:1500],
+                    "polubienia": int(c.get("like_count") or 0), "odpowiedz": c.get("parent") not in (None, "root")})
+    out.sort(key=lambda x: (x["odpowiedz"], -x["polubienia"]))
+    return out[:limit]
 
 
 def choose_subtitle_lang(info: dict) -> tuple[str, str] | None:

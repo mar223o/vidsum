@@ -1303,3 +1303,74 @@ def test_leftover_models_from_previous_analysis_are_freed(tmp_path, ollama, monk
     assert any("inne programy zajmują 2414 MB" in m for m in logs)          # 5515 − 3101: tylko naprawdę inne programy
     rep = (out / "raport.md").read_text(encoding="utf-8")
     assert "modele z poprzedniej analizy (zwolnione na starcie): `fake-txt` 3101 MB; inne programy **2414 MB**" in rep
+
+
+def test_chat_prompt_uses_transcript_and_steps_not_whole_summary():
+    """Pomiar 0.9.0: na „strzelanina w krakowie” czat wkleił całe streszczenie, a na „ile minut gotować” zmyślił
+    „20–25 minut”. Teraz: transkrypcja z czasami i kroki zamiast markdownu, reguły i przykłady dla tych przypadków."""
+    from vidsum.summary import _guess_lang, build_chat_prompt, check_chat_answer
+    a = {"zrodlo": {"tytul": "The Perfect French Fry", "autor": "Fallow"},
+         "transkrypcja": {"segmenty": [{"start": 29.3, "text": "Then boil the fries until just tender."},
+                                       {"start": 52.1, "text": "Heat the oil up to 190."}]},
+         "napisy_ekranowe": [{"text": "heat the oil up to 190°C"}],
+         "streszczenie": {"markdown": "## W skrócie\nCAŁE STRESZCZENIE", "dane": {
+             "teza": "Frytki smażone dwa razy.", "co_masz_zrobic": {"kroki": [{"t": 52.1, "tekst": "Rozgrzej olej do 190 stopni."}]}}}}
+    p = build_chat_prompt(a, "ile minut gotować?", [])
+    assert "CAŁE STRESZCZENIE" not in p and "[00:29] Then boil the fries" in p and "- 00:52 Rozgrzej olej" in p
+    assert "Polish" in p and "does NOT give" in p
+    assert _guess_lang("strzelanina w krakowie") == "pl" and _guess_lang("what is french fry") == "en"
+    warned = check_chat_answer("Gotowanie frytek trwa około 20-25 minut.", a)
+    assert "Tej liczby nie ma w filmie" in warned
+    ok = "Olej rozgrzej do 190 stopni (00:52)."
+    assert check_chat_answer(ok, a) == ok                                   # liczba jest w filmie
+    gen = "Wiedza ogólna (nie z filmu): frytki smaży się zwykle 5 minut."
+    assert check_chat_answer(gen, a) == gen                                 # oznaczona wiedza ogólna
+
+
+def test_automatic_preview_only_when_it_costs_nothing(tmp_path, ollama, monkeypatch):
+    """0.10.0: bez przełącznika. Inny model obrazu niż tekstowy → bez wstępnego streszczenia (przerzucanie modeli
+    kosztowało +16 s); ten sam model (albo obraz wyłączony) → wstępne streszczenie od razu."""
+    import vidsum.pipeline as pl
+    from vidsum import ocr
+    from vidsum.transcribe import Transcript
+
+    class FakeWhisper:
+        def __init__(self, *a, hotwords=None, **k):
+            self.hotwords, self.coverage_hints, self.recovered, self.cuda_download = hotwords, [], 0, False
+
+        def resolve_device(self, log=None):
+            return "cuda", None
+
+        def transcribe(self, wav, language=None):
+            return Transcript("pl", "atrapa:cuda", [Segment(1, 3, "Pokrój cebulę i wlej mleko"),
+                                                    Segment(9, 12, "Mieszaj pięć minut na małym ogniu")])
+    monkeypatch.setattr(pl, "WhisperEngine", FakeWhisper)
+    monkeypatch.setattr(ocr, "read_captions", lambda *a, **k: [])
+    monkeypatch.setattr(ocr, "ensure_models", lambda root, log=None: root)
+    film = str(DATA / "Filmy testowe ąęś" / "przepis z mową.mp4")
+    got: list = []
+    o = dict(out_root=tmp_path, ollama_host=ollama, text_model="fake-txt", max_frames=3, translate=[], ocr=False,
+             on_partial=lambda k, d: got.append(k))
+    pl.analyze(film, pl.Options(vision_model="fake-vl", **o), log=lambda m: None)
+    assert "wstepne" not in got
+    got.clear()
+    pl.analyze(film, pl.Options(vision="brak", **o), log=lambda m: None)
+    assert "wstepne" in got
+
+
+def test_author_description_chapters_and_comments_parsing():
+    """0.10.0: opis i rozdziały od autora z informacji yt-dlp; komentarze: odpowiedzi na końcu, najpopularniejsze
+    najpierw, puste pominięte."""
+    from vidsum.fetch import author_chapters, parse_comments
+    info = {"chapters": [{"start_time": 0, "end_time": 61.25, "title": "Start"},
+                         {"start_time": 61.25, "end_time": 238.0, "title": " Smażenie "}, {"title": "zły"}]}
+    assert author_chapters(info) == [{"start": 0.0, "end": 61.2, "tytul": "Start"},
+                                     {"start": 61.2, "end": 238.0, "tytul": "Smażenie"}]
+    assert author_chapters({}) is None
+    raw = [{"author": "@a", "text": "ok", "like_count": 3, "parent": "root"},
+           {"author": "@b", "text": "super", "like_count": 40, "parent": "root"},
+           {"author": "@c", "text": "racja", "like_count": 99, "parent": "abc"},
+           {"author": "@d", "text": "  ", "like_count": 500, "parent": "root"}]
+    got = parse_comments(raw, limit=10)
+    assert [c["autor"] for c in got] == ["@b", "@a", "@c"] and got[2]["odpowiedz"] is True
+    assert len(parse_comments(raw, limit=1)) == 1
