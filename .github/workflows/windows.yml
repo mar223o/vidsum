@@ -283,7 +283,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "okno programu (pywebview/WebView2) nie działa w instalacji" }
           # ikona VidSum w skrócie (Menu Start) i plik ikony w instalacji
           if (-not (Test-Path "$dir\vidsum\web\vidsum.ico")) { throw "brak vidsum.ico w instalacji" }
-          $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Vidento\Vidento.lnk"
+          $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Vidsumly\Vidsumly.lnk"
           if (Test-Path $lnk) {
             $ic = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).IconLocation
             Write-Host "ikona skrótu: $ic"

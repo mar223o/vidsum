@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <!-- Vidento: kadr filmu, dwie linie streszczenia, „play” i iskra — ewolucja ikony 0.8.1: jedna barwa (lazur),
+  <!-- Vidsumly: kadr filmu, dwie linie streszczenia, „play” i iskra — ewolucja ikony 0.8.1: jedna barwa (lazur),
        grubsze kreski i mniej elementów, żeby była czytelna także w 16 px -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">

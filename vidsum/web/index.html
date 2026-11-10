@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vidento</title>
-<meta name="application-name" content="Vidento"><!-- nazwa techniczna: VidSum -->
+<title>Vidsumly</title>
+<meta name="application-name" content="Vidsumly"><!-- nazwa techniczna: VidSum -->
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <style>
-/* Vidento 0.10.0 (dawniej VidSum) — grafitowy granat i jeden akcent (lazur); wcześniej: kolory marki z ikony,
+/* Vidsumly 0.10.x (dawniej VidSum) — grafitowy granat i jeden akcent (lazur); wcześniej: kolory marki z ikony,
    jedna rzecz zapada w pamięć: poświata z samego filmu za odtwarzaczem i nagłówkiem wyniku. Reszta cicha. */
 :root{
   /* 0.10.0 — jeden akcent: lazur (niebieski → błękit tylko w obrębie tej samej barwy). Tło: grafitowy granat. */
@@ -376,7 +376,7 @@ details.kp[open] summary .kt{color:var(--ink)}
 </head>
 <body>
 <header>
-  <a class="logo" href="#/"><img src="/icon.svg" alt="" width="28" height="28"><span>Vidento</span></a>
+  <a class="logo" href="#/"><img src="/icon.svg" alt="" width="28" height="28"><span>Vidsumly</span></a>
   <nav><a href="#/" data-nav="home" data-i="nav_home"></a><a href="#/biblioteka" data-nav="lib" data-i="nav_lib"></a></nav>
   <div class="chips" id="chips"></div>
   <div class="seg lang"><button data-l="pl">PL</button><button data-l="en">EN</button></div>
@@ -402,7 +402,7 @@ const I18N = {
    w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",uploading:"Wysyłanie",open:"Otwórz",
    stage_0:"start · napisy (OCR)",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",
    part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
-   quit:"Zakończ",quit_q:"Wyłączyć Vidento? Trwająca analiza zostanie przerwana.",quit_done:"Vidento wyłączone. Możesz zamknąć tę kartę.",
+   quit:"Zakończ",quit_q:"Wyłączyć Vidsumly? Trwająca analiza zostanie przerwana.",quit_done:"Vidsumly wyłączone. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
    t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_poradnik:"Kroki",t_todo_inne:"Wnioski",
    t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
@@ -436,7 +436,7 @@ const I18N = {
    live_steps_ready:"Kroki są już gotowe w zakładce obok. Opis całości jeszcze powstaje…",
    live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
    live_wait_tr:"Transkrypcja pojawi się tutaj, gdy tylko mowa zostanie rozpoznana.",live_wait_fr:"Kadry pojawią się po ich wycięciu z filmu.",
-   offline:"Brak połączenia z programem Vidento. Uruchom Vidento ponownie (otworzy tę samą stronę)."},
+   offline:"Brak połączenia z programem Vidsumly. Uruchom Vidsumly ponownie (otworzy tę samą stronę)."},
  en:{nav_home:"Analyze",nav_lib:"Library",hero1:"Drop a video —",hero2:"I'll tell you what it means for you.",
    hero_sub:"Recipe, workout, tutorial: speech, captions and picture turned into a concrete to-do list.",
    drop:"Drop video files here",drop_sub:"or click to choose (MP4, MOV, MKV, WEBM) — several at once is fine",
@@ -449,7 +449,7 @@ const I18N = {
    w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",uploading:"Uploading",open:"Open",
    stage_0:"start · on-screen text",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",
    part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
-   quit:"Quit",quit_q:"Quit Vidento? A running analysis will be stopped.",quit_done:"Vidento stopped. You can close this tab.",
+   quit:"Quit",quit_q:"Quit Vidsumly? A running analysis will be stopped.",quit_done:"Vidsumly stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
    t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_poradnik:"Steps",t_todo_inne:"Takeaways",
    t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
@@ -483,7 +483,7 @@ const I18N = {
    live_steps_ready:"The steps are ready in the tab next to this. The full summary is still being written…",
    live_video:"The video will be playable once the analysis is done",live_tr_note:"preliminary — will be refined",
    live_wait_tr:"The transcript appears here as soon as speech is recognised.",live_wait_fr:"Frames appear once they are extracted.",
-   offline:"Can't reach Vidento. Start Vidento again (it reopens this page)."}
+   offline:"Can't reach Vidsumly. Start Vidsumly again (it reopens this page)."}
 };
 let cinema = false;
 try { cinema = localStorage.getItem("vs_cinema") === "1"; } catch {}
@@ -536,7 +536,7 @@ function applyLang(){
 document.querySelectorAll(".lang button").forEach(b => b.onclick = () => {
   L = b.dataset.l; applyLang(); api("/api/ustawienia",{method:"POST",body:JSON.stringify({jezyk_ui:L})}).catch(()=>{}); });
 let lastStatus = {};
-function updInfo(){ return lastStatus.wersja ? "· Vidento " + esc(lastStatus.wersja) + (lastStatus.klucz_github ? " · " + t("upd_key_have") : "") : ""; }
+function updInfo(){ return lastStatus.wersja ? "· Vidsumly " + esc(lastStatus.wersja) + (lastStatus.klucz_github ? " · " + t("upd_key_have") : "") : ""; }
 async function loadStatus(){
   try{ const s = await api("/api/status"); lastStatus = s; const ui = $("#updInfo"); if (ui) ui.innerHTML = updInfo();
     $("#chips").innerHTML = [["chip_ff",s.ffmpeg,""],["chip_ol",s.ollama,s.ollama_info],["chip_cl",s.claude,s.claude_info]]
@@ -626,7 +626,7 @@ function renderHome(){
   const up = Object.values(uploads).map(u => `<div class="job"><div class="job-top"><span class="name">${esc(u.name)}</span><span class="st w_kolejce">${t("uploading")} ${u.pct}%</span></div></div>`).join("");
   const first = !$("#drop");
   if (first) {
-    $("#app").innerHTML = `<section class="hero"><div class="eyebrow">Vidento</div>
+    $("#app").innerHTML = `<section class="hero"><div class="eyebrow">Vidsumly</div>
       <h1>${t("hero1")} ${t("hero2")}</h1><p>${t("hero_sub")}</p></section>
       <section class="panel">
         <div id="drop" tabindex="0" role="button"><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
@@ -943,7 +943,7 @@ function liveBar(j){
 }
 function headHtml(r, d){
   const z = r.zrodlo, title = d?.tytul || z.tytul || z.plik || "…", accent = d?.tytul_akcent || "";
-  let h = `<div class="eyebrow">${esc(z.autor || "Vidento")}${d && !d.partial && d.typ ? ` <span class="pill">${esc(t("typ_"+d.typ))}</span>` : ""}</div>
+  let h = `<div class="eyebrow">${esc(z.autor || "Vidsumly")}${d && !d.partial && d.typ ? ` <span class="pill">${esc(t("typ_"+d.typ))}</span>` : ""}</div>
     <h1>${esc(title)}${accent ? `<i>${esc(accent)}</i>` : ""}</h1>${d?.teza ? `<div class="thesis">„${esc(d.teza)}”</div>` : ""}`;
   if (cur.live) return h + liveBar(cur.job);
   const date = (r.utworzono || "").slice(0,10), id = cur.id;
@@ -1089,7 +1089,7 @@ function mapData(d){
   });
   if (d.najwazniejsze.length)
     br.push({label:t("map_key"), t:d.najwazniejsze[0].t, info:"", kids:d.najwazniejsze.slice(0, 6).map(x => ({label:x.tytul, t:x.t, info:x.opis}))});
-  return {label:d.tytul || r.zrodlo.tytul || "Vidento", info:d.teza || "", t:0, kids:br};
+  return {label:d.tytul || r.zrodlo.tytul || "Vidsumly", info:d.teza || "", t:0, kids:br};
 }
 function wrapTxt(x, n, max){            // podział etykiety na linie po ~n znaków (najwyżej max linii)
   const words = String(x || "").trim().split(/\s+/), out = [];

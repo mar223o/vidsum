@@ -12,12 +12,12 @@
 SetupIconFile=..\vidsum\web\vidsum.ico
 UninstallDisplayIcon={app}\vidsum\web\vidsum.ico
 AppId={{6B1E2C4A-8F3D-4E7B-9C21-5A0D7F3E9B14}
-AppName=Vidento
+AppName=Vidsumly
 AppVersion={#AppVersion}
-AppVerName=Vidento {#AppVersion}
-AppPublisher=Vidento
+AppVerName=Vidsumly {#AppVersion}
+AppPublisher=Vidsumly
 DefaultDirName={localappdata}\Programs\VidSum
-DefaultGroupName=Vidento
+DefaultGroupName=Vidsumly
 UsePreviousGroup=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
@@ -27,7 +27,7 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=force
 RestartApplications=no
-UninstallDisplayName=Vidento
+UninstallDisplayName=Vidsumly
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
@@ -41,24 +41,30 @@ Name: "desktopicon"; Description: "Skrót na pulpicie"; GroupDescription: "Skró
 ; stary kod usuwany przed instalacją nowego — bez nieaktualnych plików
 Type: filesandordirs; Name: "{app}\vidsum"
 Type: filesandordirs; Name: "{app}\vidsum.stare"
-; 0.10.0: nowa nazwa (Vidento) — stare skróty „VidSum” usuwane; folder programu i dane bez zmian
+; 0.10.0: nowa nazwa — stare skróty „VidSum” usuwane; folder programu i dane bez zmian
 Type: filesandordirs; Name: "{userprograms}\VidSum"
 Type: files; Name: "{userdesktop}\VidSum.lnk"
+; 0.10.1: ostateczna nazwa Vidsumly — usuwane też skróty „Vidento” z 0.10.0
+Type: filesandordirs; Name: "{userprograms}\Vidento"
+Type: files; Name: "{userdesktop}\Vidento.lnk"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Vidento"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\vidsum\web\vidsum.ico"; Comment: "Analiza filmów"
-Name: "{group}\Odinstaluj Vidento"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\Vidento"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\vidsum\web\vidsum.ico"; Tasks: desktopicon
+Name: "{group}\Vidsumly"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\vidsum\web\vidsum.ico"; Comment: "Analiza filmów"
+Name: "{group}\Odinstaluj Vidsumly"; Filename: "{uninstallexe}"
+Name: "{userdesktop}\Vidsumly"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\vidsum\web\vidsum.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; Description: "Uruchom Vidento"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; Description: "Uruchom Vidsumly"; Flags: postinstall nowait skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\vidsum"
 Type: filesandordirs; Name: "{app}\vidsum.stare"
-; 0.10.0: nowa nazwa (Vidento) — stare skróty „VidSum” usuwane; folder programu i dane bez zmian
+; 0.10.0: nowa nazwa — stare skróty „VidSum” usuwane; folder programu i dane bez zmian
 Type: filesandordirs; Name: "{userprograms}\VidSum"
 Type: files; Name: "{userdesktop}\VidSum.lnk"
+; 0.10.1: ostateczna nazwa Vidsumly — usuwane też skróty „Vidento” z 0.10.0
+Type: filesandordirs; Name: "{userprograms}\Vidento"
+Type: files; Name: "{userdesktop}\Vidento.lnk"

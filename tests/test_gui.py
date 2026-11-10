@@ -329,7 +329,7 @@ def test_native_window_asks_before_closing_during_analysis(monkeypatch, tmp_path
     job = types.SimpleNamespace(status="gotowe")
     app = types.SimpleNamespace(worker=types.SimpleNamespace(jobs={"a": job}))
     assert gui.run_window("http://127.0.0.1:1/?t=x", app) is True
-    assert calls["url"] == "http://127.0.0.1:1/?t=x" and calls["title"].startswith("Vidento")
+    assert calls["url"] == "http://127.0.0.1:1/?t=x" and calls["title"].startswith("Vidsumly")
     import os
     assert os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] == "--disable-gpu"
     close = win.events.closing[0]

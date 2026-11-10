@@ -611,7 +611,7 @@ def _running_instance(port: int) -> bool:
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2) as r:
             head = r.read(4096)
-            return b"VidSum" in head or b"Vidento" in head
+            return any(n in head for n in (b"VidSum", b"Vidento", b"Vidsumly"))
     except Exception:
         return False
 
@@ -690,7 +690,9 @@ def fix_shortcut_icons() -> None:
     ps = ("$s=New-Object -ComObject WScript.Shell;"
           "$p=@(\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\VidSum\\VidSum.lnk\","
           "\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidento\\Vidento.lnk\","
+          "\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidsumly\\Vidsumly.lnk\","
           "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidento.lnk'),"
+          "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidsumly.lnk'),"
           "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'VidSum.lnk'));"
           "foreach($f in $p){ if(Test-Path $f){ $l=$s.CreateShortcut($f);"
           f" if($l.Arguments -like '*vidsum*'){{ $l.IconLocation='{ico},0'; $l.Save() }} }} }}")
