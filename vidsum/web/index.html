@@ -78,7 +78,7 @@ nav a.on{background:var(--raised);color:var(--ink);box-shadow:var(--shadow)}
 .chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--faint)}
 .chip.ok::before{background:var(--ok);box-shadow:0 0 8px var(--ok)}.chip.bad{color:var(--bad)}.chip.bad::before{background:var(--bad)}
 .seg{display:inline-flex;background:var(--hl);border:1px solid var(--line);border-radius:99px;padding:3px;gap:2px}
-.seg button{border:0;background:none;padding:5px 13px;border-radius:99px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--muted);white-space:nowrap;transition:.15s}
+.seg button{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:5px 13px;border-radius:99px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--muted);white-space:nowrap;transition:.15s}
 .seg button:hover{color:var(--ink)}
 .seg button.on{background:var(--raised);color:var(--ink);box-shadow:var(--shadow)}
 main{max-width:1320px;margin:0 auto;padding:36px 24px 100px}
@@ -146,7 +146,6 @@ label.f{display:grid;gap:5px;font-size:12.5px;color:var(--muted)}
 .parts button.on{background:var(--raised);color:var(--ink);border-color:var(--line2)}
 .part{max-height:260px;overflow:auto;font-size:13.5px;line-height:1.5;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
 .part div{display:flex;gap:10px}.part code{color:var(--muted);flex:none}
-.quit{margin-left:2px;font-size:12px}
 pre.log{margin:0;font:12px/1.5 var(--mono);color:var(--muted);background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:9px 11px;max-height:130px;overflow:auto;white-space:pre-wrap}
 pre.log.full{max-height:340px}
 
@@ -185,8 +184,8 @@ main{overflow-x:clip}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
 .layout{display:grid;gap:28px;align-items:start}
 .m-bal .layout{grid-template-columns:minmax(0,.95fr) minmax(0,1.35fr) minmax(0,1fr)}
-.m-video .layout{grid-template-columns:minmax(0,2.1fr) minmax(0,1fr)}
-.m-video .col-sum{grid-column:1/-1;order:3;max-width:900px}
+.m-video .layout{grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr)}
+.m-video .col-sum{order:1}.m-video .col-mid{order:2}.m-video .col-break{grid-column:1/-1;order:3}
 .m-read .layout{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
 .m-read .col-sum{order:1}.m-read .col-mid{order:2}.m-read .col-break{grid-column:1/-1;order:3}
 .m-read .col-mid .chatbox{display:none}
@@ -226,8 +225,8 @@ blockquote.pull::before{content:"";position:absolute;left:0;top:14px;bottom:14px
 .ask input:focus{box-shadow:none}
 .ask button{border:0;background:var(--grad);color:#fff;border-radius:99px;width:36px;height:36px;cursor:pointer;font-size:16px}
 /* rozbicie (prawa kolumna) */
-.tabs{display:flex;flex-wrap:wrap;gap:3px;background:var(--hl);border:1px solid var(--line);border-radius:14px;padding:3px;margin:6px 0 18px}
-.tabs button{flex:1 1 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:none;padding:7px 10px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;white-space:nowrap;border-radius:10px;transition:.15s;min-width:0}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 18px}
+.tabs button{flex:0 1 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--hl);padding:6px 11px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;white-space:nowrap;border-radius:10px;transition:color .15s,background .15s,border-color .15s;min-width:0}
 .tabs button svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
 .tabs button:hover{color:var(--ink)}
 /* tryb kinowy */
@@ -271,7 +270,8 @@ details.kp[open] summary .kt{color:var(--ink)}
 .com .ctop{display:flex;justify-content:space-between;gap:10px;font-size:13px;flex-wrap:wrap}
 .com p{margin:6px 0 0;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.tabs button.on{background:var(--raised);color:var(--ink);box-shadow:var(--shadow)}
+.tabs button.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 55%,transparent);color:var(--ink)}
+.tabs button.on svg{color:var(--accent);opacity:1}
 .big{font:650 21px/1.2 var(--display);letter-spacing:-.02em;color:var(--ink);margin:0 0 14px}
 .items{display:grid;gap:8px}
 .it{display:grid;grid-template-columns:24px 1fr;gap:6px 10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;transition:border-color .2s,background .2s}
@@ -372,17 +372,70 @@ details.kp[open] summary .kt{color:var(--ink)}
   .it.simple.mom{grid-template-columns:100px 1fr}.mthumb{width:100px}
   #res.live .col-mid, #res.live .col-sum .skel{display:none}
 }
+
+/* ---------- 0.11.0: ikony, nawigacja, kolejka, ustawienia ---------- */
+.ic{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ic.big{width:26px;height:26px;color:var(--accent)}
+nav a{display:inline-flex;align-items:center;gap:7px}
+nav a .ic{opacity:.8}
+a.chip{text-decoration:none}a.chip:hover{color:var(--ink);border-color:var(--line2)}
+.btn{display:inline-flex;align-items:center;gap:6px}
+.btn.ico{padding:6px 9px}
+.iconbtn{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;border:1px solid transparent;background:none;color:var(--muted);cursor:pointer}
+.iconbtn:hover{background:var(--hl);border-color:var(--line);color:var(--ink)}
+.iconbtn:focus-visible,.btn:focus-visible,nav a:focus-visible,.qtoggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel.start{display:grid;gap:12px}
+#drop{display:grid;justify-items:center;gap:6px}
+.startfoot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px}
+.startfoot a{color:var(--muted);text-decoration:none}.startfoot a:hover{color:var(--ink)}
+#queue{margin-top:22px}
+.queue{padding:6px 8px}
+.qhead{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:6px 6px}
+.qtoggle{display:flex;align-items:center;gap:10px;border:0;background:none;color:var(--ink);font:inherit;cursor:pointer;padding:4px;border-radius:8px;min-width:0}
+.qtoggle b{font:650 15px var(--display)}
+.qtoggle .muted{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qtoggle .chev{transition:transform .2s;transform:rotate(-90deg)}
+.queue.open .qtoggle .chev{transform:none}
+.qnotice{margin:2px 6px 8px;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--ink2);font-size:13px}
+.qlist{list-style:none;margin:0;padding:0 0 4px}
+.qi{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:start;padding:10px 8px;border-top:1px solid var(--line)}
+.qi.now{background:var(--accent-soft);border-radius:12px;border-top-color:transparent}
+.qi.now+.qi{border-top-color:transparent}
+.qth{width:52px;height:34px;border-radius:7px;background:var(--hl) center/cover no-repeat;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)}
+.qmain{min-width:0;display:grid;gap:4px}
+.qtop .name{font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qmeta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
+.qacts{display:flex;gap:2px;align-items:center}
+.qerr{font-size:12.5px;color:var(--bad);overflow-wrap:anywhere}
+.qnote{font-size:12.5px;color:var(--muted)}
+.qfoot{padding:8px 8px 6px;font-size:13px}.qfoot a{color:var(--muted);text-decoration:none}.qfoot a:hover{color:var(--ink)}
+.qempty{margin:8px 4px}
+.bar{height:4px;border-radius:99px;background:var(--hl);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.st.przerwane{color:var(--warn)}
+.hero.slim{padding-bottom:0}.hero.slim h1{font-size:clamp(28px,4vw,40px)}.hero.slim p{margin-bottom:18px}
+.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px;align-items:start}
+.sets h2{font:650 16px var(--display);margin:0 0 12px;letter-spacing:-.01em}
+.sets .grid{margin-top:0}
+.f span{display:block;margin-bottom:5px}
+.f.wide{grid-column:1/-1}
+.hint{font-size:13px;color:var(--muted);margin:10px 0 0}
+.savebar{position:sticky;bottom:16px;z-index:5;display:flex;justify-content:flex-end;margin:14px 0 22px;pointer-events:none}.savebar .btn{pointer-events:auto;box-shadow:var(--shadow-lg)}
+.diag{display:grid;gap:8px}
+.drow{display:grid;grid-template-columns:10px auto 1fr;gap:10px;align-items:baseline;font-size:13.5px}
+.drow .muted{overflow-wrap:anywhere}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
+.sets.danger h2{color:var(--ink)}
+@media (max-width:640px){ .setgrid{grid-template-columns:minmax(0,1fr)} .qi{grid-template-columns:40px minmax(0,1fr)} .qth{width:40px;height:28px} .qacts{grid-column:2} nav a span{display:none} }
 </style>
 </head>
 <body>
 <header>
   <a class="logo" href="#/"><img src="/icon.svg" alt="" width="28" height="28"><span>Vidsumly</span></a>
-  <nav><a href="#/" data-nav="home" data-i="nav_home"></a><a href="#/biblioteka" data-nav="lib" data-i="nav_lib"></a></nav>
+  <nav><a href="#/" data-nav="home"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-i="nav_home"></span></a><a href="#/biblioteka" data-nav="lib"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="7" rx="1.5"/><rect x="13.5" y="4" width="7" height="7" rx="1.5"/><rect x="3.5" y="14" width="7" height="7" rx="1.5"/><rect x="13.5" y="14" width="7" height="7" rx="1.5"/></svg><span data-i="nav_lib"></span></a><a href="#/ustawienia" data-nav="set"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg><span data-i="nav_set"></span></a></nav>
   <div class="chips" id="chips"></div>
   <div class="seg lang"><button data-l="pl">PL</button><button data-l="en">EN</button></div>
-  <button class="btn ico" id="theme" title="" aria-label="theme">☾</button>
+  <button class="btn ico" id="theme" title="" aria-label="theme"></button>
   <button class="btn" id="inbrowser" data-i="open_browser" hidden></button>
-  <button class="btn quit" id="quit" data-i="quit"></button>
 </header>
 <main id="app"></main>
 <div class="toast" id="toast"></div>
@@ -390,7 +443,22 @@ details.kp[open] summary .kt{color:var(--ink)}
 <script>
 const T = new URLSearchParams(location.search).get("t") || "";
 const I18N = {
- pl:{nav_home:"Analizuj",nav_lib:"Biblioteka",hero1:"Wrzuć film —",hero2:"powiem Ci, co z niego wynika.",
+ pl:{nav_home:"Analizuj",nav_lib:"Biblioteka",nav_set:"Ustawienia",ok:"działa",not_ok:"nie działa",chip_ff_ok:"wycinanie kadrów i dźwięku działa",chip_ff_bad:"brak ffmpeg/ffprobe — analiza filmów nie ruszy",theme:"Motyw",
+   stage_of:n=>`Etap ${n}/4`,q_up:"Wyżej w kolejce",q_down:"Niżej w kolejce",q_remove:"Usuń z kolejki",q_retry:"Ponów",q_pos:n=>`${n}. w kolejce`,
+   q_empty:"Kolejka jest pusta. Dodane filmy pojawią się tutaj; gotowe analizy są w Bibliotece.",q_n_run:n=>`${n} w toku`,q_n_wait:n=>`${n} czeka`,q_n_bad:n=>`${n} z błędem`,
+   q_done_all:"wszystko gotowe",q_title:"Kolejka",q_resume:"Wznów",q_pause:"Wstrzymaj",q_restored:"Kolejka wróciła po ponownym uruchomieniu i jest wstrzymana. Wznów, żeby przeanalizować oczekujące filmy.",
+   q_paused:"Kolejka wstrzymana — trwająca analiza się dokończy, kolejne filmy czekają.",q_all_lib:"Wszystkie analizy w Bibliotece",q_removed:"Usunięto z kolejki",q_retried:"Film wrócił do kolejki",
+   q_dup:"Ten film już jest w kolejce",q_added:n=>`Dodano do kolejki: ${n}`,przerwane:"przerwane",
+   start_hint:"Kilka filmów naraz trafia do kolejki i analizuje się po kolei.",start_settings:"Ustawienia analizy",
+   set_sub:"Język, analiza, modele AI, pliki i diagnostyka. Zmiany analizy działają od następnego filmu.",set_ui:"Interfejs",set_ui_lang:"Język interfejsu",
+   set_ui_hint:"Język zmienia się od razu w całym programie, bez ponownego uruchamiania.",set_an:"Analiza",auto_detect:"automatycznie",on:"włączone",off:"wyłączone",
+   set_ai:"Modele AI",sum_auto:"automatycznie (lokalnie)",sum_local:"lokalnie (Ollama)",s_text_model:"Model tekstowy (Ollama)",
+   set_ai_hint:"Wszystko działa na tym komputerze. Ten sam model do obrazu i tekstu (np. gemma3:4b) oszczędza przełączania modeli na karcie.",
+   set_files:"Pliki i pobieranie",open_out:"Otwórz folder wyników",set_diag:"Diagnostyka",set_about:"O programie",set_quit:"Zamykanie",
+   set_quit_hint:"Zamknięcie okna też kończy program. Trwająca analiza zostaje zapisana w kolejce; po ponownym uruchomieniu kolejka wraca wstrzymana.",
+   downloaded:"pobrany",not_downloaded:"niepobrany",gpu:"Karta graficzna",gpu_cuda_ok:"NVIDIA, biblioteki CUDA pobrane",gpu_cuda_missing:"NVIDIA, biblioteki CUDA pobiorą się przy pierwszej analizie",
+   gpu_none:"brak karty NVIDIA — mowa liczona na procesorze (wolniej)",version:"wersja",tech_name:"Nazwa techniczna",data_dir:"Dane programu",upd_current:v=>`Masz wersję ${v}`,
+   hero1:"Wrzuć film —",hero2:"powiem Ci, co z niego wynika.",
    hero_sub:"Przepis, trening, poradnik: mowa, napisy i obraz zamienione w konkretną listę do zrobienia.",
    drop:"Przeciągnij tu pliki wideo",drop_sub:"albo kliknij, aby wybrać (MP4, MOV, MKV, WEBM) — kilka naraz też",
    links_ph:"…albo wklej link(i) YouTube / Instagram / TikTok albo ścieżkę C:\\…\\film.mp4 (jeden w linii)",
@@ -402,7 +470,7 @@ const I18N = {
    w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",uploading:"Wysyłanie",open:"Otwórz",
    stage_0:"start · napisy (OCR)",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",
    part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
-   quit:"Zakończ",quit_q:"Wyłączyć Vidsumly? Trwająca analiza zostanie przerwana.",quit_done:"Vidsumly wyłączone. Możesz zamknąć tę kartę.",
+   quit:"Zamknij program",quit_q:"Zamknąć Vidsumly? Trwająca analiza zostanie zapisana w kolejce i zacznie się od nowa po wznowieniu.",quit_done:"Vidsumly wyłączone. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
    t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_poradnik:"Kroki",t_todo_inne:"Wnioski",
    t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
@@ -421,7 +489,7 @@ const I18N = {
    t_pobieranie_s:"pobieranie",t_ocr_s:"napisy (OCR)",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
    typ_przepis:"przepis",typ_trening:"trening",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_inne:"inne",
-   chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu",
+   chip_ff:"Silnik wideo",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu",
    open_browser:"Otwórz w przeglądarce",copy_sum:"Kopiuj",tr_sum:"Wersja angielska",tr_sum_q:"Przetłumacz streszczenie na angielski.",tr_back:"Wersja polska",
    res_lang:"Język wyniku",tr_all_wait:"Tłumaczę całą analizę na angielski (streszczenie, kroki, kadry, transkrypcja)…",
    tr_all_done:"Przetłumaczone — całość po angielsku",tr_all_part:n=>`Przetłumaczone; ${n} fragm. zostało w oryginale`,
@@ -437,7 +505,22 @@ const I18N = {
    live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
    live_wait_tr:"Transkrypcja pojawi się tutaj, gdy tylko mowa zostanie rozpoznana.",live_wait_fr:"Kadry pojawią się po ich wycięciu z filmu.",
    offline:"Brak połączenia z programem Vidsumly. Uruchom Vidsumly ponownie (otworzy tę samą stronę)."},
- en:{nav_home:"Analyze",nav_lib:"Library",hero1:"Drop a video —",hero2:"I'll tell you what it means for you.",
+ en:{nav_home:"Analyze",nav_lib:"Library",nav_set:"Settings",ok:"working",not_ok:"not working",chip_ff_ok:"frame and audio extraction works",chip_ff_bad:"ffmpeg/ffprobe missing — video analysis can't start",theme:"Theme",
+   stage_of:n=>`Step ${n}/4`,q_up:"Move up",q_down:"Move down",q_remove:"Remove from queue",q_retry:"Retry",q_pos:n=>`#${n} in queue`,
+   q_empty:"The queue is empty. Videos you add appear here; finished analyses are in the Library.",q_n_run:n=>`${n} running`,q_n_wait:n=>`${n} waiting`,q_n_bad:n=>`${n} failed`,
+   q_done_all:"all done",q_title:"Queue",q_resume:"Resume",q_pause:"Pause",q_restored:"The queue came back after a restart and is paused. Resume to analyse the waiting videos.",
+   q_paused:"Queue paused — the running analysis will finish, the next videos wait.",q_all_lib:"All analyses in the Library",q_removed:"Removed from the queue",q_retried:"Video is back in the queue",
+   q_dup:"This video is already in the queue",q_added:n=>`Added to the queue: ${n}`,przerwane:"interrupted",
+   start_hint:"Several videos at once go to the queue and are analysed one after another.",start_settings:"Analysis settings",
+   set_sub:"Language, analysis, AI models, files and diagnostics. Analysis changes apply from the next video.",set_ui:"Interface",set_ui_lang:"Interface language",
+   set_ui_hint:"The language changes right away across the whole app, no restart needed.",set_an:"Analysis",auto_detect:"automatic",on:"on",off:"off",
+   set_ai:"AI models",sum_auto:"automatic (local)",sum_local:"local (Ollama)",s_text_model:"Text model (Ollama)",
+   set_ai_hint:"Everything runs on this computer. Using the same model for vision and text (e.g. gemma3:4b) avoids swapping models on the GPU.",
+   set_files:"Files and downloads",open_out:"Open results folder",set_diag:"Diagnostics",set_about:"About",set_quit:"Quitting",
+   set_quit_hint:"Closing the window also quits the app. A running analysis is saved in the queue; after the next start the queue comes back paused.",
+   downloaded:"downloaded",not_downloaded:"not downloaded",gpu:"Graphics card",gpu_cuda_ok:"NVIDIA, CUDA libraries downloaded",gpu_cuda_missing:"NVIDIA, CUDA libraries download on the first analysis",
+   gpu_none:"no NVIDIA card — speech runs on the CPU (slower)",version:"version",tech_name:"Technical name",data_dir:"App data",upd_current:v=>`You have version ${v}`,
+   hero1:"Drop a video —",hero2:"I'll tell you what it means for you.",
    hero_sub:"Recipe, workout, tutorial: speech, captions and picture turned into a concrete to-do list.",
    drop:"Drop video files here",drop_sub:"or click to choose (MP4, MOV, MKV, WEBM) — several at once is fine",
    links_ph:"…or paste YouTube / Instagram / TikTok link(s) or a path C:\\…\\video.mp4 (one per line)",
@@ -449,7 +532,7 @@ const I18N = {
    w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",uploading:"Uploading",open:"Open",
    stage_0:"start · on-screen text",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",
    part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
-   quit:"Quit",quit_q:"Quit Vidsumly? A running analysis will be stopped.",quit_done:"Vidsumly stopped. You can close this tab.",
+   quit:"Quit app",quit_q:"Quit Vidsumly? The running analysis is saved in the queue and starts again when you resume it.",quit_done:"Vidsumly stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
    t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_poradnik:"Steps",t_todo_inne:"Takeaways",
    t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
@@ -468,7 +551,7 @@ const I18N = {
    t_pobieranie_s:"download",t_ocr_s:"on-screen text",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
    typ_przepis:"recipe",typ_trening:"workout",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_inne:"other",
-   chip_ff:"ffmpeg",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text",
+   chip_ff:"Video engine",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text",
    open_browser:"Open in browser",copy_sum:"Copy",tr_sum:"English version",tr_sum_q:"Translate the summary into English.",tr_back:"Polish version",
    res_lang:"Result language",tr_all_wait:"Translating the whole analysis into English (summary, steps, frames, transcript)…",
    tr_all_done:"Translated — everything in English",tr_all_part:n=>`Translated; ${n} item(s) left in the original`,
@@ -530,44 +613,200 @@ function applyLang(){
   document.documentElement.lang = L;
   document.querySelectorAll("[data-i]").forEach(e => e.textContent = t(e.dataset.i));
   document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.l === L));
+  $("#toast").textContent = ""; $("#toast").classList.remove("on");
+  applyTheme(theme); renderChips();
   $("#app").innerHTML = "";            // przebuduj widok w nowym języku
   route();
 }
 document.querySelectorAll(".lang button").forEach(b => b.onclick = () => {
   L = b.dataset.l; applyLang(); api("/api/ustawienia",{method:"POST",body:JSON.stringify({jezyk_ui:L})}).catch(()=>{}); });
 let lastStatus = {};
-function updInfo(){ return lastStatus.wersja ? "· Vidsumly " + esc(lastStatus.wersja) + (lastStatus.klucz_github ? " · " + t("upd_key_have") : "") : ""; }
+function updInfo(){ return lastStatus.wersja ? t("upd_current", esc(lastStatus.wersja)) + (lastStatus.klucz_github ? " · " + t("upd_key_have") : "") : ""; }
 async function loadStatus(){
-  try{ const s = await api("/api/status"); lastStatus = s; const ui = $("#updInfo"); if (ui) ui.innerHTML = updInfo();
-    $("#chips").innerHTML = [["chip_ff",s.ffmpeg,""],["chip_ol",s.ollama,s.ollama_info],["chip_cl",s.claude,s.claude_info]]
-      .map(([k,ok,info]) => `<span class="chip ${ok?"ok":"bad"}" title="${esc(info)}">${ok?"✓":"✕"} ${t(k)}</span>`).join("") + `<span class="chip">v${esc(s.wersja)}</span>`;
-  }catch(e){ $("#chips").innerHTML = `<span class="chip bad">${esc(e.message)}</span>`; }
+  try{ lastStatus = await api("/api/status"); renderChips(); }
+  catch(e){ $("#chips").innerHTML = `<span class="chip bad">${esc(e.message)}</span>`; }
 }
-const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","max_kadrow","ciasteczka_z","wyniki"];
+function renderChips(){
+  const s = lastStatus; if (!s || !s.wersja) return;
+  { const ui = $("#updInfo"); if (ui) ui.innerHTML = updInfo();
+    $("#chips").innerHTML = [["chip_ff",s.ffmpeg,s.ffmpeg ? t("chip_ff_ok") : t("chip_ff_bad")],["chip_ol",s.ollama,s.ollama_info],["chip_cl",s.claude,s.claude_info]]
+      .map(([k,ok,info]) => `<a class="chip ${ok?"ok":"bad"}" href="#/ustawienia" title="${esc(info)}"><span class="sr">${t(ok ? "ok" : "not_ok")}:</span>${t(k)}</a>`).join("");
+    if (location.hash.startsWith("#/ustawienia")) renderDiag();
+  }
+}
+const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","max_kadrow","ciasteczka_z","wyniki"];
+/* ---------- Ustawienia (0.11.0): tylko opcje, które program naprawdę obsługuje ---------- */
+function renderSettings(){
+  const f = (k, lab, ctl, wide) => `<label class="f${wide ? " wide" : ""}"><span>${lab}</span>${ctl}</label>`;
+  const sel = (k, opts) => `<select id="s_${k}">${opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select>`;
+  $("#app").innerHTML = `<section class="hero slim"><h1>${t("nav_set")}</h1><p>${t("set_sub")}</p></section>
+  <div class="setgrid">
+    <section class="panel sets"><h2>${t("set_ui")}</h2><div class="grid">
+      ${f("ui", t("set_ui_lang"), `<select id="set_lang"><option value="pl">Polski</option><option value="en">English</option></select>`)}
+      ${f("th", t("theme"), `<select id="set_theme"><option value="dark">${t("theme_dark")}</option><option value="light">${t("theme_light")}</option><option value="system">${t("theme_system")}</option></select>`)}
+    </div><p class="hint">${t("set_ui_hint")}</p></section>
+    <section class="panel sets"><h2>${t("set_an")}</h2><div class="grid">
+      ${f("jezyk", t("s_lang"), sel("jezyk", [["auto", t("auto_detect")], ["pl", "polski"], ["en", "English"]]))}
+      ${f("whisper", t("s_whisper"), sel("whisper", [["large-v3-turbo", "large-v3-turbo"], ["small", "small"], ["medium", "medium"], ["large-v3", "large-v3"]]))}
+      ${f("ocr", t("s_ocr"), sel("ocr", [["true", t("on")], ["false", t("off")]]))}
+      ${f("obraz", t("s_vis_on"), sel("obraz", [["ollama", t("on")], ["brak", t("off")]]))}
+      ${f("max_kadrow", t("s_frames"), `<input id="s_max_kadrow" type="number" min="3" max="400" placeholder="${esc(t("auto_detect"))}">`)}
+    </div></section>
+    <section class="panel sets"><h2>${t("set_ai")}</h2><div class="grid">
+      ${f("streszczenie", t("s_summary"), sel("streszczenie", [["auto", t("sum_auto")], ["ollama", t("sum_local")], ["claude", "Claude (Pro)"], ["brak", t("off")]]))}
+      ${f("model_tekstowy", t("s_text_model"), `<input id="s_model_tekstowy" spellcheck="false">`)}
+      ${f("model_obrazu", t("s_vision"), `<input id="s_model_obrazu" spellcheck="false">`)}
+    </div><p class="hint">${t("set_ai_hint")}</p></section>
+    <section class="panel sets"><h2>${t("set_files")}</h2><div class="grid">
+      ${f("wyniki", t("s_out"), `<input id="s_wyniki" spellcheck="false">`, true)}
+      ${f("ciasteczka_z", t("s_cookies"), sel("ciasteczka_z", [["", t("none")], ["edge", "Edge"], ["chrome", "Chrome"], ["firefox", "Firefox"]]))}
+    </div><div class="row"><button class="btn" id="openOut">${t("open_out")}</button></div></section>
+  </div>
+  <div class="savebar"><button class="btn primary" id="save">${t("save")}</button></div>
+  <div class="setgrid">
+    <section class="panel sets"><h2>${t("set_diag")}</h2><div id="diag" class="diag">…</div></section>
+    <section class="panel sets"><h2>${t("upd")}</h2>
+      <p class="hint" id="updInfo">${updInfo()}</p>
+      <div class="grid"><label class="f wide"><span>${t("upd_key")}</span><input id="updKey" type="password" autocomplete="off" placeholder="${esc(t("upd_key_ph"))}"></label></div>
+      <div class="row"><button class="btn" id="updKeySave">${t("upd_key_save")}</button><button class="btn" id="updCheck">${t("upd_check")}</button></div>
+      <div id="updOut" class="muted" style="font-size:13.5px;margin-top:8px"></div></section>
+    <section class="panel sets"><h2>${t("set_about")}</h2><div id="about" class="diag"></div></section>
+    <section class="panel sets danger"><h2>${t("set_quit")}</h2><p class="hint">${t("set_quit_hint")}</p>
+      <div class="row"><button class="btn" id="quitBtn">${t("quit")}</button></div></section>
+  </div>`;
+  for (const k of SKEYS){ const el = $("#s_"+k); if (el) el.value = String(settings[k] ?? ""); }
+  $("#set_lang").value = L; $("#set_theme").value = theme;
+  $("#set_lang").onchange = e => { L = e.target.value; applyLang(); api("/api/ustawienia",{method:"POST",body:JSON.stringify({jezyk_ui:L})}).catch(()=>{}); };
+  $("#set_theme").onchange = e => setTheme(e.target.value);
+  $("#save").onclick = async () => {
+    const b = {}; for (const k of SKEYS){ const el = $("#s_"+k); if (!el) continue; const v = el.value; b[k] = k==="max_kadrow" ? (v? Number(v): null) : k==="ocr" ? v==="true" : v; }
+    try { settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify(b)}); toast(t("saved")); loadStatus(); } catch(e){ toast(e.message); }
+  };
+  $("#openOut").onclick = () => api("/api/otworz-wyniki", {method:"POST"}).catch(e => toast(e.message));
+  $("#quitBtn").onclick = async () => {
+    if (jobs.some(j => j.status === "trwa") && !confirm(t("quit_q"))) return;
+    try { await api("/api/zakoncz", {method:"POST"}); } catch {}
+    document.body.innerHTML = `<main style="padding:60px;text-align:center;font-size:18px">${esc(t("quit_done"))}</main>`;
+  };
+  bindUpdates(); renderDiag();
+}
+function renderDiag(){
+  const s = lastStatus || {}, el = $("#diag"); if (!el) return;
+  const row = (ok, name, info) => `<div class="drow"><span class="dot ${ok === true ? "ok" : ok === false ? "bad" : ""}"></span><b>${esc(name)}</b><span class="muted">${esc(info || "")}</span></div>`;
+  el.innerHTML = !s.wersja ? "…" : [
+    row(s.ffmpeg, t("chip_ff"), s.ffmpeg ? `${t("chip_ff_ok")} — ffmpeg ${s.ffmpeg_wersja || ""}${s.ffmpeg_sciezka ? " · " + s.ffmpeg_sciezka : ""}` : t("chip_ff_bad")),
+    row(s.ollama, "Ollama", s.ollama_info),
+    row(s.model_tekstowy_pobrany, t("s_text_model"), `${s.model_tekstowy || ""} — ${t(s.model_tekstowy_pobrany ? "downloaded" : "not_downloaded")}`),
+    row(s.gpu_nvidia, t("gpu"), s.gpu_nvidia ? (s.cuda_pobrana ? t("gpu_cuda_ok") : t("gpu_cuda_missing")) : t("gpu_none")),
+    row(s.claude, "Claude Code", s.claude_info)].join("");
+  const ab = $("#about");
+  if (ab) ab.innerHTML = [row(null, "Vidsumly", `${t("version")} ${s.wersja}`), row(null, t("tech_name"), "VidSum"),
+    row(null, t("data_dir"), s.folder_danych || ""), row(null, t("s_out"), settings.wyniki || "")].join("");
+}
+function bindUpdates(){
+  $("#updKeySave").onclick = async () => {
+    try { await api("/api/aktualizacja/klucz", {method:"POST", body:JSON.stringify({klucz:$("#updKey").value})}); $("#updKey").value=""; toast(t("upd_key_ok")); loadStatus(); }
+    catch(e){ toast(e.message); }
+  };
+  $("#updCheck").onclick = async () => {
+    const o = $("#updOut"); o.textContent = "…";
+    try {
+      const r = await api("/api/aktualizacja");
+      if (!r.jest_nowsza) { o.textContent = t("upd_none") + " (" + r.aktualna + ")"; return; }
+      o.innerHTML = `${t("upd_new")} <b>${esc(r.najnowsza)}</b> — ${t(r.rodzaj==="kod"?"upd_kod":"upd_pelna")}${r.rozmiar_mb? " ("+r.rozmiar_mb+" MB)":""}
+        <div class="row"><button class="btn primary" id="updGo">${t("upd_go")}</button></div>`;
+      $("#updGo").onclick = async () => {
+        o.textContent = "…";
+        try { const a = await api("/api/aktualizacja", {method:"POST", body:"{}"});
+          if (a.rodzaj === "kod") { o.textContent = t("upd_done"); setTimeout(waitAndReload, 3000); } else o.textContent = t("upd_setup"); }
+        catch(e){ o.textContent = e.message; }
+      };
+    } catch(e){ o.textContent = e.message; }
+  };
+}
 
 /* ---------- widoki ---------- */
 function route(){
   const h = location.hash || "#/";
-  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", (a.dataset.nav==="lib") === h.startsWith("#/biblioteka") && !h.startsWith("#/wynik")));
+  const sec = h.startsWith("#/biblioteka") ? "lib" : h.startsWith("#/ustawienia") ? "set" : h.startsWith("#/wynik") ? "" : "home";
+  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", a.dataset.nav === sec));
   const m = h.match(/^#\/wynik\/(\w+)/);
   if (m) return showResult(m[1]);
   cur = null;
   if (h.startsWith("#/biblioteka")) return renderLib();
+  if (h.startsWith("#/ustawienia")) return renderSettings();
   renderHome();
 }
 window.addEventListener("hashchange", route);
 
-function jobRow(j){
-  return `<div class="job"><div class="job-top"><span class="name" title="${esc(j.label)}">${esc(j.card?.tytul || j.label)}</span>
-    ${j.elapsed!=null ? `<span class="timer" data-start="${j.status==="trwa" ? Date.now()/1000 - j.elapsed : ""}">⏱ ${fmt(j.elapsed)}</span>` : ""}
-    ${j.status==="trwa" ? `<span class="stage">${j.stage ? j.stage+"/4 · "+t("stage_"+j.stage) : t("stage_0")}</span>` : ""}
-    <span class="st ${j.status}">${t(j.status)}</span>
-    ${j.status==="gotowe" ? `<a class="btn" href="#/wynik/${j.id}">${t("open")}</a>` : j.status==="trwa" ? `<a class="btn" href="#/wynik/${j.id}">${t("live_open")}</a>` : ""}</div>
-    ${partsHtml(j)}
-    ${j.status==="trwa"||j.status==="blad"||j.status==="w_kolejce" ? (openParts.has(j.id+":log")
-       ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>`
-       : `<pre class="log">${esc(j.log.slice(-3).join("\n")||"…")}</pre>`) : ""}</div>`;
+/* ---------- kolejka (0.11.0) ---------- */
+const ICO = {
+  film:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4-2.5z"/>',
+  up:'<path d="M12 19V5M6 11l6-6 6 6"/>', down:'<path d="M12 5v14M6 13l6 6 6-6"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>', retry:'<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/>',
+  pause:'<path d="M9 5v14M15 5v14"/>', play:'<path d="M8 5l11 7-11 7z"/>', open:'<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  chev:'<path d="M6 9l6 6 6-6"/>', log:'<path d="M5 6h14M5 12h14M5 18h9"/>'};
+const ic = (k, cls = "ic") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
+let qstate = {wstrzymana:false, trwa:null, oczekuje:[], odtworzone:0}, qOpen = true;
+try { qOpen = localStorage.getItem("vs_qopen") !== "0"; } catch {}
+function qThumb(j){
+  const f = j.card?.miniatura;
+  return f ? `<span class="qth" style="background-image:url('${fileUrl(j.id, f)}')"></span>` : `<span class="qth">${ic("film")}</span>`;
 }
+function qRow(j, idx, n){
+  const st = j.status, pend = st === "w_kolejce";
+  const stage = st === "trwa" ? (j.stage ? `${t("stage_of", j.stage)} · ${t("stage_"+j.stage)}` : t("stage_0")) : "";
+  const timer = j.elapsed != null ? `<span class="timer" data-start="${st==="trwa" ? Date.now()/1000 - j.elapsed : ""}">${fmt(j.elapsed)}</span>` : "";
+  const acts = [];
+  if (pend) {
+    if (idx > 0) acts.push(`<button class="iconbtn" data-q="przesun" data-id="${j.id}" data-pos="${idx-1}" title="${esc(t("q_up"))}" aria-label="${esc(t("q_up"))}">${ic("up")}</button>`);
+    if (idx < n - 1) acts.push(`<button class="iconbtn" data-q="przesun" data-id="${j.id}" data-pos="${idx+1}" title="${esc(t("q_down"))}" aria-label="${esc(t("q_down"))}">${ic("down")}</button>`);
+    acts.push(`<button class="iconbtn" data-q="usun" data-id="${j.id}" title="${esc(t("q_remove"))}" aria-label="${esc(t("q_remove"))}">${ic("x")}</button>`);
+  }
+  if (st === "blad" || st === "przerwane") acts.push(`<button class="btn sm" data-q="ponow" data-id="${j.id}">${ic("retry")}${t("q_retry")}</button>`);
+  if (st === "trwa") acts.push(`<a class="btn sm" href="#/wynik/${j.id}">${t("live_open")}</a>`);
+  if (st === "gotowe") acts.push(`<a class="btn sm" href="#/wynik/${j.id}">${t("open")}</a>`);
+  const logOpen = openParts.has(j.id+":log");
+  const body = st === "trwa" ? partsHtml(j) + (logOpen ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>` : "")
+    : (st === "blad" || st === "przerwane") ? `<div class="qerr">${esc(j.error || "")}</div>` : (pend && j.log.length ? `<div class="qnote">${esc(j.log[0])}</div>` : "");
+  return `<li class="qi ${st}${st==="trwa" ? " now" : ""}">${qThumb(j)}
+    <div class="qmain"><div class="qtop"><span class="name" title="${esc(j.label)}">${esc(j.card?.tytul || j.label)}</span></div>
+      <div class="qmeta"><span class="st ${st}">${t(st)}</span>${pend ? `<span>${t("q_pos", idx+1)}</span>` : ""}${stage ? `<span>${stage}</span>` : ""}${timer}</div>${body}</div>
+    <div class="qacts">${acts.join("")}</div></li>`;
+}
+function renderQueue(){
+  const el = $("#queue"); if (!el) return;
+  const byId = Object.fromEntries(jobs.map(j => [j.id, j]));
+  const run = jobs.filter(j => j.status === "trwa");
+  const pend = qstate.oczekuje.map(id => byId[id]).filter(Boolean);
+  const bad = jobs.filter(j => j.status === "blad" || j.status === "przerwane");
+  const fin = jobs.filter(j => j.status === "gotowe" && j.started).slice(0, 4);   // ukończone w tej sesji
+  const up = Object.values(uploads).map(u => `<li class="qi"><span class="qth">${ic("film")}</span><div class="qmain"><div class="qtop"><span class="name">${esc(u.name)}</span></div>
+    <div class="qmeta"><span class="st w_kolejce">${t("uploading")}</span><span>${u.pct}%</span></div><div class="bar"><i style="width:${u.pct}%"></i></div></div><div class="qacts"></div></li>`).join("");
+  const total = run.length + pend.length + bad.length + fin.length + Object.keys(uploads).length;
+  if (!total) { el.innerHTML = `<p class="empty qempty">${t("q_empty")}</p>`; return; }
+  const sum = [run.length && t("q_n_run", run.length), pend.length && t("q_n_wait", pend.length), bad.length && t("q_n_bad", bad.length)].filter(Boolean).join(" · ") || t("q_done_all");
+  const canPause = pend.length || qstate.wstrzymana;
+  const prevScroll = [...document.querySelectorAll("pre.log.full")].map(e => e.scrollHeight - e.scrollTop - e.clientHeight < 30);
+  el.innerHTML = `<section class="queue panel${qOpen ? " open" : ""}">
+    <div class="qhead"><button class="qtoggle" data-q="toggle" aria-expanded="${qOpen}">${ic("chev", "ic chev")}<b>${t("q_title")}</b><span class="muted">${esc(sum)}</span></button>
+      ${canPause ? `<button class="btn sm" data-q="${qstate.wstrzymana ? "wznow" : "pauza"}">${ic(qstate.wstrzymana ? "play" : "pause")}${t(qstate.wstrzymana ? "q_resume" : "q_pause")}</button>` : ""}</div>
+    ${qstate.wstrzymana ? `<div class="qnotice">${t(qstate.odtworzone ? "q_restored" : "q_paused")}</div>` : ""}
+    ${qOpen ? `<ul class="qlist">${up}${run.map(j => qRow(j)).join("")}${pend.map((j, i) => qRow(j, i, pend.length)).join("")}${bad.map(j => qRow(j)).join("")}${fin.map(j => qRow(j)).join("")}</ul>
+      ${fin.length ? `<div class="qfoot"><a href="#/biblioteka">${t("q_all_lib")}</a></div>` : ""}` : ""}</section>`;
+  document.querySelectorAll("pre.log.full").forEach((e, i) => { if (prevScroll[i] !== false) e.scrollTop = e.scrollHeight; });
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-q]"); if (!b || !b.closest("#queue")) return;
+  const act = b.dataset.q;
+  if (act === "toggle") { qOpen = !qOpen; try { localStorage.setItem("vs_qopen", qOpen ? "1" : "0"); } catch {} return renderQueue(); }
+  b.disabled = true;
+  try {
+    qstate = await api("/api/kolejka", {method:"POST", body:JSON.stringify({akcja:act, id:b.dataset.id, pozycja:Number(b.dataset.pos || 0)})});
+    if (act === "usun") toast(t("q_removed")); if (act === "ponow") toast(t("q_retried"));
+  } catch(err){ toast(err.message); }
+  poll();
+});
 /* podgląd gotowych etapów w trakcie analizy — tylko na żądanie (zwinięte) */
 const openParts = new Set(), partCache = {};
 function partLabel(k){ return k.startsWith("tlumaczenie_") ? t("part_tl")+" ("+k.slice(12).toUpperCase()+")" : t("part_"+k); }
@@ -595,22 +834,22 @@ document.addEventListener("click", async e => {
 });
 /* motyw: ciemny (domyślnie) → jasny → jak w systemie */
 const THEMES = ["dark", "light", "system"];
-function applyTheme(th){ document.documentElement.dataset.theme = th; $("#theme").textContent = th === "dark" ? "☾" : th === "light" ? "☀" : "◐";
-  $("#theme").title = t("theme_" + th); }
+const THEME_ICO = {dark:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  light:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/>',
+  system:'<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/>'};
+function applyTheme(th){ document.documentElement.dataset.theme = th;
+  $("#theme").innerHTML = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${THEME_ICO[th]}</svg>`;
+  $("#theme").title = t("theme") + ": " + t("theme_" + th); $("#theme").setAttribute("aria-label", $("#theme").title); }
+function setTheme(th){ theme = th; try { localStorage.setItem("vs_theme", theme); } catch {} applyTheme(theme); }
 let theme = "dark"; try { theme = localStorage.getItem("vs_theme") || "dark"; } catch {}
 applyTheme(theme);
-$("#theme").addEventListener("click", () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; try { localStorage.setItem("vs_theme", theme); } catch {} applyTheme(theme); });
+$("#theme").addEventListener("click", () => { setTheme(THEMES[(THEMES.indexOf(theme) + 1) % 3]); if ($("#set_theme")) $("#set_theme").value = theme; });
 /* w oknie programu (pywebview): przycisk „Otwórz w przeglądarce” */
 function inApp(){ return !!window.pywebview; }
 function showBrowserBtn(){ $("#inbrowser").hidden = !inApp(); }
 window.addEventListener("pywebviewready", showBrowserBtn); setTimeout(showBrowserBtn, 800);
 $("#inbrowser").addEventListener("click", async () => {
   try { await api("/api/przegladarka", {method:"POST", body:JSON.stringify({hash: location.hash})}); } catch(e){ toast(e.message); }
-});
-$("#quit").addEventListener("click", async () => {
-  if (jobs.some(j => j.status === "trwa") && !confirm(t("quit_q"))) return;
-  try { await api("/api/zakoncz", {method:"POST"}); } catch {}
-  document.body.innerHTML = `<main style="padding:60px;text-align:center;font-size:18px">${esc(t("quit_done"))}</main>`;
 });
 function card(j){
   const c = j.card || {};
@@ -622,44 +861,20 @@ function card(j){
       <div class="meta">${c.autor ? `<span>${esc(c.autor)}</span>` : ""}${c.czas_analizy ? `<span>⏱ ${fmt(c.czas_analizy)}</span>` : ""}</div></div></div>`;
 }
 function renderHome(){
-  const active = jobs.filter(j => j.status !== "gotowe"), done = jobs.filter(j => j.status === "gotowe").slice(0, 6);
-  const up = Object.values(uploads).map(u => `<div class="job"><div class="job-top"><span class="name">${esc(u.name)}</span><span class="st w_kolejce">${t("uploading")} ${u.pct}%</span></div></div>`).join("");
-  const first = !$("#drop");
-  if (first) {
-    $("#app").innerHTML = `<section class="hero"><div class="eyebrow">Vidsumly</div>
-      <h1>${t("hero1")} ${t("hero2")}</h1><p>${t("hero_sub")}</p></section>
-      <section class="panel">
-        <div id="drop" tabindex="0" role="button"><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
+  if (!$("#drop")) {
+    $("#app").innerHTML = `<section class="hero"><h1>${t("hero1")} ${t("hero2")}</h1><p>${t("hero_sub")}</p></section>
+      <section class="panel start">
+        <div id="drop" tabindex="0" role="button"><svg class="ic big" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
           <input type="file" id="pick" accept="video/*,.mp4,.mov,.mkv,.webm" multiple hidden></div>
-        <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
-        <details style="margin-top:14px"><summary>${t("settings")}</summary>
-          <div class="grid">
-            <label class="f">${t("s_lang")}<select id="s_jezyk"><option value="auto">auto</option><option value="pl">polski</option><option value="en">English</option></select></label>
-            <label class="f">${t("s_whisper")}<select id="s_whisper"><option value="large-v3-turbo">large-v3-turbo</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select></label>
-            <label class="f">${t("s_ocr")}<select id="s_ocr"><option value="true">✓</option><option value="false">${t("none")}</option></select></label>
-            <label class="f">${t("s_vis_on")}<select id="s_obraz"><option value="ollama">Ollama</option><option value="brak">${t("none")}</option></select></label>
-            <label class="f">${t("s_vision")}<input id="s_model_obrazu"></label>
-            <label class="f">${t("s_summary")}<select id="s_streszczenie"><option value="auto">auto</option><option value="claude">Claude (Pro)</option><option value="ollama">Ollama</option><option value="brak">${t("none")}</option></select></label>
-            <label class="f">${t("s_frames")}<input id="s_max_kadrow" type="number" min="3" max="400" placeholder="auto"></label>
-            <label class="f">${t("s_cookies")}<select id="s_ciasteczka_z"><option value="">${t("none")}</option><option>edge</option><option>chrome</option><option>firefox</option></select></label>
-            <label class="f" style="grid-column:1/-1">${t("s_out")}<input id="s_wyniki"></label>
-          </div><div class="row"><button class="btn" id="save">${t("save")}</button></div>
-          <h3 style="margin:18px 0 6px;font-size:15px">${t("upd")} <span id="updInfo" class="muted" style="font-size:12.5px;font-weight:400">${updInfo()}</span></h3>
-          <div class="grid"><label class="f" style="grid-column:1/-1">${t("upd_key")}<input id="updKey" type="password" autocomplete="off" placeholder="${esc(t("upd_key_ph"))}"></label></div>
-          <div class="row"><button class="btn" id="updKeySave">${t("upd_key_save")}</button><button class="btn" id="updCheck">${t("upd_check")}</button></div>
-          <div id="updOut" class="muted" style="font-size:13.5px;margin-top:8px"></div></details>
+        <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}" aria-label="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
+        <div class="startfoot"><span class="muted">${t("start_hint")}</span><a href="#/ustawienia">${t("start_settings")}</a></div>
       </section>
-      <div id="queue"></div><div id="recent"></div>`;
+      <div id="queue"></div>`;
     bindHome();
   }
-  const prevScroll = [...document.querySelectorAll("pre.log.full")].map(e => e.scrollHeight - e.scrollTop - e.clientHeight < 30);
-  $("#queue").innerHTML = (up || active.length) ? `<div class="section-h"><h2>${t("queue")}</h2></div><section class="panel">${up}${active.map(jobRow).join("")}</section>` : "";
-  document.querySelectorAll("pre.log.full").forEach((e, i) => { if (prevScroll[i] !== false) e.scrollTop = e.scrollHeight; });   // przewijaj na bieżąco, chyba że czytasz wyżej
-  $("#recent").innerHTML = `<div class="section-h"><h2>${t("recent")}</h2><a href="#/biblioteka">${t("all")} →</a></div>` +
-    (done.length ? `<div class="cards">${done.map(card).join("")}</div>` : `<p class="empty">${t("no_jobs")}</p>`);
+  renderQueue();
 }
 function bindHome(){
-  for (const k of SKEYS){ const el = $("#s_"+k); if (el) el.value = String(settings[k] ?? ""); }
   const drop = $("#drop");
   drop.onclick = () => $("#pick").click();
   drop.onkeydown = e => { if (e.key==="Enter"||e.key===" ") $("#pick").click(); };
@@ -669,33 +884,13 @@ function bindHome(){
   drop.addEventListener("drop", e => [...e.dataTransfer.files].forEach(upload));
   $("#go").onclick = async () => {
     const lines = $("#links").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const busy = jobs.some(j => j.status === "trwa" || j.status === "w_kolejce");
     let first = null;
-    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z})}); first = first || j; } catch(e){ toast(e.message); } }
+    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
     $("#links").value = "";
-    if (first) { try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + first.id; } else poll();
-  };
-  $("#updKeySave").onclick = async () => {
-    try { await api("/api/aktualizacja/klucz", {method:"POST", body:JSON.stringify({klucz:$("#updKey").value})}); $("#updKey").value=""; toast(t("upd_key_ok")); loadStatus(); }
-    catch(e){ toast(e.message); }
-  };
-  $("#updCheck").onclick = async () => {
-    const o = $("#updOut"); o.textContent = "…";
-    try {
-      const r = await api("/api/aktualizacja");
-      if (!r.jest_nowsza) { o.textContent = t("upd_none") + " (" + r.aktualna + ")"; return; }
-      o.innerHTML = `${t("upd_new")} <b>${esc(r.najnowsza)}</b> — ${t(r.rodzaj==="kod"?"upd_kod":"upd_pelna")}${r.rozmiar_mb? " ("+r.rozmiar_mb+" MB)":""}
-        <div class="row"><button class="btn primary" id="updGo">${t("upd_go")}</button></div>`;
-      $("#updGo").onclick = async () => {
-        o.textContent = "…";
-        try { const a = await api("/api/aktualizacja", {method:"POST", body:"{}"});
-          if (a.rodzaj === "kod") { o.textContent = t("upd_done"); setTimeout(waitAndReload, 3000); } else o.textContent = t("upd_setup"); }
-        catch(e){ o.textContent = e.message; }
-      };
-    } catch(e){ o.textContent = e.message; }
-  };
-  $("#save").onclick = async () => {
-    const b = {}; for (const k of SKEYS){ const v = $("#s_"+k).value; b[k] = k==="max_kadrow" ? (v? Number(v): null) : k==="ocr" ? v==="true" : v; }
-    settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify(b)}); toast(t("saved")); loadStatus();
+    // pusta kolejka → od razu wynik na żywo; coś już trwa → film czeka w kolejce, zostajesz tutaj
+    if (first && !busy && lines.length === 1) { try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + first.id; }
+    else { if (first) toast(t("q_added", lines.length)); poll(); }
   };
 }
 async function waitAndReload(){          // po aktualizacji: czekaj, aż nowa wersja wstanie, i odśwież stronę
@@ -709,7 +904,9 @@ function upload(file){
   x.onloadend = async () => {
     delete uploads[key];
     let j = null; try { j = JSON.parse(x.responseText); } catch {}
-    if (j && j.id && !Object.keys(uploads).length && (location.hash === "#/" || location.hash === "")) {
+    if (j && j.error) toast(j.error);
+    const others = jobs.some(x => x.id !== j?.id && (x.status === "trwa" || x.status === "w_kolejce"));
+    if (j && j.id && !others && !Object.keys(uploads).length && (location.hash === "#/" || location.hash === "")) {
       try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + j.id;
     } else poll();
   };
@@ -1036,7 +1233,7 @@ function renderResult(){
   let root = $("#res");
   if (!root || root.dataset.id !== cur.id || root.dataset.mode !== mode) {
     $("#app").innerHTML = `<div id="res" class="m-${mode}" data-id="${cur.id}" data-mode="${mode}"><div class="ambient" id="amb" aria-hidden="true"></div>
-      <div class="modebar"><div class="seg" id="modes"><button data-m="video">◉ ${t("m_video")}</button><button data-m="bal">≡ ${t("m_bal")}</button><button data-m="read">▤ ${t("m_read")}</button></div></div>
+      <div class="modebar"><div class="seg" id="modes"><button data-m="video"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4-2.5z"/></svg>${t("m_video")}</button><button data-m="bal"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="7" height="14" rx="1.5"/><rect x="14" y="5" width="7" height="14" rx="1.5"/></svg>${t("m_bal")}</button><button data-m="read"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14M5 10h14M5 15h14M5 20h9"/></svg>${t("m_read")}</button></div></div>
       <div class="r-head" id="rhead"></div>
       <div class="layout">
         <section class="col-sum" id="csum"></section>
@@ -1279,6 +1476,7 @@ $("#app").addEventListener("submit", e => { if (e.target.id === "askf") { e.prev
 /* ---------- start ---------- */
 async function poll(){
   try { jobs = await api("/api/zadania"); } catch { return; }
+  try { qstate = await api("/api/kolejka"); } catch {}
   for (const id of new Set([...openParts].map(k => k.split(":")[0])))     // otwarte podglądy — świeże dane
     if (jobs.some(j => j.id === id && j.status === "trwa")) { try { partCache[id] = await api(`/api/zadania/${id}/czesciowe`); } catch {} }
   const h = location.hash || "#/";
@@ -1290,6 +1488,7 @@ setInterval(() => document.querySelectorAll(".timer[data-start]").forEach(el => 
   try { mode = localStorage.getItem("vs_mode") || "video"; } catch {}
   try { settings = await api("/api/ustawienia"); L = settings.jezyk_ui || "pl"; } catch {}
   try { jobs = await api("/api/zadania?skanuj=1"); } catch {}
+  try { qstate = await api("/api/kolejka"); } catch {}
   applyLang(); loadStatus();
   setInterval(poll, 1500); setInterval(loadStatus, 20000);
 })();

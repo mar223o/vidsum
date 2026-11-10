@@ -398,12 +398,15 @@ class App:
             st["aktualizacja_kodu"] = can_swap_code()
         except Exception:
             st["klucz_github"] = False
+        # „Silnik wideo” w interfejsie = ffmpeg + ffprobe (wycinanie dźwięku i kadrów, odczyt formatu filmu)
         try:
-            find_tool("ffmpeg")
+            ff = find_tool("ffmpeg")
             find_tool("ffprobe")
-            st["ffmpeg"] = True
+            st["ffmpeg"], st["ffmpeg_sciezka"] = True, str(ff)
+            st["ffmpeg_wersja"] = _ffmpeg_version(str(ff))
         except ToolError:
             st["ffmpeg"] = False
+        st["folder_danych"] = str(app_dir())
         model = self.settings.get("model_obrazu") or "qwen3-vl:4b-instruct"
         try:
             Ollama(model).check()
@@ -423,6 +426,22 @@ class App:
         except LLMError as e:
             st["claude"], st["claude_info"] = False, str(e)
         return st
+
+
+_FF_VER: dict = {}
+
+
+def _ffmpeg_version(exe: str) -> str:
+    """Pierwsza linia `ffmpeg -version` (np. „7.1”), raz na uruchomienie programu."""
+    if exe not in _FF_VER:
+        try:
+            from .tools import run
+            line = run([exe, "-version"], check=False, timeout=10).stdout_text.splitlines()[0]
+            m = re.search(r"version\s+(\S+)", line)
+            _FF_VER[exe] = m.group(1) if m else line[:40]
+        except Exception:
+            _FF_VER[exe] = ""
+    return _FF_VER[exe]
 
 
 _SAFE_UPLOAD = re.compile(r"[^\w.\- ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]")
@@ -707,6 +726,17 @@ def make_handler(app: App):
                     restart_ui()
                     threading.Timer(0.5, lambda: os._exit(0)).start()
                 return
+            if u.path == "/api/otworz-wyniki":
+                p = Path(app.settings.get("wyniki") or app.results)
+                p.mkdir(parents=True, exist_ok=True)
+                try:
+                    if os.name == "nt":
+                        os.startfile(str(p))  # type: ignore[attr-defined]
+                    else:
+                        subprocess.Popen(["xdg-open", str(p)])
+                except OSError as e:
+                    return self._json({"error": f"nie udało się otworzyć folderu: {e}"}, 400)
+                return self._json({"ok": True})
             if u.path == "/api/zakoncz":
                 # zamknięcie z interfejsu (Ustawienia → Zamknij program) albo przez nowszą wersję
                 info = app.shutdown("przycisk")
