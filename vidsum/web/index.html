@@ -91,6 +91,7 @@ main{max-width:1320px;margin:0 auto;padding:36px 24px 100px}
 .rule{border:0;border-top:1px solid var(--line);margin:8px 0 16px}
 .muted{color:var(--muted)}
 .small{font-size:13px}
+.btn.icon{padding:7px 10px;text-decoration:none;color:inherit;display:inline-flex;align-items:center}
 .btn{border:1px solid var(--line2);background:var(--hl);border-radius:99px;padding:7px 15px;font-size:13px;font-weight:500;cursor:pointer;
   transition:border-color .15s,background .15s,color .15s,transform .1s;color:var(--ink2)}
 .btn:hover{border-color:color-mix(in srgb,var(--accent) 60%,transparent);color:var(--ink);background:var(--accent-soft)}
@@ -386,6 +387,8 @@ a.chip{text-decoration:none}a.chip:hover{color:var(--ink);border-color:var(--lin
 .iconbtn:focus-visible,.btn:focus-visible,nav a:focus-visible,.qtoggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .panel.start{display:grid;gap:12px}
 #drop{display:grid;justify-items:center;gap:6px}
+.pvrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
+.pvhint{flex:1;min-width:200px}
 .startfoot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px}
 .startfoot a{color:var(--muted);text-decoration:none}.startfoot a:hover{color:var(--ink)}
 #queue{margin-top:22px}
@@ -512,7 +515,7 @@ const I18N = {
    set_ui_hint:"Język zmienia się od razu w całym programie, bez ponownego uruchamiania.",set_an:"Analiza",auto_detect:"automatycznie",on:"włączone",off:"wyłączone",
    set_ai:"Modele AI",sum_auto:"automatycznie (lokalnie)",sum_local:"lokalnie (Ollama)",s_text_model:"Model tekstowy (Ollama)",
    set_ai_hint:"Wszystko działa na tym komputerze. Ten sam model do obrazu i tekstu (np. gemma3:4b) oszczędza przełączania modeli na karcie.",
-   s_auto_tr:"Wersja angielska wyniku po analizie",q_translating:"tłumaczenie wyniku na angielski",set_next:"Zmiany analizy działają od następnego filmu.",s_preview:"Wstępne streszczenie",pv_always:"Zawsze — pierwszy wynik po ok. 20 s",pv_fast:"Najszybciej — cały wynik szybciej, bez wstępnego",pv_hint:"Pomiar na RTX 3070 Ti (film 58 s): „zawsze” — wstępne po 20 s, całość 1:28; „najszybciej” — całość 1:15. Gdy model obrazu i tekstowy to ten sam model, wstępne jest zawsze, bo nic nie kosztuje.",set_autosave:"Zmiany zapisują się od razu.",set_files:"Pliki i pobieranie",open_out:"Otwórz folder wyników",set_diag:"Diagnostyka",set_about:"O programie",set_quit:"Zamykanie",
+   s_auto_tr:"Wersja angielska wyniku po analizie",q_translating:"tłumaczenie wyniku na angielski",set_next:"Zmiany analizy działają od następnego filmu.",s_preview:"Wstępne streszczenie",pv_always:"Ze wstępnym streszczeniem",pv_fast:"Najszybciej",pv_hint_fast:"Cały wynik jak najszybciej, bez wstępnego streszczenia.",pv_hint_always:"Pierwsze streszczenie po ok. 20 s, ale całość trwa dłużej (Twój pomiar, film 58 s: 1:42 zamiast 1:19). Przy długich filmach różnica jest mała.",pv_hint:"Pomiar na RTX 3070 Ti (film 58 s): „zawsze” — wstępne po 20 s, całość 1:28; „najszybciej” — całość 1:15. Gdy model obrazu i tekstowy to ten sam model, wstępne jest zawsze, bo nic nie kosztuje.",set_autosave:"Zmiany zapisują się od razu.",set_files:"Pliki i pobieranie",open_out:"Otwórz folder wyników",set_diag:"Diagnostyka",set_about:"O programie",set_quit:"Zamykanie",
    set_quit_hint:"Zamknięcie okna też kończy program. Trwająca analiza zostaje zapisana w kolejce; po ponownym uruchomieniu kolejka wraca wstrzymana.",
    downloaded:"pobrany",not_downloaded:"niepobrany",gpu:"Karta graficzna",gpu_cuda_ok:"NVIDIA, biblioteki CUDA pobrane",gpu_cuda_missing:"NVIDIA, biblioteki CUDA pobiorą się przy pierwszej analizie",
    gpu_none:"brak karty NVIDIA — mowa liczona na procesorze (wolniej)",version:"wersja",tech_name:"Nazwa techniczna",data_dir:"Dane programu",upd_current:v=>`Masz wersję ${v}`,
@@ -540,10 +543,10 @@ const I18N = {
    mistakes:"Błędy, których unikać",takeaways:"Wnioski",honest:"Szczera ocena",unknown:"Czego nie wiadomo",
    how:"Jak to przeanalizowano",took:"Czas analizy",engines:"Silniki",gaps:"Ograniczenia",parallel:"mowa równolegle z obrazem",
    chat:"zapytaj",chat_hint:"Zapytaj o cokolwiek z tego filmu — znam transkrypcję i kadry.",ask_ph:"Zapytaj o ten film…",
-   thinking:"Myślę…",copy:"Kopiuj prompt dla Claude",claude:"Podsumuj przez Claude",folder:"Otwórz folder",json:"Pobierz JSON",
-   copied:"Skopiowano — wklej na claude.ai",saved:"Zapisano",claude_wait:"Claude pisze streszczenie…",
+   thinking:"Myślę…",copy:"Kopiuj prompt",copy_hint:"Surowy prompt z całą osią czasu — do wklejenia w dowolny czat z AI",note:"Kopiuj notatkę",note_hint:"Całe streszczenie, kroki, oś czasu i transkrypcja jako czysty tekst — dla innego LLM, Notatnika albo opisu",note_dl:"Pobierz notatkę (.md)",note_copied:"Notatka skopiowana",copy_tr:"Kopiuj transkrypcję",tr_copied:"Transkrypcja skopiowana",claude:"Podsumuj przez Claude",folder:"Otwórz folder",json:"Pobierz JSON",
+   copied:"Prompt skopiowany — wklej do czatu z AI",saved:"Zapisano",claude_wait:"Claude pisze streszczenie…",
    no_film:"Film niedostępny (plik przeniesiony albo usunięty) — czasy nadal działają w kadrach.",
-   no_data:"Brak streszczenia — użyj „Podsumuj przez Claude” albo „Kopiuj prompt”.",
+   no_data:"Brak streszczenia — użyj „Kopiuj prompt” i wklej go do czatu z AI.",
    t_pobieranie_s:"pobieranie",t_ocr_s:"napisy (OCR)",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
    typ_przepis:"przepis",typ_trening:"trening",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_inne:"inne",
@@ -574,7 +577,7 @@ const I18N = {
    set_ui_hint:"The language changes right away across the whole app, no restart needed.",set_an:"Analysis",auto_detect:"automatic",on:"on",off:"off",
    set_ai:"AI models",sum_auto:"automatic (local)",sum_local:"local (Ollama)",s_text_model:"Text model (Ollama)",
    set_ai_hint:"Everything runs on this computer. Using the same model for vision and text (e.g. gemma3:4b) avoids swapping models on the GPU.",
-   s_auto_tr:"English version of the result after analysis",q_translating:"translating the result to English",set_next:"Analysis changes apply from the next video.",s_preview:"Preliminary summary",pv_always:"Always — first result after ~20 s",pv_fast:"Fastest — whole result sooner, no preliminary",pv_hint:"Measured on an RTX 3070 Ti (58 s video): “always” — preliminary after 20 s, all done at 1:28; “fastest” — all done at 1:15. If the vision and text models are the same model, the preliminary summary is always made because it costs nothing.",set_autosave:"Changes are saved right away.",set_files:"Files and downloads",open_out:"Open results folder",set_diag:"Diagnostics",set_about:"About",set_quit:"Quitting",
+   s_auto_tr:"English version of the result after analysis",q_translating:"translating the result to English",set_next:"Analysis changes apply from the next video.",s_preview:"Preliminary summary",pv_always:"With a preliminary summary",pv_fast:"Fastest",pv_hint_fast:"The whole result as fast as possible, no preliminary summary.",pv_hint_always:"A first summary after ~20 s, but the whole analysis takes longer (your measurement, 58 s video: 1:42 instead of 1:19). For long videos the difference is small.",pv_hint:"Measured on an RTX 3070 Ti (58 s video): “always” — preliminary after 20 s, all done at 1:28; “fastest” — all done at 1:15. If the vision and text models are the same model, the preliminary summary is always made because it costs nothing.",set_autosave:"Changes are saved right away.",set_files:"Files and downloads",open_out:"Open results folder",set_diag:"Diagnostics",set_about:"About",set_quit:"Quitting",
    set_quit_hint:"Closing the window also quits the app. A running analysis is saved in the queue; after the next start the queue comes back paused.",
    downloaded:"downloaded",not_downloaded:"not downloaded",gpu:"Graphics card",gpu_cuda_ok:"NVIDIA, CUDA libraries downloaded",gpu_cuda_missing:"NVIDIA, CUDA libraries download on the first analysis",
    gpu_none:"no NVIDIA card — speech runs on the CPU (slower)",version:"version",tech_name:"Technical name",data_dir:"App data",upd_current:v=>`You have version ${v}`,
@@ -602,10 +605,10 @@ const I18N = {
    mistakes:"Mistakes to avoid",takeaways:"Takeaways",honest:"Honest take",unknown:"Unknown",
    how:"How this was analyzed",took:"Analysis time",engines:"Engines",gaps:"Limits",parallel:"speech in parallel with vision",
    chat:"ask",chat_hint:"Ask anything about this video — I've read the transcript and frames.",ask_ph:"Ask about this video…",
-   thinking:"Thinking…",copy:"Copy prompt for Claude",claude:"Summarize with Claude",folder:"Open folder",json:"Download JSON",
-   copied:"Copied — paste into claude.ai",saved:"Saved",claude_wait:"Claude is writing the summary…",
+   thinking:"Thinking…",copy:"Copy prompt",copy_hint:"Raw prompt with the whole timeline — paste into any AI chat",note:"Copy note",note_hint:"The whole summary, steps, timeline and transcript as plain text — for another LLM, Notepad or a description",note_dl:"Download note (.md)",note_copied:"Note copied",copy_tr:"Copy transcript",tr_copied:"Transcript copied",claude:"Summarize with Claude",folder:"Open folder",json:"Download JSON",
+   copied:"Prompt copied — paste into an AI chat",saved:"Saved",claude_wait:"Claude is writing the summary…",
    no_film:"Video unavailable (file moved or deleted) — timestamps still work in frames.",
-   no_data:"No summary — use “Summarize with Claude” or “Copy prompt”.",
+   no_data:"No summary — use “Copy prompt” and paste it into an AI chat.",
    t_pobieranie_s:"download",t_ocr_s:"on-screen text",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
    typ_przepis:"recipe",typ_trening:"workout",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_inne:"other",
@@ -709,7 +712,7 @@ function renderChips(){
     if (location.hash.startsWith("#/ustawienia")) renderDiag();
   }
 }
-const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","tryb_podgladu","max_kadrow","ciasteczka_z","wyniki"];
+const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki"];
 const SBOOL = ["ocr","tlumacz_wynik"];
 /* ---------- Ustawienia (0.11.0): tylko opcje, które program naprawdę obsługuje ---------- */
 let setSec = "ui"; try { setSec = localStorage.getItem("vs_setsec") || "ui"; } catch {}
@@ -725,8 +728,7 @@ function renderSettings(){
     ["ui", t("set_ui"), `<div class="grid">${f(t("set_ui_lang"), `<select id="set_lang"><option value="pl">Polski</option><option value="en">English</option></select>`)}
       ${f(t("theme"), `<select id="set_theme"><option value="dark">${t("theme_dark")}</option><option value="light">${t("theme_light")}</option><option value="system">${t("theme_system")}</option></select>`)}</div>
       <p class="hint">${t("set_ui_hint")}</p>`],
-    ["an", t("set_an"), `<div class="grid">${f(t("s_preview"), sel("tryb_podgladu", [["zawsze", t("pv_always")], ["najszybciej", t("pv_fast")]]), true, t("pv_hint"))}
-      ${f(t("s_lang"), sel("jezyk", [["auto", t("auto_detect")], ["pl", "polski"], ["en", "English"]]))}
+    ["an", t("set_an"), `<div class="grid">${f(t("s_lang"), sel("jezyk", [["auto", t("auto_detect")], ["pl", "polski"], ["en", "English"]]))}
       ${f(t("s_whisper"), sel("whisper", [["large-v3-turbo", "large-v3-turbo"], ["small", "small"], ["medium", "medium"], ["large-v3", "large-v3"]]))}
       ${f(t("s_ocr"), sel("ocr", [["true", t("on")], ["false", t("off")]]))}
       ${f(t("s_vis_on"), sel("obraz", [["ollama", t("on")], ["brak", t("off")]]))}
@@ -957,6 +959,9 @@ function renderHome(){
         <div id="drop" tabindex="0" role="button"><svg class="ic big" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
           <input type="file" id="pick" accept="video/*,.mp4,.mov,.mkv,.webm" multiple hidden></div>
         <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}" aria-label="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
+        <div class="pvrow"><span class="seg small" id="pvmode" role="group" aria-label="${esc(t("s_preview"))}">
+          <button data-pv="najszybciej">${t("pv_fast")}</button><button data-pv="zawsze">${t("pv_always")}</button></span>
+          <span class="muted pvhint" id="pvhint"></span></div>
         <div class="startfoot"><span class="muted">${t("start_hint")}</span><a href="#/ustawienia">${t("start_settings")}</a></div>
       </section>
       <div id="queue"></div>`;
@@ -964,8 +969,18 @@ function renderHome(){
   }
   renderQueue();
 }
+function pvMode(){ return settings?.tryb_podgladu === "zawsze" ? "zawsze" : "najszybciej"; }
+function renderPv(){
+  const m = pvMode();
+  document.querySelectorAll("#pvmode button").forEach(b => b.classList.toggle("on", b.dataset.pv === m));
+  if ($("#pvhint")) $("#pvhint").textContent = t(m === "zawsze" ? "pv_hint_always" : "pv_hint_fast");
+}
 function bindHome(){
   const drop = $("#drop");
+  renderPv();
+  $("#pvmode").onclick = e => { const b = e.target.closest("button"); if (!b) return;
+    settings = {...(settings || {}), tryb_podgladu: b.dataset.pv}; renderPv();
+    api("/api/ustawienia", {method:"POST", body:JSON.stringify({tryb_podgladu: b.dataset.pv})}).catch(() => {}); };
   drop.onclick = () => $("#pick").click();
   drop.onkeydown = e => { if (e.key==="Enter"||e.key===" ") $("#pick").click(); };
   $("#pick").onchange = e => { [...e.target.files].forEach(upload); e.target.value = ""; };
@@ -976,7 +991,7 @@ function bindHome(){
     const lines = $("#links").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
     const busy = jobs.some(j => j.status === "trwa" || j.status === "w_kolejce");
     let first = null;
-    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
+    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, tryb_podgladu: pvMode()})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
     $("#links").value = "";
     // pusta kolejka → od razu wynik na żywo; coś już trwa → film czeka w kolejce, zostajesz tutaj
     if (first && !busy && lines.length === 1) { try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + first.id; }
@@ -989,7 +1004,7 @@ async function waitAndReload(){          // po aktualizacji: czekaj, aż nowa we
 function upload(file){
   const key = Math.random().toString(36).slice(2); uploads[key] = {name:file.name, pct:0}; renderHome();
   const x = new XMLHttpRequest(); x.open("POST", "/api/wyslij");
-  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name)); x.setRequestHeader("X-Preview", pvMode());
   x.upload.onprogress = e => { if (e.lengthComputable){ uploads[key].pct = Math.round(100*e.loaded/e.total); renderHome(); } };
   x.onloadend = async () => {
     delete uploads[key];
@@ -1197,7 +1212,8 @@ function renderTab(d){
     const nOcr = (r.napisy_ekranowe||[]).length;
     const sw = langs.length ? `<span class="seg small" id="trl"><button data-tl="" class="${cur.trLang?"":"on"}">${t("tr_orig")}</button>${langs.map(l => `<button data-tl="${l}" class="${cur.trLang===l?"on":""}">${l.toUpperCase()}</button>`).join("")}</span>` : "";
     const info = [r.ustawienia.whisper, cur.live && segs.length ? t("live_tr_note") : ""].filter(Boolean).map(esc).join(" · ");
-    return `<h3 class="big">${t("transcript")}</h3><div class="trbar">${sw}<span class="muted">${info}</span>
+    const cp = segs.length && !cur.live ? `<button class="btn" data-a="copytr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>${t("copy_tr")}</button>` : "";
+    return `<h3 class="big">${t("transcript")}</h3><div class="trbar">${sw}${cp}<span class="muted">${info}</span>
       ${nOcr ? `<label style="cursor:pointer"><input type="checkbox" id="ocrt" ${cur.showOcr?"checked":""}> ▣ ${t("ocr_show")} (${nOcr})</label>` : ""}</div>
       <div class="trtext">${rows.map(x => x.html).join("") || (cur.live ? `<div class="skel"><i></i><i></i><i style="width:70%"></i></div><p class="muted small">${t("live_wait_tr")}</p>` : `<p class="empty">${t("nodata")}</p>`)}</div>`;
   }
@@ -1240,8 +1256,8 @@ function headHtml(r, d){
   const site = /youtu/.test(host) ? "YouTube" : /instagram/.test(host) ? "Instagram" : /tiktok/.test(host) ? "TikTok" : host;
   const link = z.url ? `<a class="srclink" href="${esc(z.url)}" target="_blank" rel="noopener" title="${esc(z.url)}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>${t("open_src", site)}</a>` : "";
   return h + `<div class="meta">${link}<span>${esc(date)}</span><span>${fmt(z.dlugosc_s)} ${t("runtime")}</span>${r.czasy?.razem_s ? `<span>⏱ ${t("analysis")} ${fmt(r.czasy.razem_s)}</span>` : ""}</div>
-    <div class="actions">${rl}<button class="btn" data-a="copy">${t("copy")}</button><button class="btn" data-a="claude">${t("claude")}</button>
-      <button class="btn" data-a="folder">${t("folder")}</button><a class="btn" href="${fileUrl(id,"analiza.json")}" download style="text-decoration:none;color:inherit">${t("json")}</a></div>
+    <div class="actions">${rl}<button class="btn" data-a="note" title="${esc(t("note_hint"))}">${t("note")}</button><a class="btn icon" href="/api/zadania/${id}/notatka?pobierz=1&t=${T}" download="notatka.md" title="${esc(t("note_dl"))}" aria-label="${esc(t("note_dl"))}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>
+      <button class="btn" data-a="copy" title="${esc(t("copy_hint"))}">${t("copy")}</button><button class="btn" data-a="folder">${t("folder")}</button></div>
     ${cur.trBusy ? `<p class="trnote" id="trnote">${esc(cur.trMsg || "")}</p>` : ""}`;
 }
 function resHtml(z){                    // zasoby karty z analizy (0.8.1)
@@ -1580,6 +1596,12 @@ $("#app").addEventListener("click", async e => {
     if (a.dataset.a === "folder") await api(`/api/zadania/${cur.id}/otworz`, {method:"POST"});
     if (a.dataset.a === "copysum") { const d = data(); await navigator.clipboard.writeText([d.tytul, d.teza, ...d.streszczenie, d.do_zapamietania].filter(Boolean).join("\n\n")); toast(t("copied")); return; }
     if (a.dataset.a === "trsum") { return switchLang(cur.lang ? "" : "en"); }
+    if (a.dataset.a === "copytr") { const r = cur.r, segs = r.transkrypcja.segmenty || [];
+      const ts = cur.trLang ? ((r.transkrypcja.tlumaczenia || {})[cur.trLang]?.segmenty || []) : null;
+      await navigator.clipboard.writeText(segs.map((x, i) => `${fmt(x.start)} ${ts ? (ts[i]?.text ?? x.text) : x.text}`).join("\n") + "\n");
+      toast(t("tr_copied")); }
+    if (a.dataset.a === "note") { const r = await fetch(`/api/zadania/${cur.id}/notatka?t=${T}`); if (!r.ok) throw new Error(trErr("nie znaleziono"));
+      await navigator.clipboard.writeText(await r.text()); toast(t("note_copied")); }
     if (a.dataset.a === "copy") { const r = await fetch(fileUrl(cur.id, "prompt_dla_claude.md")); await navigator.clipboard.writeText(await r.text()); toast(t("copied")); }
     if (a.dataset.a === "claude") { a.disabled = true; toast(t("claude_wait")); await api(`/api/zadania/${cur.id}/claude`, {method:"POST"});
       setR(await api(`/api/zadania/${cur.id}/plik/analiza.json`)); a.disabled = false; renderResult(); }

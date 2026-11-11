@@ -76,6 +76,17 @@ def test_home_queue_settings_and_language(appsrv, width):
         assert "Etap 2/4" in page.inner_text("#queue .qi.now")
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
         page.screenshot(path=str(shots / f"start_{width}.png"), full_page=True)
+        # 0.11.5: tryb wstępnego streszczenia wybiera się przy linku (nie w Ustawieniach) i zapamiętuje
+        page.click('#pvmode [data-pv="zawsze"]')
+        page.wait_for_function("document.querySelector('#pvmode [data-pv=\"zawsze\"]').classList.contains('on')")
+        page.wait_for_function("document.querySelector('#pvhint').innerText.includes('1:42')")
+        for _ in range(50):
+            if app.settings.get("tryb_podgladu") == "zawsze":
+                break
+            time.sleep(0.05)
+        assert app.settings["tryb_podgladu"] == "zawsze"
+        page.click('#pvmode [data-pv="najszybciej"]')
+        page.wait_for_function("document.querySelector('#pvmode [data-pv=\"najszybciej\"]').classList.contains('on')")
         # kolejka: trzeci na górę oczekujących, usuń drugi, wstrzymaj
         page.click('#queue [data-q="przesun"][data-id="trzeci"]')
         page.wait_for_function("document.querySelectorAll('#queue .qi.w_kolejce')[0]?.innerText.includes('trzeci')")
@@ -93,9 +104,7 @@ def test_home_queue_settings_and_language(appsrv, width):
         page.select_option("#s_ocr", "false")
         page.wait_for_function("document.querySelector('#toast').innerText.includes('Zapisano')")
         assert app.settings["ocr"] is False
-        page.select_option("#s_tryb_podgladu", "najszybciej")
-        page.wait_for_function("document.querySelector('#s_tryb_podgladu').classList.contains('savedok')")
-        assert app.settings["tryb_podgladu"] == "najszybciej"
+        assert app.settings["tryb_podgladu"] == "najszybciej" and not page.locator("#s_tryb_podgladu").count()
         page.click('.setnav [data-sec="diag"]')
         page.wait_for_selector("#diag .drow")
         for h in ("Interfejs", "Analiza", "Modele AI", "Pliki i pobieranie", "Diagnostyka", "Aktualizacje", "O programie", "Zamykanie"):

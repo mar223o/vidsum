@@ -605,3 +605,25 @@ def test_preview_mode_setting(server):
     assert app.options(app.settings).preview is None
     req(base, "/api/ustawienia", data=json.dumps({"tryb_podgladu": "zawsze"}).encode(), method="POST")
     assert app.options(app.settings).preview is True
+
+
+def test_preview_mode_per_video_and_note(server, monkeypatch):
+    """0.11.5: tryb wybierany przy dodaniu filmu (link albo plik) — dla tego filmu i jako domyślny dla następnych.
+    Notatka: raport bez obrazków kadrów i bez sekcji o karcie, do wklejenia w inny LLM."""
+    base, app = server
+    seen = []
+    monkeypatch.setattr(app.worker, "submit", lambda job: seen.append(job) or job)
+    req(base, "/api/link", data=json.dumps({"zrodlo": "https://example.com/a", "tryb_podgladu": "najszybciej"}).encode(),
+        method="POST")
+    assert seen[-1].opt.preview is None and seen[-1].settings["tryb_podgladu"] == "najszybciej"
+    assert app.settings["tryb_podgladu"] == "najszybciej"
+    req(base, "/api/wyslij", data=b"abc", headers={"X-Filename": "f.mp4", "X-Preview": "zawsze"}, method="POST")
+    assert seen[-1].opt.preview is True and app.settings["tryb_podgladu"] == "zawsze"
+    req(base, "/api/link", data=json.dumps({"zrodlo": "https://example.com/b", "tryb_podgladu": "zle"}).encode(),
+        method="POST")
+    assert seen[-1].opt.preview is True                                   # zła wartość — zostaje ostatni wybór
+    from vidsum.note import note_text
+    raport = ("# Tytuł\n\n## W skrócie\nTekst.\n\n## Zasoby komputera (karta graficzna)\n\n- Karta: X\n\n"
+              "## Oś czasu (mowa + obraz)\n\n### 00:00–00:05\n![kadr](kadry/kadr_001_00-01.jpg)  \n**Obraz**: deska\n")
+    n = note_text(raport)
+    assert "![kadr]" not in n and "Karta: X" not in n and "**Obraz**: deska" in n and "## W skrócie" in n

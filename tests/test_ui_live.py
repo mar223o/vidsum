@@ -234,6 +234,10 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
         if width >= 1000:
             assert "Otwórz film na YouTube" in page.inner_text("#rhead")
             assert page.get_attribute("#rhead a.srclink", "href") == "https://www.youtube.com/watch?v=x"
+            # 0.11.5: „Kopiuj notatkę” + pobranie, „Kopiuj prompt” (bez „dla Claude”), bez „Podsumuj przez Claude” i JSON
+            acts = page.inner_text("#rhead .actions")
+            assert "Kopiuj notatkę" in acts and "Kopiuj prompt" in acts and "Claude" not in acts and "JSON" not in acts
+            assert "/notatka?pobierz=1" in page.get_attribute('#rhead .actions a.btn.icon', "href")
             for m in ("bal", "read", "video"):
                 page.click(f'#modes button[data-m="{m}"]')
                 page.wait_for_timeout(150)
@@ -241,6 +245,9 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
                     "[document.documentElement.scrollHeight, innerHeight, ...[...document.querySelectorAll('#res, .layout, .layout>section, main')].map(e => e.className + ':' + Math.round(e.getBoundingClientRect().bottom))]"))
                 assert page.evaluate("[...document.querySelectorAll('.layout>section')].every(s => s.getBoundingClientRect().bottom <= innerHeight + 1)"), m
                 page.screenshot(path=str(shots / f"tryb_{m}_{width}.png"))
+        # transkrypcja: przycisk „Kopiuj transkrypcję”
+        page.click('#tabs button[data-tab="tr"]')
+        assert page.locator('#tabc [data-a="copytr"]').count() == 1
         # rozdziały: pasek całego filmu i udział każdego rozdziału (od autora + z analizy)
         page.click('#tabs button[data-tab="cha"]')
         assert page.locator(".chstrip").count() == 2 and page.locator(".chstrip.au button").count() == 2

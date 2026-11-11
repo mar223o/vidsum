@@ -367,6 +367,13 @@ class App:
         self.settings_file.write_text(json.dumps(self.settings, ensure_ascii=False, indent=2), encoding="utf-8")
         return self.settings
 
+    def job_settings(self, preview: str | None) -> dict:
+        """Ustawienia dla nowego filmu. 0.11.5: tryb wstępnego streszczenia wybiera się przy dodawaniu filmu
+        („najszybciej” / „ze wstępnym”); wybór zapisuje się jako domyślny dla następnych."""
+        if preview in ("zawsze", "najszybciej") and preview != self.settings.get("tryb_podgladu"):
+            self.save_settings({"tryb_podgladu": preview})
+        return dict(self.settings)
+
     def options(self, s: dict) -> Options:
         mk = s.get("max_kadrow")
         from .languages import parse_list
@@ -734,6 +741,22 @@ def make_handler(app: App):
             if m:
                 p = self._job_file(m.group(1), "czat.json")
                 return self._json(json.loads(p.read_text(encoding="utf-8")) if p and p.is_file() else [])
+            m = re.fullmatch(r"/api/zadania/(\w+)/notatka", u.path)
+            if m:
+                p = self._job_file(m.group(1), "raport.md")
+                if not p or not p.is_file():
+                    return self._json({"error": "nie znaleziono"}, 404)
+                from .note import note_text
+                b = note_text(p.read_text(encoding="utf-8")).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/markdown; charset=utf-8")
+                self.send_header("Content-Length", str(len(b)))
+                self.send_header("Cache-Control", "no-store")
+                if qs.get("pobierz"):
+                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''notatka.md")
+                self.end_headers()
+                self.wfile.write(b)
+                return
             m = re.fullmatch(r"/api/zadania/(\w+)/plik/(.+)", u.path)
             if m:
                 p = self._job_file(m.group(1), urllib.parse.unquote(m.group(2)))
@@ -814,10 +837,11 @@ def make_handler(app: App):
                             break
                         f.write(chunk)
                         left -= len(chunk)
-                opt = app.options(app.settings)
+                sett = app.job_settings(self.headers.get("X-Preview"))
+                opt = app.options(sett)
                 opt.move_source = True          # film zostaje w folderze wyników — do odtwarzacza
                 job = Job(secrets.token_hex(4), str(dst), name, opt, dst)
-                job.settings = dict(app.settings)
+                job.settings = sett
                 try:
                     job = app.worker.submit(job)
                 except RuntimeError as e:
@@ -828,8 +852,9 @@ def make_handler(app: App):
                 src = (b.get("zrodlo") or "").strip().strip('"')
                 if not src:
                     return self._json({"error": "pusty link"}, 400)
-                job = Job(secrets.token_hex(4), src, src, app.options(app.settings), None)
-                job.settings = dict(app.settings)
+                sett = app.job_settings(b.get("tryb_podgladu"))
+                job = Job(secrets.token_hex(4), src, src, app.options(sett), None)
+                job.settings = sett
                 try:
                     dup = app.worker.find_duplicate(src)
                     job = app.worker.submit(job)
