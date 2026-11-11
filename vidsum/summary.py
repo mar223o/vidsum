@@ -266,8 +266,11 @@ Rules:
 11. Composition or nutrition (calories, protein, fat, what something contains) and substitutions ("can I use X instead"):
    the video almost never says it — start with "{general}", give a rough typical value or option and say it depends on
    the portion and the method; then one sentence on what the video actually uses.
-12. A question about a moment ("what happens at 0:45", "what does he do with the fries"): use the transcript and the
-   frames around that time and give mm:ss.
+12. A question about a moment ("what happens at 0:45"): use the MOMENT block — first say what happens EXACTLY then,
+   then (if useful) what comes right after, each with its own mm:ss. Do not describe a later action as happening at that time.
+13. Markers ("{inference}", "{general}") go only before the sentence that is NOT from the video. Facts that the video
+   says come first and have no marker. For a substitution, first check how the video uses the thing: if it is only an
+   addition (e.g. "too, for flavour" next to a main ingredient), say it can be left out and what stays.
 
 Examples — they are about a DIFFERENT video (pancakes); never copy them, answer only about THIS video
 (answer in the language of the question):
@@ -318,6 +321,28 @@ def _guess_lang(text: str) -> str:
     return "en" if en > pl else "pl"
 
 
+_ASK_TIME = re.compile(r"\b(\d{1,2}):([0-5]\d)\b|\b(\d{1,4})\s*(?:s\b|sek\w*|sec\w*)", re.I)
+
+
+def moment_block(question: str, segs: list[dict], frames: list[dict]) -> str:
+    """0.11.7 (pomiar 0.11.6: „co robi w 0:47?” → „wyjmuje frytki i układa na tacy” — a w 0:47 miesza; wyjmuje w 0:48,5).
+    Gdy pytanie podaje czas, model dostaje dokładnie to, co mówi się W TEJ chwili i tuż po niej, z czasami do 0,1 s."""
+    m = _ASK_TIME.search(question or "")
+    if not m or not segs:
+        return ""
+    t = int(m.group(1)) * 60 + int(m.group(2)) if m.group(1) else int(m.group(3))
+    now = [x for x in segs if x.get("start", 0) - 0.3 <= t <= x.get("end", 0) + 0.3]
+    near = [x for x in segs if t - 3 <= x.get("end", 0) and x.get("start", 0) <= t + 4 and x not in now]
+    fmt = lambda x: f"{x.get('start', 0):.1f}–{x.get('end', 0):.1f} s: {x.get('text', '')}"
+    lines = [f"MOMENT {_mmss(t)} (= {t} s), from the transcript:"]
+    lines += [f"- EXACTLY AT {_mmss(t)}: " + fmt(x) for x in now] or [f"- exactly at {_mmss(t)} nobody speaks"]
+    lines += [("- before: " if x.get("end", 0) < t else "- right after: ") + fmt(x) for x in near]
+    fr = min(frames, key=lambda f: abs(f.get("t", 0) - t), default=None)
+    if fr and abs(fr.get("t", 0) - t) <= 3 and (fr.get("vision") or {}).get("scena"):
+        lines.append(f"- frame {_mmss(fr['t'])} (may be imprecise): {fr['vision']['scena']}")
+    return "\n".join(lines)
+
+
 def build_chat_prompt(analysis: dict, question: str, history: list[dict]) -> str:
     st = analysis.get("streszczenie") or {}
     d = st.get("dane") or {}
@@ -359,6 +384,9 @@ def build_chat_prompt(analysis: dict, question: str, history: list[dict]) -> str
     if d.get("rozdzialy"):
         ex.append("CHAPTERS: " + "; ".join(f"{_mmss(x.get('start', 0))} {x.get('tytul', '')}" for x in d["rozdzialy"][:12]))
     extra = "\n".join(ex)[:5000]
+    mom = moment_block(question, segs, analysis.get("kadry") or [])
+    if mom:
+        extra = mom + "\n" + extra
     return CHAT_PROMPT.format(lang="Polish" if lang == "pl" else "English", general=_GENERAL[lang],
                               no_info=_NO_INFO[lang], inference=_INFER[lang], off_topic=_OFF[lang],
                               meta=f"{z.get('tytul', '')} — {z.get('autor', '')}".strip(" —"),
@@ -785,6 +813,8 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
      [(r"\busuń (je|go|ją|frytki|ziemniaki)\b", r"wyjmij \1")]),
     # 0.11.1 (pomiar 0.11.0): „break without snapping” = mają się łamać, a nie pękać; model odwracał sens
     (r"break without snapping", None, [(r"\b(powinny |mają |muszą )?pękać,? (?:ale )?bez łamania\b", r"\1łamać się, ale nie pękać"),
+                                       # 0.11.7 (pomiar 0.11.5, Najważniejsze): „miękkie i pękające frytki bez łamania”
+                                       (r"\bmiękkie i pękające (frytki|ziemniaki) bez łamania\b", r"miękkie \1, które łamią się, ale nie pękają"),
                                        (r"\b(powinny |mają )?się łamać,? bez pękając\w*", r"\1łamać się, ale nie pękać"),
                                        (r"\b(powinny |mają )?łamać się,? bez pękając\w*", r"\1łamać się, ale nie pękać")]),
     # pomiar 0.11.1: „solą maldon” (nazwa własna), „piękna chrupiącą warstwę”, „Połóż na tacę”
@@ -803,13 +833,15 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
     # pomiar 0.11.4 (tłumaczenie transkrypcji i cytatów): „idealny fryk z ziemniaków”, „To idealna frytki francuskie”,
     # „idealny frytek”, „idealny fry francuski”, „idealny fryz” — w oryginale „the perfect French fry” (jedna frytka)
     (r"perfect (?:french )?fry\b", None,
-     [(r"\bidealn\w* (?:fryk\w*|fryz\w*|frytek\b|fry\b)(?: francusk\w*| z ziemniaków)?|\bidealna frytki francusk\w*", "idealna frytka")]),
+     [(r"\bidealn\w* (?:fryk\w*|fryz\w*|frytek\b|fry\b)(?: francusk\w*| z ziemniaków)?|\bidealna frytki\b(?: francusk\w*)?", "idealna frytka")]),
     # pomiar 0.11.5: „Finish with a sprinkle of maldon salt” → model „posypaniem miodnym solą”, a w streszczeniu
     # „posypywane miodem i solą Maldon” — miodu w filmie nie ma (zmyślenie z podobieństwa słów)
     (r"maldon", r"honey|\bmiód|\bmiod", [(r"\bmiodem i (?=sol)", ""), (r"\bmiod\w* (?=sol)", "")]),
     # „Heat oil in a pot” → „Rozgrzej olej na patelni”; „Bring a pot of water to the boil” → „Zagotuj garnek wody”
     (r"\bpot\b", r"\bpan\b|skillet|\bwok\b", [(r"\bna patelni\b", "w garnku"), (r"\bna patelnię\b", "do garnka"),
                                                (r"\bpatelni[aęi]\b", "garnek")]),
+    # „We're going to drop in our fries” → „Wypuść nasze frytki” (pomiar 0.11.5, tłumaczenie transkrypcji)
+    (r"\bdrop (?:in )?(?:our |the )?fries|\bdrop them in", None, [(r"\bwypuść (?:nasze |te )?frytki\b", "wrzuć frytki")]),
     (r"\bpot of water\b", None, [(r"\b(zagotuj|zagotować) garnek wody\b", r"\1 wodę w garnku")]),
     # „Dust lightly with potato starch” → „Odcedź lekko z mąki ziemniaczanej” (drain ≠ dust)
     (r"\bdust\w* (?:\w+ )?lightly\b|\blightly dust", None,
@@ -1195,12 +1227,20 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
     out_equip = []
     for x in _lst(ingr_raw.get("sprzet") or ingr_raw.get("sprzęt") or ingr_raw.get("equipment")):
         name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
+        name = _EQUIP_EN.get(name.strip().lower(), name)        # 0.11.7: model zostawił „pot” po angielsku
         if name and _stems(name) & _stems(spoken_pl) and not any(_same_step(name, o) for o in out_equip):
             out_equip.append(name)
     return {"kroki": steps, "wyjasnienia": merge_notes(notes), "skladniki": out_ingr, "sprzet": out_equip}
 
 
 _BASE = r"^(ziemniak\w*|pomidor\w*|jabł\w*|cebul\w*|papryk\w*|mąk\w*|ryż\w*)$"
+
+
+_EQUIP_EN = {"pot": "garnek", "pan": "patelnia", "frying pan": "patelnia", "tray": "taca", "baking tray": "blacha",
+             "bowl": "miska", "knife": "nóż", "cutting board": "deska do krojenia", "chopping board": "deska do krojenia",
+             "sieve": "sito", "spider": "cedzak", "strainer": "cedzak", "whisk": "trzepaczka", "spatula": "łopatka",
+             "oven": "piekarnik", "fridge": "lodówka", "freezer": "zamrażarka", "colander": "durszlak",
+             "paper towel": "ręcznik papierowy", "thermometer": "termometr", "blender": "blender"}
 
 
 def _merge_variety(ingr: list[dict]) -> list[dict]:
@@ -1595,9 +1635,19 @@ _HAVE = {
 
 def _drop_item(sent: str, item: str) -> str | None:
     """Usuwa jedną pozycję z wyliczenia („…o czasie, proporcjach oraz temperaturze oleju.”). None = zdanie puste."""
-    m = re.search(_SEP + item + r"(?=[\s.,;:)]|$)", sent, re.I)
+    # 0.11.7: z pozycją znika jej dopowiedzenie („oraz temperatura oleju podczas ostatecznego smażenia”), a gdy była
+    # ostatnia po „oraz/i”, przecinek przed poprzednią pozycją zamienia się w „i” (pomiar 0.11.5: „…o czasie smażenia,
+    # proporcjach składników.” i „…z sodą oczyszczoną podczas ostatecznego smażenia.”)
+    m = re.search(_SEP + item + r"(?:\s+(?:podczas|przy|w czasie|w trakcie)\s+[^,.;:!?]+)?(?=[\s.,;:)]|$)", sent, re.I)
     if m:
-        return sent[:m.start()] + sent[m.end():]
+        head, tail = sent[:m.start()], sent[m.end():]
+        if re.match(r"\s*[.!?]?\s*$", tail) and not re.match(r"\s*,", m.group(0)):
+            start = max((x.end() for x in re.finditer(r"\bo\s+", head)), default=-1)
+            if start >= 0:
+                k = head.rfind(",")
+                if k > start:
+                    head = head[:k] + " i" + head[k + 1:]
+        return head + tail
     m = re.search(r"\bo\s+" + item + "(" + _SEP + r")?", sent, re.I)
     if not m:
         m = re.search(r"(?<=\s)" + item + _SEP, sent, re.I)       # „Nie podano temperatury, czasu ani ilości.”
@@ -1693,7 +1743,7 @@ def verify_quotes(summary: dict, segments: list[dict]) -> int:
         if any(k["tekst"] == q["tekst"] for k in kept):     # dwa „cytaty” tego samego zdania → jeden
             continue
         kept.append(q)
-    summary["cytaty"] = kept
+    summary["cytaty"] = sorted(kept, key=lambda q: q.get("t", 0))   # 0.11.7: po kolei (pomiar 0.11.5: 00:00, 00:05, 00:03)
     return removed
 
 
