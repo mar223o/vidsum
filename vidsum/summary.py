@@ -269,17 +269,18 @@ Rules:
 12. A question about a moment ("what happens at 0:45", "what does he do with the fries"): use the transcript and the
    frames around that time and give mm:ss.
 
-Examples (answer in the language of the question):
-Q: ile minut gotować według filmu?
-A: Film nie podaje czasu gotowania. Autor mówi, żeby gotować frytki do miękkości — mają się łamać, a nie pękać (00:29–00:31).
+Examples — they are about a DIFFERENT video (pancakes); never copy them, answer only about THIS video
+(answer in the language of the question):
+Q: ile minut smażyć według filmu?
+A: Film nie podaje czasu. Autor mówi, żeby przewrócić naleśnik, gdy brzegi się zarumienią (01:12).
 Q: wypadek na autostradzie
-A: To nie wynika z analizowanego nagrania — znam tylko ten film (przepis na chrupiące frytki). Zapytaj o przepis, kroki albo temperatury.
-Q: jakiej marki jest garnek?
+A: To nie wynika z analizowanego nagrania — znam tylko ten film (przepis na naleśniki). Zapytaj o przepis, kroki albo składniki.
+Q: jakiej marki jest patelnia?
 A: Nie mam wystarczających informacji, aby odpowiedzieć na to pytanie — w filmie nie pada nazwa marki, a z kadrów jej nie widać.
-Q: jaki jest skład tych frytek, ile mają kalorii?
-A: Wiedza ogólna (nie z filmu): frytki smażone w głębokim oleju mają zwykle ok. 300 kcal na 100 g — zależy od oleju i porcji. W filmie autor używa ziemniaków agria, sody, soli, mąki ziemniaczanej, oleju i tłuszczu z kaczki, bez ilości.
-Q: how long does the video say to boil them?
-A: The video does not give a boiling time. The author says to boil them until just tender — they should break without snapping (00:29–00:31).
+Q: ile to ma kalorii?
+A: Wiedza ogólna (nie z filmu): jeden naleśnik na mleku ma zwykle ok. 100–150 kcal — zależy od wielkości i tłuszczu. W filmie autor podaje: 2 jajka, 250 ml mleka, 150 g mąki.
+Q: how long does the video say to rest the batter?
+A: The video does not give a resting time. The author only says to let the batter sit while the pan heats up (00:48).
 
 VIDEO: {meta}
 SUMMARY (for context only): {thesis}
@@ -761,6 +762,9 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
                                                      (r"proszku do pieczenia", "sody oczyszczonej"),
                                                      (r"proszkiem do pieczenia", "sodą oczyszczoną")]),
     (r"duck fat", None, [(r"tłuszcz(\w*) z kaczego pióra", r"tłuszcz\1 z kaczki"), (r"\(duck fat\)", "(tłuszcz z kaczki)"),
+                         # 0.11.6: „Użycie duck fat dodaje…” → dopełniacz, nie „Użycie tłuszcz z kaczki”
+                         (r"\b(użyci\w*|dodani\w*|dodatk\w*|zastosowani\w*|bez|dzięki|smak\w*) duck fat\b",
+                          r"\1 tłuszczu z kaczki"),
                          (r"\bduck fat\b", "tłuszcz z kaczki")]),
     # par-fry = wstępne smażenie w oleju; model pisał „parzenie”/„parowanie” (pomiar 0.8.1) — to gotowanie na parze
     (r"par[- ]?fr", r"steam|na parze|parowar",
@@ -799,7 +803,10 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
     # pomiar 0.11.4 (tłumaczenie transkrypcji i cytatów): „idealny fryk z ziemniaków”, „To idealna frytki francuskie”,
     # „idealny frytek”, „idealny fry francuski”, „idealny fryz” — w oryginale „the perfect French fry” (jedna frytka)
     (r"perfect (?:french )?fry\b", None,
-     [(r"\bidealn\w* (?:(?:fryk\w*|fryz\w*|frytek\b|fry\b)(?: francusk\w*| z ziemniaków)?|frytki francusk\w*)", "idealna frytka")]),
+     [(r"\bidealn\w* (?:fryk\w*|fryz\w*|frytek\b|fry\b)(?: francusk\w*| z ziemniaków)?|\bidealna frytki francusk\w*", "idealna frytka")]),
+    # pomiar 0.11.5: „Finish with a sprinkle of maldon salt” → model „posypaniem miodnym solą”, a w streszczeniu
+    # „posypywane miodem i solą Maldon” — miodu w filmie nie ma (zmyślenie z podobieństwa słów)
+    (r"maldon", r"honey|\bmiód|\bmiod", [(r"\bmiodem i (?=sol)", ""), (r"\bmiod\w* (?=sol)", "")]),
     # „Heat oil in a pot” → „Rozgrzej olej na patelni”; „Bring a pot of water to the boil” → „Zagotuj garnek wody”
     (r"\bpot\b", r"\bpan\b|skillet|\bwok\b", [(r"\bna patelni\b", "w garnku"), (r"\bna patelnię\b", "do garnka"),
                                                (r"\bpatelni[aęi]\b", "garnek")]),
@@ -1170,6 +1177,12 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         seen.append(name)
         out_ingr.append({"nazwa": name, "ilosc": q, "zrodlo": "mowa"})
     out_ingr = _merge_variety(out_ingr)
+    # sama odmiana bez produktu (pomiar 0.11.5: „Agria”, a w mowie „Start with agria potatoes”) → „ziemniaki agria”
+    en_all = " ".join(ln["tekst"] for ln in lines).lower()
+    for x in out_ingr:
+        nm = x["nazwa"].strip()
+        if re.fullmatch(r"[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+", nm) and re.search(rf"\b{re.escape(nm.lower())} potato", en_all):
+            x["nazwa"] = f"ziemniaki {nm.lower()}"
     # tłuszcz do smażenia, o którym mowa w krokach, a którego model nie wpisał (pomiar 0.11.4: „Heat oil in a pot”,
     # „Heat the oil up to 190” — w składnikach brak oleju); tylko gdy pada w mowie, ilość: brak danych
     en = " ".join(ln["tekst"] for ln in lines).lower()

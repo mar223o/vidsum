@@ -1638,3 +1638,55 @@ def test_types_sport_and_document():
     assert "### Ćwiczenia i elementy techniki" in to_markdown(s)
     p = parse_summary(json.dumps({**base, "typ": "przepis"}), 60)
     assert p["co_masz_zrobic"]["fakty"] == [] and p["co_masz_zrobic"]["cwiczenia"] == []
+
+
+def test_measured_0115_honey_plural_duckfat_and_gpu_warning():
+    """Przebieg 0.11.5 (14:30, oba modele 0% na karcie): „miód” z „maldon”, „idealna frytka” w liczbie mnogiej
+    (mój błąd z 0.11.5), „Użycie tłuszcz z kaczki”, sama „Agria” w składnikach; ostrzeżenie o modelu na procesorze."""
+    from vidsum import pipeline
+    from vidsum.summary import fix_terms
+    rec = json.loads((DATA / "frytki_0115" / "streszczenie_kroki.json").read_text(encoding="utf-8"))
+    opis = json.loads(next(r["odpowiedz"] for r in rec if r["etap"] == "opis_a"))
+    src = ("This is the perfect French fry. Start with agria potatoes. We've got some duck fat too for flavour. "
+           "Finish with a sprinkle of maldon salt.")
+    p1 = fix_terms(opis["streszczenie"][1], src)
+    assert "miod" not in p1 and "posypywane solą Maldon" in p1
+    assert fix_terms(opis["tytul"], src) == "Idealne Frytki Francuskie"
+    assert "przepis na idealne frytki francuskie" in fix_terms(opis["streszczenie"][0], src)
+    assert "Użycie tłuszczu z kaczki dodaje" in fix_terms(opis["streszczenie"][2], src)
+    assert fix_terms("Zakończ posypaniem miodnym solą.", src) == "Zakończ posypaniem solą Maldon."
+    assert fix_terms("Polej miodem i solą.", "Drizzle with honey and maldon salt.") == "Polej miodem i solą."
+    # ostrzeżenie: 0% na karcie przy wolnej pamięci → komunikat w logu i w uwagach technicznych (jeden raz)
+    logs, notes = [], []
+
+    class Eng:
+        def __init__(self, share): self.share = share
+        def gpu_share(self): return self.share
+    import vidsum.cuda as cu
+    orig = cu.free_vram_mb
+    try:
+        cu.free_vram_mb = lambda: 6801
+        pipeline.check_on_gpu(Eng(0.0), "model obrazu", logs.append, notes)
+        pipeline.check_on_gpu(Eng(0.0), "model obrazu", logs.append, notes)
+        assert len(notes) == 1 and "0% na kartę" in notes[0] and "6801 MB" in notes[0] and "uruchom ją ponownie" in notes[0]
+        pipeline.check_on_gpu(Eng(1.0), "model tekstowy", logs.append, notes)       # na karcie — cisza
+        cu.free_vram_mb = lambda: 900                                                 # karta pełna — inny przypadek
+        pipeline.check_on_gpu(Eng(0.0), "model tekstowy", logs.append, notes)
+        assert len(notes) == 1 and len(logs) == 2
+    finally:
+        cu.free_vram_mb = orig
+
+
+def test_variety_alone_becomes_potatoes():
+    from vidsum.summary import grounded_steps
+
+    class E:
+        model = "atrapa"
+
+        def complete(self, prompt, as_json=False, **kw):
+            if '"sprzet"' in prompt:
+                return json.dumps({"składniki": [{"nazwa": "Agria", "ilosc": "brak danych"}], "sprzet": []})
+            return json.dumps({"1": "Zacznij od ziemniaków agria."})
+    lines = [{"n": 1, "t": 4.8, "tekst": "Start with agria potatoes.", "pl": "", "ekran": ""}]
+    g = grounded_steps(E(), lines, "przepis", "")
+    assert [x["nazwa"] for x in g["skladniki"]] == ["ziemniaki agria"]

@@ -81,6 +81,27 @@ def _emit(opt: Options, kind: str, data) -> None:
             pass
 
 
+def check_on_gpu(engine, what: str, log, notes: list[str]) -> None:
+    """0.11.6: pomiar 0.11.5 — Ollama wczytała oba modele w 0% na kartę przy 6,8 GB wolnych (analiza 14:30 zamiast 1:19);
+    po ponownym uruchomieniu Ollamy wróciło 100% GPU. Ostrzegamy od razu, a nie dopiero w raporcie."""
+    share = getattr(engine, "gpu_share", lambda: None)()
+    if share is None or share >= 0.5:
+        return
+    try:
+        from .cuda import free_vram_mb
+        free = free_vram_mb()
+    except Exception:
+        free = None
+    if free is not None and free < 1500:
+        return                                   # karta naprawdę pełna — to inny przypadek (inne programy)
+    msg = (f"Ollama wczytała {what} tylko w {share:.0%} na kartę, choć karta ma wolne {free or '?'} MB — model liczy się "
+           "na procesorze, analiza będzie kilka razy wolniejsza. Zamknij Ollamę (ikona przy zegarze → Quit), "
+           "uruchom ją ponownie i powtórz analizę.")
+    log("        ⚠ " + msg)
+    if msg not in notes:
+        notes.append(msg)
+
+
 def _vision_ollama(opt: "Options") -> Ollama:
     """Model obrazu; gdy to ten sam model co tekstowy — z kontekstem tekstu (bez przeładowań między kadrami a tekstem)."""
     from .llm import TEXT_CTX, VISION_CTX
@@ -230,6 +251,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                     pv["po_s"] = round(time.time() - t0, 1)
                     _emit(opt, "wstepne", d)
                     log(f"        szybki podgląd gotowy ({pv['s']:.1f} s; {pv['po_s']:.0f} s od startu)")
+                    check_on_gpu(eng, "model tekstowy (podgląd)", log, pre_notes)
                 pv["done"] = True
                 if opt.vision == "ollama" and not same:
                     eng.unload()                   # miejsce na karcie dla modelu obrazu (inny model niż tekstowy)
@@ -262,6 +284,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             _vision_ollama(opt).preload()
             timings["obraz_wczytanie_s"] = round(time.time() - t_l, 1)
             log(f"        model obrazu wczytany do karty ({time.time() - t_l:.1f} s)")
+            check_on_gpu(_vision_ollama(opt), "model obrazu", log, pre_notes)
         preload_job = preload
     else:
         preload_job = None
@@ -383,6 +406,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             early_thread.join()
             timings["obraz_wczytanie_s"] = early.get("s", 0.0)
             log(f"        model obrazu wczytany do karty ({early.get('s', 0.0):.1f} s, od startu, w czasie pobierania)")
+            check_on_gpu(_vision_ollama(opt), "model obrazu", log, pre_notes)
         threading.Thread(target=note_early, daemon=True).start()
 
     # 2) KADRY
@@ -490,6 +514,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 vision_engine.preload()
                 timings["obraz_wczytanie_s"] = round(time.time() - t_l, 1)
                 log(f"        model obrazu wczytany do karty ({time.time() - t_l:.1f} s, po podglądzie)")
+                check_on_gpu(vision_engine, "model obrazu", log, pre_notes)
             except LLMError:
                 pass
         log(f"  [3/4] opis kadrów ({opt.vision_model})…")
@@ -658,6 +683,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                     text_engine.preload(TEXT_CTX)
                     timings["tekst_wczytanie_s"] = round(time.time() - t_l, 1)
                     log(f"        model tekstowy wczytany ({time.time() - t_l:.1f} s)")
+                check_on_gpu(text_engine, "model tekstowy", log, tech_notes)
             zasoby["modele"]["streszczenie"] = ollama_models(opt.ollama_host)
         except LLMError as e:
             gaps.append(f"Model tekstowy niedostępny ({e}) — bez streszczenia i tłumaczeń.")

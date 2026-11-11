@@ -1,0 +1,52 @@
+[   0.1 s]   karta: NVIDIA GeForce RTX 3070 Ti — zajęte 1217 MB z 8192 MB przed startem, wolne 6801 MB
+[   0.2 s]   zwolniono z karty model(e) z poprzedniej analizy: qwen3-vl:4b-instruct (4261 MB)
+[   0.2 s]   ! inne programy zajmują 1217 MB karty (SystemSettings, explorer, ShellHost, CalculatorApp, iCloudHome, SearchHost, firefox, msedgewebview2…) — analiza może być wolniejsza; zamknij przeglądarki, Discorda, Steama albo wyłącz w nich przyspieszanie sprzętowe
+[   1.4 s] ▶ https://youtube.com/shorts/BwNqsHb7YQU?si=yPk74Pf9kDV2RRHA
+  wyniki: C:\Users\marek\Documents\VidSum\The Perfect French Fry_20261111-162429
+[   1.5 s]   długość 00:58, 360x640, audio: tak
+[   1.6 s]         szybki podgląd: wstępne streszczenie z mowy (gemma3:4b)…
+[   1.8 s]   [1/4] mowa: napisy serwisu (automatyczne) jako podgląd; dokładna transkrypcja Whisperem na GPU po opisie kadrów
+[   1.8 s]   [2/4] wykrywanie zmian scen i wybór kadrów…
+[   3.5 s]         15 kadrów (pominięto 0 powtarzających się; limit 15)
+[   3.5 s]   [0/4] napisy na ekranie (OCR) — w tle, w czasie opisu kadrów…
+[   3.6 s]         czekam na szybki podgląd (model tekstowy na karcie)…
+[   5.1 s]         OCR 1/117 klatek (0 s filmu): This is it
+[  10.3 s]         OCR 57/117 klatek (28 s filmu): and salt
+[  15.3 s]         OCR 95/117 klatek (47 s filmu): stirring constantly for
+[  20.7 s]         OCR 8/117 klatek (4 s filmu): to super crispy fries
+[  25.8 s]         OCR 40/117 klatek (20 s filmu): any excess starch
+[  30.9 s]         OCR 72/117 klatek (36 s filmu): crispy layer
+[  36.5 s]         OCR 100/117 klatek (50 s filmu): lay them in a tray
+[  37.8 s]         OCR: 117 klatek (2.0/s; odczytanych 112, pominiętych 5 — bez zmiany napisów), 66 napisów, 32.8 s (0.29 s na klatkę)
+[  74.4 s]         szybki podgląd gotowy (72.8 s; 74 s od startu)
+[  85.1 s]         model obrazu wczytany do karty (10.7 s, po podglądzie)
+[  85.1 s]   [3/4] opis kadrów (qwen3-vl:4b-instruct)…
+[  85.2 s]   [1/4] dokładna transkrypcja Whisperem (GPU) z podpowiedziami z napisów na ekranie — równolegle z opisem kadrów…
+[  85.2 s]         podpowiedzi z napisów: The Perfect French Fry. Start with agria potatoes. Variety has a very. And cut them off. Roughly one centimetre. Squared. Dust lightly with. Too for f
+[  93.2 s]         poprawka mowy gotowa (8.1 s)
+[ 151.8 s]         1/15 kadr 00:08: Ręce kroją ziemniak na desce z drewna. | czynności: krojenie
+[ 187.7 s]         2/15 kadr 00:13: Kucharz w kuchni trzyma ziemniak i kroi go. | czynności: krojenie, trimowanie
+[ 226.7 s]         3/15 kadr 00:19: Kucharz w kuchni przetwarza warzywa w misce. | czynności: wymieszanie, włożenie rąk do miski, wycieranie rąk
+[ 255.9 s]         4/15 kadr 00:20: Osoba wyciera ręce nad miską z warzywami. | czynności: wycieranie rąk, przygotowywanie rąk, wycieranie rąk nad misk
+[ 307.7 s]         5/15 kadr 00:21: Ręce myją kawałki ziemniaka w misce w kuchennym zlewie. | czynności: mycie, wlewanie wody, trzymanie miski
+[ 335.4 s]         6/15 kadr 00:22: Kucharz w kuchni wyciera zlew w misce. | czynności: wycieranie, trzymanie misy, wycieranie wody
+[ 372.0 s]         7/15 kadr 00:26: Ręka wlewa coś do garnka na naczepie. | czynności: wlewanie
+[ 411.8 s]         8/15 kadr 00:28: Kucharz dodaje coś do garnka na naczyniu indukcyjnym. | czynności: wlewanie, mieszanie, dodawanie
+[ 444.4 s]         9/15 kadr 00:43: Kucharz dodaje składniki do garnka na niskim ogniu. | czynności: dodawanie składników do garnka
+[ 475.9 s]         10/15 kadr 00:44: Kucharz w kuchni dodaje składnik do garnka. | czynności: dodawanie, wyciąganie, przygotowywanie
+[ 513.1 s]         11/15 kadr 00:48: Osoba mieszająca zimny potrawę w garnku. | czynności: mieszanie, wyciąganie, wstrzymanie
+[ 545.4 s]         12/15 kadr 00:50: Kucharz trzyma ziemniaki w garnku. | czynności: trzymanie garnka, podnoszenie ziemniaków
+[ 580.5 s]         13/15 kadr 00:54: Kucharz smażi ziemniaki w garnku. | czynności: smażenie, podnoszenie ciężaru
+[ 614.7 s]         14/15 kadr 00:55: Ręka wyciąga z miski z papierem ziemniaki. | czynności: wyciąganie, wyciąganie z miski
+[ 620.1 s]         15/15 kadr 00:56: Zdjęcie przedstawia wypuszczanie frytek na talerz. | czynności: wypuszczanie frytek
+[ 620.1 s]         opis kadrów: 534.9 s, 35.7 s/kadr, równolegle ~2.0× (2 zapytania naraz)
+[ 620.1 s]         model tekstowy wczytuje się w tle, w czasie poprawki mowy…
+[ 620.1 s]         poprawki z napisów na ekranie: Drain → Dust (00:32), Steering → Stirring (00:47), chocolate → salt (00:55)
+[ 620.1 s]         mowa: 44 segmentów, język: en (faster-whisper:large-v3-turbo:cuda)
+[ 630.5 s]         model tekstowy tylko w 0% na karcie (obok był Whisper) — wczytuję ponownie
+[ 633.7 s]   [4/4] streszczenie (ollama:gemma3:4b)…
+[ 633.7 s]         tłumaczenie transkrypcji: en → pl (44 segmentów)…
+[ 641.3 s]         kroki z linii mowy: 44 linii, 2 części (2 naraz)
+[ 709.1 s]         kroki: 22, wyjaśnienia: 4, składniki: 7
+[ 762.2 s]         tłumaczenie na polski gotowe (128.6 s)
+[ 869.6 s]         usunięto 1 cytat(y), których nie ma w transkrypcji
