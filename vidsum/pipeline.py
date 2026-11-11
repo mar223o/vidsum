@@ -759,7 +759,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 if bad:
                     log(f"        usunięto {bad} cytat(y), których nie ma w transkrypcji")
                 from .summary import tidy
-                tidy(summary_data, info.duration)
+                # długi film: więcej rozdziałów i cytatów (0.12.0; do 0.11.9 zawsze najwyżej 6 i 4)
+                tidy(summary_data, info.duration, max_quotes=4 if info.duration < 600 else 8,
+                     max_chapters=max(6, min(12, round(info.duration / 300))))
             summary_md = to_markdown(summary_data) if summary_data else (raw or None)
             summary_engine = text_name
             if not summary_data:

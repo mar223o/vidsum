@@ -563,6 +563,8 @@ def test_staged_summary_merges_facts_and_chunks():
 
         def complete(self, prompt, as_json=False):
             self.prompts.append(prompt)
+            if prompt.startswith("Fragment transkrypcji"):                       # typ ustalany raz (0.12.0)
+                return json.dumps({"typ": "przepis"})
             if "JEDNĄ czynność" in prompt:                                       # kontrola liczb
                 n = prompt.split("zawiera liczbę ")[1].split()[0]
                 return json.dumps({"tekst": f"zrób {n} razy"})

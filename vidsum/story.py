@@ -267,7 +267,7 @@ def story_summary(engine, lines: list[dict], typ: str, meta_line: str, duration:
     p["najwazniejsze"] = hl
     p["rozdzialy"] = [{k: v for k, v in c.items() if k != "reklama"} for c in chapters]
     p["fakty"] = facts
-    p["cytaty"] = _spread(quotes, 4)
+    p["cytaty"] = _spread(quotes, 4 if duration < 600 else 8)
     p["momenty"] = [{"t": f["t"], "tekst": f["tekst"]} for f in _spread(facts, 8)]
     p["reklamy"] = [{k: v for k, v in a.items() if k != "linie"} for a in ads]
     return p
