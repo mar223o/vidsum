@@ -1252,10 +1252,10 @@ def test_quotes_get_exact_text_and_time_from_transcript():
                     {"t": 5, "tekst": "This is it. This is the perfect French fry."},
                     {"t": 1, "tekst": "Fry them in honey for ten minutes."}]}
     assert verify_quotes(d, segs) == 1                                    # zmyślony (miód) usunięty
-    assert [(q["t"], q["tekst"]) for q in d["cytaty"]] == [
-        (34.13, "This is going to add a beautiful crispy layer."),        # dokładny tekst i czas, bez duplikatu
-        (0.0, "This is it. This is the perfect French fry.")]             # bez doklejania następnego zdania
-    assert d["cytaty"][0]["tlumaczenie"] == "To doda…"
+    assert [(q["t"], q["tekst"]) for q in d["cytaty"]] == [          # 0.11.7: po kolei w czasie
+        (0.0, "This is it. This is the perfect French fry."),             # bez doklejania następnego zdania
+        (34.13, "This is going to add a beautiful crispy layer.")]        # dokładny tekst i czas, bez duplikatu
+    assert d["cytaty"][1]["tlumaczenie"] == "To doda…"
 
 
 def test_false_missing_claims_are_removed():
@@ -1268,7 +1268,7 @@ def test_false_missing_claims_are_removed():
          "czego_nie_wiadomo": ["Nie podano temperatury oleju.", "Czy smażyć w wysokiej temperaturze oleju (190°C) dłużej.",
                                "Nie podano temperatury, czasu ani ilości."]}
     assert drop_false_missing(d) == 3
-    assert d["szczera_ocena"] == ("Dobry przepis. Jednak brakuje informacji o czasie smażenia, proporcjach składników. "
+    assert d["szczera_ocena"] == ("Dobry przepis. Jednak brakuje informacji o czasie smażenia i proporcjach składników. "
                                   "Film skupia się na technice.")
     assert d["czego_nie_wiadomo"] == ["Czy smażyć w wysokiej temperaturze oleju (190°C) dłużej.",   # cytuje liczbę
                                       "Nie podano czasu ani ilości."]
@@ -1690,3 +1690,52 @@ def test_variety_alone_becomes_potatoes():
     lines = [{"n": 1, "t": 4.8, "tekst": "Start with agria potatoes.", "pl": "", "ekran": ""}]
     g = grounded_steps(E(), lines, "przepis", "")
     assert [x["nazwa"] for x in g["skladniki"]] == ["ziemniaki agria"]
+
+
+def test_measured_0115_runs_najszybciej_and_zawsze():
+    """Przebiegi 0.11.5 z 17:36 (najszybciej, 1:09) i 17:38 (zawsze, 1:19): rzeczy, których 0.11.6 jeszcze nie łapał."""
+    from vidsum.summary import _drop_item, drop_false_missing, fix_terms
+    x = {"co_masz_zrobic": {"kroki": [{"tekst": "Rozgrzej olej do 190 stopni."}], "skladniki": []},
+         "szczera_ocena": "Jednak brakuje w nim informacji o czasie smażenia, proporcjach składników oraz dokładnej "
+                          "temperaturze oleju. Dodatkowo, film skupia się na technice.",
+         "czego_nie_wiadomo": ["Nie wiadomo, jaki był dokładny czas gotowania ziemniaków w wodzie z sodą oczyszczoną oraz "
+                               "temperatura oleju podczas ostatecznego smażenia. Nie ma informacji o ilości tłuszczu."]}
+    assert drop_false_missing(x) == 2
+    assert x["szczera_ocena"].startswith("Jednak brakuje w nim informacji o czasie smażenia i proporcjach składników.")
+    assert x["czego_nie_wiadomo"][0].startswith("Nie wiadomo, jaki był dokładny czas gotowania ziemniaków w wodzie "
+                                                "z sodą oczyszczoną. Nie ma")
+    # przecinek w innym miejscu zdania nie zmienia się w „i”
+    assert _drop_item("Film jest dobry, ale brakuje temperatury oleju oraz czasu.",
+                      r"czas\w*") == "Film jest dobry, ale brakuje temperatury oleju."
+    assert fix_terms("To jest to. To idealna frytki.", "This is the perfect French fry.") == "To jest to. To idealna frytka."
+    assert fix_terms("Wypuść nasze frytki.", "We're going to drop in our fries.") == "Wrzuć frytki."
+    assert fix_terms("Wypuść ptaka.", "Let the bird go.") == "Wypuść ptaka."
+    assert "miękkie frytki, które łamią się, ale nie pękają" in fix_terms(
+        "aby uzyskać miękkie i pękające frytki bez łamania.", "They should break without snapping.")
+
+
+def test_quotes_sorted_and_equipment_polish():
+    from vidsum.summary import _EQUIP_EN, grounded_steps
+
+    class E:
+        model = "atrapa"
+
+        def complete(self, prompt, as_json=False, **kw):
+            if '"sprzet"' in prompt:
+                return json.dumps({"składniki": [], "sprzet": ["pot", "taca"]})
+            return json.dumps({"1": "Rozgrzej olej w garnku."})
+    g = grounded_steps(E(), [{"n": 1, "t": 38.9, "tekst": "Heat oil in a pot.", "pl": "Rozgrzej olej w garnku.",
+                              "ekran": ""}], "przepis", "")
+    assert g["sprzet"] == ["garnek"] and _EQUIP_EN["pot"] == "garnek"
+
+
+def test_verify_quotes_sorted_by_time():
+    from vidsum.summary import verify_quotes
+    d = json.loads((DATA / "frytki_0114" / "analiza.json").read_text(encoding="utf-8"))
+    segs = d["transkrypcja"]["segmenty"]
+    s = {"cytaty": [{"t": 5, "tekst": "This is it. This is the perfect French fry.", "tlumaczenie": ""},
+                    {"t": 6, "tekst": "Start with agria potatoes.", "tlumaczenie": ""},
+                    {"t": 12, "tekst": "The secret to super crispy fries.", "tlumaczenie": ""}]}
+    verify_quotes(s, segs)
+    ts = [q["t"] for q in s["cytaty"]]
+    assert ts == sorted(ts) and len(ts) == 3

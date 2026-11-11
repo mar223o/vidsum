@@ -785,6 +785,8 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
      [(r"\busuń (je|go|ją|frytki|ziemniaki)\b", r"wyjmij \1")]),
     # 0.11.1 (pomiar 0.11.0): „break without snapping” = mają się łamać, a nie pękać; model odwracał sens
     (r"break without snapping", None, [(r"\b(powinny |mają |muszą )?pękać,? (?:ale )?bez łamania\b", r"\1łamać się, ale nie pękać"),
+                                       # 0.11.7 (pomiar 0.11.5, Najważniejsze): „miękkie i pękające frytki bez łamania”
+                                       (r"\bmiękkie i pękające (frytki|ziemniaki) bez łamania\b", r"miękkie \1, które łamią się, ale nie pękają"),
                                        (r"\b(powinny |mają )?się łamać,? bez pękając\w*", r"\1łamać się, ale nie pękać"),
                                        (r"\b(powinny |mają )?łamać się,? bez pękając\w*", r"\1łamać się, ale nie pękać")]),
     # pomiar 0.11.1: „solą maldon” (nazwa własna), „piękna chrupiącą warstwę”, „Połóż na tacę”
@@ -803,13 +805,15 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
     # pomiar 0.11.4 (tłumaczenie transkrypcji i cytatów): „idealny fryk z ziemniaków”, „To idealna frytki francuskie”,
     # „idealny frytek”, „idealny fry francuski”, „idealny fryz” — w oryginale „the perfect French fry” (jedna frytka)
     (r"perfect (?:french )?fry\b", None,
-     [(r"\bidealn\w* (?:fryk\w*|fryz\w*|frytek\b|fry\b)(?: francusk\w*| z ziemniaków)?|\bidealna frytki francusk\w*", "idealna frytka")]),
+     [(r"\bidealn\w* (?:fryk\w*|fryz\w*|frytek\b|fry\b)(?: francusk\w*| z ziemniaków)?|\bidealna frytki\b(?: francusk\w*)?", "idealna frytka")]),
     # pomiar 0.11.5: „Finish with a sprinkle of maldon salt” → model „posypaniem miodnym solą”, a w streszczeniu
     # „posypywane miodem i solą Maldon” — miodu w filmie nie ma (zmyślenie z podobieństwa słów)
     (r"maldon", r"honey|\bmiód|\bmiod", [(r"\bmiodem i (?=sol)", ""), (r"\bmiod\w* (?=sol)", "")]),
     # „Heat oil in a pot” → „Rozgrzej olej na patelni”; „Bring a pot of water to the boil” → „Zagotuj garnek wody”
     (r"\bpot\b", r"\bpan\b|skillet|\bwok\b", [(r"\bna patelni\b", "w garnku"), (r"\bna patelnię\b", "do garnka"),
                                                (r"\bpatelni[aęi]\b", "garnek")]),
+    # „We're going to drop in our fries” → „Wypuść nasze frytki” (pomiar 0.11.5, tłumaczenie transkrypcji)
+    (r"\bdrop (?:in )?(?:our |the )?fries|\bdrop them in", None, [(r"\bwypuść (?:nasze |te )?frytki\b", "wrzuć frytki")]),
     (r"\bpot of water\b", None, [(r"\b(zagotuj|zagotować) garnek wody\b", r"\1 wodę w garnku")]),
     # „Dust lightly with potato starch” → „Odcedź lekko z mąki ziemniaczanej” (drain ≠ dust)
     (r"\bdust\w* (?:\w+ )?lightly\b|\blightly dust", None,
@@ -1195,12 +1199,20 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
     out_equip = []
     for x in _lst(ingr_raw.get("sprzet") or ingr_raw.get("sprzęt") or ingr_raw.get("equipment")):
         name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
+        name = _EQUIP_EN.get(name.strip().lower(), name)        # 0.11.7: model zostawił „pot” po angielsku
         if name and _stems(name) & _stems(spoken_pl) and not any(_same_step(name, o) for o in out_equip):
             out_equip.append(name)
     return {"kroki": steps, "wyjasnienia": merge_notes(notes), "skladniki": out_ingr, "sprzet": out_equip}
 
 
 _BASE = r"^(ziemniak\w*|pomidor\w*|jabł\w*|cebul\w*|papryk\w*|mąk\w*|ryż\w*)$"
+
+
+_EQUIP_EN = {"pot": "garnek", "pan": "patelnia", "frying pan": "patelnia", "tray": "taca", "baking tray": "blacha",
+             "bowl": "miska", "knife": "nóż", "cutting board": "deska do krojenia", "chopping board": "deska do krojenia",
+             "sieve": "sito", "spider": "cedzak", "strainer": "cedzak", "whisk": "trzepaczka", "spatula": "łopatka",
+             "oven": "piekarnik", "fridge": "lodówka", "freezer": "zamrażarka", "colander": "durszlak",
+             "paper towel": "ręcznik papierowy", "thermometer": "termometr", "blender": "blender"}
 
 
 def _merge_variety(ingr: list[dict]) -> list[dict]:
@@ -1595,9 +1607,19 @@ _HAVE = {
 
 def _drop_item(sent: str, item: str) -> str | None:
     """Usuwa jedną pozycję z wyliczenia („…o czasie, proporcjach oraz temperaturze oleju.”). None = zdanie puste."""
-    m = re.search(_SEP + item + r"(?=[\s.,;:)]|$)", sent, re.I)
+    # 0.11.7: z pozycją znika jej dopowiedzenie („oraz temperatura oleju podczas ostatecznego smażenia”), a gdy była
+    # ostatnia po „oraz/i”, przecinek przed poprzednią pozycją zamienia się w „i” (pomiar 0.11.5: „…o czasie smażenia,
+    # proporcjach składników.” i „…z sodą oczyszczoną podczas ostatecznego smażenia.”)
+    m = re.search(_SEP + item + r"(?:\s+(?:podczas|przy|w czasie|w trakcie)\s+[^,.;:!?]+)?(?=[\s.,;:)]|$)", sent, re.I)
     if m:
-        return sent[:m.start()] + sent[m.end():]
+        head, tail = sent[:m.start()], sent[m.end():]
+        if re.match(r"\s*[.!?]?\s*$", tail) and not re.match(r"\s*,", m.group(0)):
+            start = max((x.end() for x in re.finditer(r"\bo\s+", head)), default=-1)
+            if start >= 0:
+                k = head.rfind(",")
+                if k > start:
+                    head = head[:k] + " i" + head[k + 1:]
+        return head + tail
     m = re.search(r"\bo\s+" + item + "(" + _SEP + r")?", sent, re.I)
     if not m:
         m = re.search(r"(?<=\s)" + item + _SEP, sent, re.I)       # „Nie podano temperatury, czasu ani ilości.”
@@ -1693,7 +1715,7 @@ def verify_quotes(summary: dict, segments: list[dict]) -> int:
         if any(k["tekst"] == q["tekst"] for k in kept):     # dwa „cytaty” tego samego zdania → jeden
             continue
         kept.append(q)
-    summary["cytaty"] = kept
+    summary["cytaty"] = sorted(kept, key=lambda q: q.get("t", 0))   # 0.11.7: po kolei (pomiar 0.11.5: 00:00, 00:05, 00:03)
     return removed
 
 
