@@ -1756,3 +1756,20 @@ def test_chat_moment_block_and_marker_rules():
     assert p.index("MOMENT 00:47") < p.index("TRANSCRIPT:")
     p2 = build_chat_prompt(a, "czym zastąpić tłuszcz z kaczki?", [])
     assert "MOMENT 00:" not in p2 and "only an\n   addition" in p2 and "{" not in p2.split("VIDEO:")[0]
+
+
+def test_chat_moment_direct_answer_and_marker_strip():
+    """0.11.8 (pomiar 0.11.7): „co robi w 0:47?” — najpierw mowa z transkrypcji, potem opis kadru jako automatyczny;
+    „Wniosek (nie pada wprost w filmie): W filmie autor…” — znacznik przed zdaniem z filmu znika."""
+    from vidsum.summary import answer_moment, check_chat_answer
+    a = json.loads((DATA / "frytki_0114" / "analiza.json").read_text(encoding="utf-8"))
+    ans = answer_moment(a, "co robi w 0:47?")
+    i_say, i_frame = ans.index("„Stirring constantly for ruffled edges.”"), ans.index("Na kadrze 00:47")
+    assert ans.startswith("W 00:47 słychać [mowa]:") and i_say < ans.index("Zaraz potem") < i_frame
+    assert "(Mieszając stale, aby uzyskać faliste brzegi.)" in ans and "może być nieprecyzyjny" in ans
+    assert answer_moment(a, "ile stopni ma olej w 0:52?") is None              # inne pytanie z czasem → model
+    assert answer_moment(a, "czym zastąpić tłuszcz z kaczki?") is None
+    assert answer_moment(a, "what happens at 0:47?").startswith("At 00:47 you hear [speech]:")
+    out = check_chat_answer("Wniosek (nie pada wprost w filmie): W filmie autor używa tłuszczu z kaczki dla smaku. "
+                            "Wiedza ogólna (nie z filmu): Można go zastąpić olejem.", a)
+    assert out.startswith("W filmie autor używa") and "Wiedza ogólna (nie z filmu): Można go zastąpić" in out

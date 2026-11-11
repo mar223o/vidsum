@@ -83,7 +83,9 @@ def main(argv: list[str] | None = None) -> int:
             eng = Ollama(args[3] if len(args) > 3 else DEFAULT_TEXT_MODEL)
             eng.ensure(lambda m: None)
             t0 = _time.time()
-            ans = check_chat_answer(eng.complete(build_chat_prompt(analysis, args[2], [])).strip(), analysis)
+            from .summary import answer_moment
+            ans = answer_moment(analysis, args[2]) or check_chat_answer(
+                eng.complete(build_chat_prompt(analysis, args[2], [])).strip(), analysis)
         except (OSError, ValueError, LLMError) as e:
             print(f"✖ {e}", file=sys.stderr)
             return 1
