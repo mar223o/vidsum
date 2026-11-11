@@ -1,0 +1,189 @@
+{
+"zrodlo": {
+"tytul": "Szybki przepis na wysokobiałkowe śniadanie: tortilla z jajkiem 🍳",
+"autor": "Michał Wrzosek",
+"dlugosc_s": 13.97,
+"opis": null
+},
+"jezyk": "pl",
+"segmenty": [
+{
+"start": 0.0,
+"end": 11.8,
+"text": "Czy wiesz, że jak wbijesz do miski 3 jajka, dodasz sól, pieprz, wymieszasz, wrzucisz na rozgrzaną patelnię, na to położysz wrapa, po chwili zdejmiesz z patelni i dodasz szynkę, sałaty, mozzarelle i pomidora, to zrobisz"
+},
+{
+"start": 11.8,
+"end": 13.8,
+"text": "pyszne, wysokobiałkowe śniadanie?"
+}
+],
+"pl": null,
+"napisy_ekranowe": [
+{
+"start": 0.0,
+"end": 0.5,
+"text": "Czy wiesz, ze",
+"score": 0.921
+},
+{
+"start": 1.0,
+"end": 1.5,
+"text": "wbijesz",
+"score": 0.875
+},
+{
+"start": 1.5,
+"end": 2.0,
+"text": "do miski",
+"score": 0.889
+},
+{
+"start": 2.0,
+"end": 2.5,
+"text": "3 jajka",
+"score": 0.874
+},
+{
+"start": 3.0,
+"end": 3.5,
+"text": "pieprz",
+"score": 0.856
+},
+{
+"start": 3.5,
+"end": 4.0,
+"text": "wymieszasz",
+"score": 0.909
+},
+{
+"start": 4.0,
+"end": 4.5,
+"text": "wrzucisz",
+"score": 0.881
+},
+{
+"start": 4.5,
+"end": 5.5,
+"text": "na rozgrzana",
+"score": 0.9224955714665927
+},
+{
+"start": 5.5,
+"end": 6.0,
+"text": "patelnie",
+"score": 0.88
+},
+{
+"start": 6.0,
+"end": 6.5,
+"text": "na to položysz",
+"score": 0.872
+},
+{
+"start": 6.5,
+"end": 7.0,
+"text": "na to potožysz",
+"score": 0.901
+},
+{
+"start": 7.0,
+"end": 7.5,
+"text": "Po chwili",
+"score": 0.884
+},
+{
+"start": 7.5,
+"end": 8.0,
+"text": "zdejmiesz",
+"score": 0.9
+},
+{
+"start": 8.0,
+"end": 8.5,
+"text": "z patelni",
+"score": 0.891
+},
+{
+"start": 8.5,
+"end": 9.0,
+"text": "dodasz",
+"score": 0.857
+},
+{
+"start": 10.0,
+"end": 10.5,
+"text": "mozzarelie",
+"score": 0.86
+},
+{
+"start": 11.0,
+"end": 11.5,
+"text": "i pomidora",
+"score": 0.895
+},
+{
+"start": 11.5,
+"end": 12.0,
+"text": "to zrobisz",
+"score": 0.909
+},
+{
+"start": 12.0,
+"end": 12.5,
+"text": "pyszne",
+"score": 0.857
+},
+{
+"start": 12.5,
+"end": 13.0,
+"text": "wysokobiatkowe",
+"score": 0.931
+},
+{
+"start": 13.0,
+"end": 14.0,
+"text": "śniadanie",
+"score": 0.8958525478839874
+}
+],
+"kadry": [
+{
+"t": 0.0,
+"scena": "Mężczyzna je bułkę z żółtym składnikiem."
+},
+{
+"t": 1.0,
+"scena": "Mężczyzna je jedzenie trzymane w rękach."
+},
+{
+"t": 3.0,
+"scena": "Kamery z bliska na jajka w misce z pieprzem."
+},
+{
+"t": 4.0,
+"scena": "Ręka mieszająca jajka w misce z wiską."
+},
+{
+"t": 6.0,
+"scena": "Ręce ustawiają tortilla na smażonej jajku w patelni."
+},
+{
+"t": 7.5,
+"scena": "Kawałek pomidora na desce do krojenia."
+},
+{
+"t": 9.0,
+"scena": "Ręka dodaje soli na jajko na desce."
+},
+{
+"t": 10.0,
+"scena": "Ręce układają składniki na jajku na desce."
+},
+{
+"t": 12.0,
+"scena": "Ręce składają składnik na jajku w tortilla."
+}
+],
+"wersja": "0.11.9"
+}

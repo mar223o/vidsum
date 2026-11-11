@@ -637,6 +637,13 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         if caption_fixes:
             log("        poprawki z napisów na ekranie: " + ", ".join(f"{x['bylo']} → {x['jest']} ({ts(x['t'])})"
                                                                for x in caption_fixes))
+    if tr.segments:
+        from .transcribe import split_long_segments
+        n0 = len(tr.segments)
+        tr.segments = split_long_segments(tr.segments)
+        if len(tr.segments) > n0:
+            log(f"        długie zdania podzielone po przecinkach: {n0} → {len(tr.segments)} linii")
+            _emit(opt, "transkrypcja", {"jezyk": tr.language, "segmenty": [asdict(x) for x in tr.segments]})
     if wav:
         wav.unlink(missing_ok=True)
     if info.has_audio and not tr.segments:
@@ -697,10 +704,14 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         t_tr = time.time()
         from .translate import translate_segments
         seg_dicts = [asdict(s) for s in tr.segments]
+        # słownik terminów piłkarskich, gdy film jest o piłce (pomiar 0.11.9: „juggle” → „gra zręcznościowa”, „foot” → „stop”)
+        from .summary import SPORT_TERMS, type_from_content
+        sport = type_from_content("", " ".join(x["text"] for x in seg_dicts) + " " + (src.title or "")) == "sport"
         for lang in targets:
             log(f"        tłumaczenie transkrypcji: {tr.language} → {lang} ({len(seg_dicts)} segmentów)…")
             try:
-                segs, failed = translate_segments(text_engine, seg_dicts, tr.language, lang, log)
+                segs, failed = translate_segments(text_engine, seg_dicts, tr.language, lang, log,
+                                                  terms=SPORT_TERMS if sport and lang == "pl" else "")
             except LLMError as e:
                 gaps.append(f"Tłumaczenie na {name_pl(lang)} nie powstało: {e}")
                 continue
@@ -764,6 +775,14 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             log("        czekam na tłumaczenie…")
         tr_thread.join()
         timings["tekst_razem_s"] = round(time.time() - t_s, 1)
+    # fakty i cytaty po polsku z tłumaczenia TYCH SAMYCH linii transkrypcji (0.11.10) — nie z przeróbki modelu
+    pl_segs = (translations.get("pl") or {}).get("segmenty")
+    if summary_data and pl_segs:
+        from .story import localize
+        n_loc = localize(summary_data, [asdict(x) for x in tr.segments], pl_segs)
+        if n_loc:
+            log(f"        fakty i cytaty: {n_loc} pozycji po polsku z tłumaczenia linii")
+            summary_md = to_markdown(summary_data)
     if text_engine and isinstance(text_engine, Ollama):
         text_engine.unload()
     if vision_engine:
