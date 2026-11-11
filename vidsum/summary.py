@@ -266,7 +266,8 @@ Rules:
 11. Composition or nutrition (calories, protein, fat, what something contains) and substitutions ("can I use X instead"):
    the video almost never says it — start with "{general}", give a rough typical value or option and say it depends on
    the portion and the method; then one sentence on what the video actually uses.
-12. A question about a moment ("what happens at 0:45"): use the MOMENT block — first say what happens EXACTLY then,
+12. A question about a moment ("what happens at 0:45"): use the MOMENT block — first what is SAID exactly then (from
+   the transcript), then what the frame shows (as an automatic description); then
    then (if useful) what comes right after, each with its own mm:ss. Do not describe a later action as happening at that time.
 13. Markers ("{inference}", "{general}") go only before the sentence that is NOT from the video. Facts that the video
    says come first and have no marker. For a substitution, first check how the video uses the thing: if it is only an
@@ -339,8 +340,50 @@ def moment_block(question: str, segs: list[dict], frames: list[dict]) -> str:
     lines += [("- before: " if x.get("end", 0) < t else "- right after: ") + fmt(x) for x in near]
     fr = min(frames, key=lambda f: abs(f.get("t", 0) - t), default=None)
     if fr and abs(fr.get("t", 0) - t) <= 3 and (fr.get("vision") or {}).get("scena"):
-        lines.append(f"- frame {_mmss(fr['t'])} (may be imprecise): {fr['vision']['scena']}")
+        lines.append(f"- frame {_mmss(fr['t'])} (automatic image description, often wrong — mention it only AFTER the speech, "
+                     f"never as something said): {fr['vision']['scena']}")
     return "\n".join(lines)
+
+
+_WHAT_AT = re.compile(r"\b(co|what)\b.{0,25}\b(robi|robią|się dzieje|dzieje|mówi|słychać|widać|jest|happens?|does|is|says?|going on)\b", re.I)
+
+
+def answer_moment(analysis: dict, question: str) -> str | None:
+    """0.11.8: „co robi w 0:47?” — odpowiedź bez modelu: najpierw co MÓWI się w tej chwili (transkrypcja + tłumaczenie),
+    potem co zaraz po niej, na końcu opis kadru jako automatyczny. Pomiar 0.11.7: gemma wzięła „miesza zioła” z błędnego
+    opisu kadru i napisała „autor mówi”, choć w mowie jest „Stirring constantly for ruffled edges”."""
+    m = _ASK_TIME.search(question or "")
+    if not m or not _WHAT_AT.search(question):
+        return None
+    tr = analysis.get("transkrypcja") or {}
+    segs = tr.get("segmenty") or []
+    if not segs:
+        return None
+    t = int(m.group(1)) * 60 + int(m.group(2)) if m.group(1) else int(m.group(3))
+    lang = _guess_lang(question)
+    pl = next((v.get("segmenty") for k, v in (tr.get("tlumaczenia") or {}).items() if k == "pl"), None) or []
+    orig_pl = (tr.get("jezyk") or "") == "pl"
+
+    def say(i: int) -> str:
+        x = segs[i]
+        q = f"{_mmss(x.get('start', 0))} „{x.get('text', '').strip()}”"
+        if lang == "pl" and not orig_pl and i < len(pl) and pl[i].get("text"):
+            q += f" ({pl[i]['text'].strip()})"
+        return q
+    now = [i for i, x in enumerate(segs) if x.get("start", 0) - 0.3 <= t <= x.get("end", 0) + 0.3]
+    after = [i for i, x in enumerate(segs) if t + 0.3 < x.get("start", 0) <= t + 3.5 and i not in now][:3]
+    L = {"pl": ("W {ts} słychać [mowa]: ", "W {ts} nikt nie mówi [mowa].", "Zaraz potem: ",
+                "Na kadrze {ts} [obraz — opis automatyczny, może być nieprecyzyjny]: "),
+         "en": ("At {ts} you hear [speech]: ", "Nobody speaks at {ts} [speech].", "Right after: ",
+                "Frame {ts} [image — automatic description, may be imprecise]: ")}[lang]
+    ts = _mmss(t)
+    out = [L[0].format(ts=ts) + "; ".join(say(i) for i in now) if now else L[1].format(ts=ts)]
+    if after:
+        out.append(L[2] + "; ".join(say(i) for i in after))
+    fr = min(analysis.get("kadry") or [], key=lambda f: abs(f.get("t", 0) - t), default=None)
+    if fr and abs(fr.get("t", 0) - t) <= 3 and (fr.get("vision") or {}).get("scena"):
+        out.append(L[3].format(ts=_mmss(fr["t"])) + fr["vision"]["scena"])
+    return "\n\n".join(out)
 
 
 def build_chat_prompt(analysis: dict, question: str, history: list[dict]) -> str:
@@ -403,6 +446,10 @@ def _mmss(t) -> str:
 def check_chat_answer(answer: str, analysis: dict) -> str:
     """Odpowiedź czatu z liczbą z jednostką (minuty, stopnie, gramy…), której nie ma w filmie i która nie jest oznaczona
     jako wiedza ogólna → dopisek ostrzegawczy. Pomiar 0.9.0: „Gotowanie trwa około 20–25 minut” (w filmie nie pada)."""
+    # 0.11.8 (pomiar 0.11.7): „Wniosek (nie pada wprost w filmie): W filmie autor używa…” — zdanie jest z filmu,
+    # więc znacznik przed nim znika (zostaje przed zdaniami, które naprawdę z filmu nie są)
+    for mk in list(_INFER.values()) + list(_GENERAL.values()):
+        answer = re.sub(re.escape(mk) + r"\s*(?=(?:W filmie|W nagraniu|In the video|The video)\b)", "", answer)
     if any(g.split(" (")[0] in answer for g in _GENERAL.values()):
         return answer
     segs = (analysis.get("transkrypcja") or {}).get("segmenty") or []

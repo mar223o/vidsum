@@ -194,6 +194,13 @@ def test_chat_with_video(server, tmp_path, monkeypatch):
     assert "Kolorowe paski" in r["odpowiedz"] and len(r["historia"]) == 2
     _, hist = req(base, f"/api/zadania/{job['id']}/czat")
     assert hist[0]["rola"] == "user" and hist[1]["silnik"] == "claude-code" and len(hist) == 2
+    # 0.11.8: pytanie o chwilę („co robi w 0:01?”) — odpowiedź z transkrypcji, bez modelu (działa też bez Ollamy)
+    req(base, "/api/ustawienia", data=json.dumps({"streszczenie": "auto"}).encode(), method="POST")
+    import vidsum.summary as S
+    monkeypatch.setattr(S, "answer_moment", lambda a, q: "W 00:01 słychać [mowa]: 00:01 „Test.”" if "0:01" in q else None)
+    _, r = req(base, f"/api/zadania/{job['id']}/pytanie", data=json.dumps({"pytanie": "co robi w 0:01?"}).encode(),
+               method="POST")
+    assert r["odpowiedz"].startswith("W 00:01 słychać") and r["historia"][-1]["silnik"] == "transkrypcja"
 
 
 def test_fixed_port_persistent_token_single_instance(tmp_path):

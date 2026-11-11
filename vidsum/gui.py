@@ -51,6 +51,10 @@ def web_dir() -> Path:
 
 
 # ---------------- kolejka zadań ----------------
+
+class _Direct(Exception):
+    """Odpowiedź czatu złożona bez modelu (moment z transkrypcji)."""
+
 class Job:
     def __init__(self, jid: str, source: str, label: str, opt: Options, upload: Path | None):
         self.id, self.source, self.label, self.opt, self.upload = jid, source, label, opt, upload
@@ -632,7 +636,11 @@ def make_handler(app: App):
             hist_file = p.parent / "czat.json"
             history = json.loads(hist_file.read_text(encoding="utf-8")) if hist_file.is_file() else []
             prompt = build_chat_prompt(analysis, question, history)
+            from .summary import answer_moment
+            direct = answer_moment(analysis, question)      # „co robi w 0:47?” — z transkrypcji, bez modelu (0.11.8)
             try:
+                if direct:
+                    raise _Direct(direct)
                 # samodzielnie: lokalny model tekstowy; Claude tylko gdy użytkownik wybrał go w ustawieniach
                 if app.settings.get("streszczenie") == "claude":
                     eng, silnik = ClaudeCode(), "claude-code"
@@ -642,6 +650,8 @@ def make_handler(app: App):
                     silnik = f"ollama:{eng.model}"
                 from .summary import check_chat_answer
                 answer = check_chat_answer(eng.complete(prompt).strip(), analysis)
+            except _Direct as d:
+                answer, silnik = str(d), "transkrypcja"
             except Exception as e:
                 return self._json({"error": f"Nie udało się odpowiedzieć: {e}"}, 400)
             now = time.strftime("%Y-%m-%dT%H:%M:%S")
