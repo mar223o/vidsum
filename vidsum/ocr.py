@@ -224,6 +224,9 @@ def hotwords(lines: list[OcrLine], title: str | None = None, limit: int = 80) ->
     return " ".join(parts)
 
 
+_FILLERS = {"just", "then", "now", "so", "really", "very", "also", "simply", "gently", "quickly", "and"}
+
+
 def correct_from_captions(segments: list, lines: list, min_score: float = 0.85) -> list[dict]:
     """Poprawia w transkrypcji pojedyncze słowa, które napis na ekranie w TYM SAMYM momencie podaje inaczej.
 
@@ -249,8 +252,18 @@ def correct_from_captions(segments: list, lines: list, min_score: float = 0.85) 
             ops = difflib.SequenceMatcher(None, low, cap, autojunk=False).get_opcodes()
             equal = [(i1, i2) for tag, i1, i2, _, _ in ops if tag == "equal"]
             for k, (tag, i1, i2, j1, j2) in enumerate(ops):
-                if tag != "replace" or i2 - i1 != 1 or j2 - j1 != 1:
+                if tag != "replace" or j2 - j1 != 1 or i2 - i1 not in (1, 2):
                     continue
+                span = (i1, i2)
+                if i2 - i1 == 2:
+                    # pomiar 0.11.4: mowa „Drain just lightly with potato starch”, ekran „dust lightly with” — dwa słowa
+                    # mowy na jedno z ekranu; jedno z nich to wtrącenie (just, then, now…) i ono zostaje,
+                    # poprawiamy tylko drugie
+                    fill = [i for i in (i1, i1 + 1) if low[i] in _FILLERS]
+                    if len(fill) != 1:
+                        continue
+                    i1 = i1 + 1 if fill[0] == i1 else i1
+                    i2 = i1 + 1
                 if not (cap[j1].isalpha() and low[i1].isalpha()) or min(len(cap[j1]), len(low[i1])) < 3:
                     continue
                 # słowo musi paść, gdy napis jest na ekranie (czas słowa szacowany liniowo w zdaniu)
@@ -261,7 +274,7 @@ def correct_from_captions(segments: list, lines: list, min_score: float = 0.85) 
                 if any(low[i1] in (o.text or "").lower().split() for o in lines
                        if o is not ln and o.end >= seg.start - 3 and o.start <= seg.end + 3):
                     continue
-                near = sum(b - a for (a, b) in equal if b == i1 or a == i2)      # zgodne słowa tuż obok
+                near = sum(b - a for (a, b) in equal if b == span[0] or a == span[1])      # zgodne słowa tuż obok
                 if near < 2 or sum(b - a for a, b in equal) < 2:
                     continue
                 m = toks[i1]

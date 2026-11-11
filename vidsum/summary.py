@@ -744,7 +744,26 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
     (r"extra crunch", None, [(r"\bdodatkowy chrupkość\b", "dodatkowa chrupkość"), (r"\bdodatkowy chrupkości\b", "dodatkowej chrupkości")]),
     # temperatura smażenia → model: „w wyższym tempie (190°C)”
     (r"\d{3} ?(?:degrees|°)|\b1[4-9]0\b", None, [(r"\bw wyższym tempie(?= \(?\d)", "w wyższej temperaturze")]),
+    # pomiar 0.11.4 (tłumaczenie transkrypcji i cytatów): „idealny fryk z ziemniaków”, „To idealna frytki francuskie”,
+    # „idealny frytek”, „idealny fry francuski”, „idealny fryz” — w oryginale „the perfect French fry” (jedna frytka)
+    (r"perfect (?:french )?fry\b", None,
+     [(r"\bidealn\w* (?:(?:fryk\w*|fryz\w*|frytek\b|fry\b)(?: francusk\w*| z ziemniaków)?|frytki francusk\w*)", "idealna frytka")]),
+    # „Heat oil in a pot” → „Rozgrzej olej na patelni”; „Bring a pot of water to the boil” → „Zagotuj garnek wody”
+    (r"\bpot\b", r"\bpan\b|skillet|\bwok\b", [(r"\bna patelni\b", "w garnku"), (r"\bna patelnię\b", "do garnka"),
+                                               (r"\bpatelni[aęi]\b", "garnek")]),
+    (r"\bpot of water\b", None, [(r"\b(zagotuj|zagotować) garnek wody\b", r"\1 wodę w garnku")]),
+    # „Dust lightly with potato starch” → „Odcedź lekko z mąki ziemniaczanej” (drain ≠ dust)
+    (r"\bdust\w* (?:\w+ )?lightly\b|\blightly dust", None,
+     [(r"\bodcedź (?:je )?lekko (?:z |ze )?(mąk|skrobi)\w* ziemniaczan\w*", r"oprósz lekko \1ą ziemniaczaną"),
+      (r"\bmąk\w* ziemniaczan\w* do (?:odsączania|odcedzania)(?: frytek)?", "mąki ziemniaczanej do oprószenia frytek")]),
 ]
+
+# po poprawkach terminów: dubel z zamiany („technik parzenia oraz wstępnego smażenia” → „… wstępnego smażenia oraz
+# wstępnego smażenia”, pomiar 0.11.4) i „(wstępne smażenie)” w nawiasie tuż po tym samym („Podsmaż wstępnie (parowanie)”)
+_DUP = re.compile(r"\b((?:[\wąćęłńóśźż]+ ){1,2}[\wąćęłńóśźż]+)(?:,)? (?:oraz|i|a także) \1\b", re.I)
+_PAREN_SAME = re.compile(r"((?:wstępn\w+ \w*smaż\w*|\w*smaż\w* wstępn\w+))(\w*) \((?:wstępne smażenie|wstępnego smażenia|"
+                         r"wstępnie usmażone)\)", re.I)
+_DOUBLE_WORD = re.compile(r"\b(i|a|w|z|na|do|że|to)\s+\1\b", re.I)          # „I i sól” (tłumaczenie transkrypcji)
 
 
 _HOMO = str.maketrans("аеорсухыіАЕОРСХ", "aeorcuxyiAEOPCX")   # cyrylica w polskim tekście (pomiar: „sodы”)
@@ -756,6 +775,7 @@ def fix_terms(text: str, source: str) -> str:
     if re.search(r"[a-ząćęłńóśźż][\u0400-\u04ff]|[\u0400-\u04ff][a-ząćęłńóśźż]", text, re.I):
         text = text.translate(_HOMO)
     src = source.lower()
+    before = text
     for need, unless, subs in _TERM_FIXES:
         if re.search(need, src) and not (unless and re.search(unless, src)):
             for a, b in subs:
@@ -763,6 +783,10 @@ def fix_terms(text: str, source: str) -> str:
                     out = m.expand(b)
                     return out[:1].upper() + out[1:] if m.group(0)[:1].isupper() else out
                 text = re.sub(a, rep, text, flags=re.I)
+    if text != before:                       # dubel tylko tam, gdzie go mogła zrobić nasza zamiana
+        text = _DUP.sub(r"\1", text)
+        text = _PAREN_SAME.sub(r"\1\2", text)
+    text = _DOUBLE_WORD.sub(lambda m: m.group(0).split()[0], text)
     return text
 
 
@@ -875,6 +899,10 @@ _EN_IMP = re.compile(r"^(peel|cut|trim|chop|slice|dice|add|heat|fry|boil|bake|co
 
 _ADVERBS = {"ponownie", "następnie", "potem", "teraz", "lekko", "dokładnie", "delikatnie", "szybko", "powoli", "najpierw",
             "dalej", "jeszcze", "zawsze", "stale", "ostrożnie", "dobrze", "mocno", "krótko", "na", "w", "do", "po"}
+
+
+_ALT = re.compile(r"^(?:or|either)\b", re.I)
+_COND_FWD = re.compile(r"^(?:and |then |so )?(?:once|as soon as|when)\b", re.I)
 
 
 def _continues(orig: str) -> bool:
@@ -1007,18 +1035,50 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
                 out[n] = pl if pl and ok(n, pl) else _SHORT_IMP.get(_short_cmd(by_n[n]["tekst"]), "")
 
     steps, notes = [], []
+    pending = None          # warunek „And once it reaches 140 degrees.” czeka na następne polecenie („Wrzuć frytki.”)
+
+    def attach_back(p) -> None:
+        """Warunek bez następnego polecenia — jak dawniej, na koniec poprzedniego kroku."""
+        pn, ptxt, pzr = p
+        if steps and pn - steps[-1]["z"][-1] <= 3:
+            steps[-1]["tekst"] = steps[-1]["tekst"].rstrip(".!") + ", " + ptxt[:1].lower() + ptxt[1:]
+            steps[-1]["z"].append(pn)
+        else:
+            notes.append({"z": [pn], "t": by_n[pn]["t"], "tekst": ptxt[:1].upper() + ptxt[1:], "zrodlo": pzr})
+
     for n in sorted(out):
         txt = out[n].strip()
         if not txt or _FILLER.match(by_n[n]["tekst"].strip()):
             continue
         ln = by_n[n]
         zr = "mowa+obraz" if ln["ekran"] else "mowa"
+        if pending and n - pending[0] > 3:
+            attach_back(pending)
+            pending = None
         m = re.match(r"^wyja\w*:\s*(.+)", txt, flags=re.I)
         if m:
             notes.append({"z": [n], "t": ln["t"], "tekst": m.group(1).strip(), "zrodlo": zr})
             continue
+        # „Or blanch them.” — alternatywa; „albo” zostaje (pomiar 0.11.4: „Podsmaż wstępnie, blanszuj w oleju”)
+        alt = bool(_ALT.match(ln["tekst"].strip())) or bool(re.match(r"^(albo|lub)\b", txt, re.I))
         txt = re.sub(r"^(I|A|Oraz|Albo|Lub)\s+(?=\w)", lambda m: "" if len(txt) > 12 else m.group(0), txt)
         txt = txt[:1].upper() + txt[1:] if not _continues(ln["tekst"]) else txt
+        # „And once it reaches around about 140 degrees.” — warunek do NASTĘPNEGO polecenia (pomiar 0.11.4:
+        # trafiał do „Rozgrzej olej w garnku, gdy osiągnie 140 stopni”, a w filmie: gdy osiągnie 140 → wrzuć frytki)
+        if _COND_FWD.match(ln["tekst"].strip()) and "," not in ln["tekst"]:
+            if pending:
+                attach_back(pending)
+            pending = (n, re.sub(r"^(i|a|oraz)\s+", "", txt, flags=re.I).rstrip("."), zr)
+            continue
+        if pending and _imperative(txt) and not _explains(ln["tekst"]):
+            pn, ptxt, pzr = pending
+            pending = None
+            body = re.sub(r"^(I|A|Oraz)\s+", "", txt)
+            sub = re.match(r"^(gdy|kiedy|jak|jeśli|po|gdy tylko|jak tylko)\b", ptxt, re.I)   # „Gdy osiągnie…, wrzuć”
+            steps.append({"z": [pn, n], "t": by_n[pn]["t"], "tekst": ptxt[:1].upper() + ptxt[1:]
+                          + (", " if sub else ", potem ") + body[:1].lower() + body[1:], "zrodlo": "mowa+obraz" if "obraz" in pzr + zr else "mowa",
+                          "etap": ""})
+            continue
         prev = steps[-1] if steps else None
         # między poprzednim krokiem a tą linią są tylko wyjaśnienia / puste linie — to nadal ciąg dalszy
         between = range(prev["z"][-1] + 1, n) if prev else range(0)
@@ -1028,7 +1088,8 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         if adjacent and n - prev["z"][-1] <= 3 and (txt[:1].islower() or _same_step(txt, prev["tekst"])
                                                      or _continues(ln["tekst"])):
             if not _same_step(txt, prev["tekst"]):
-                prev["tekst"] = prev["tekst"].rstrip(".!") + ", " + txt[:1].lower() + txt[1:]
+                join = " albo " if alt and not re.match(r"^(albo|lub)\b", txt, re.I) else ", "
+                prev["tekst"] = prev["tekst"].rstrip(".!") + join + txt[:1].lower() + txt[1:]
             prev["z"].append(n)
             prev["zrodlo"] = "mowa+obraz" if prev["zrodlo"] == "mowa+obraz" or ln["ekran"] else "mowa"
             continue
@@ -1038,6 +1099,8 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
             notes.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr})
             continue
         steps.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr, "etap": ""})
+    if pending:
+        attach_back(pending)
 
     # składniki: nazwa musi pojawić się w mowie (po polsku w tłumaczeniu albo w oryginale); ilość tylko z liczbą z mowy
     spoken = " ".join(ln["tekst"] + " " + ln.get("pl", "") + " " + " ".join(ln["ekran"]) for ln in lines)
@@ -1055,6 +1118,15 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         seen.append(name)
         out_ingr.append({"nazwa": name, "ilosc": q, "zrodlo": "mowa"})
     out_ingr = _merge_variety(out_ingr)
+    # tłuszcz do smażenia, o którym mowa w krokach, a którego model nie wpisał (pomiar 0.11.4: „Heat oil in a pot”,
+    # „Heat the oil up to 190” — w składnikach brak oleju); tylko gdy pada w mowie, ilość: brak danych
+    en = " ".join(ln["tekst"] for ln in lines).lower()
+    for pat, name, has in ((r"\bolive oil\b|\boliw\w*", "oliwa", r"oliw"),
+                           (r"\b(?:heat|hot|the|some|frying|vegetable|sunflower|neutral|in|of) oil\b|\bolej\w*", "olej", r"olej|oil")):
+        if re.search(pat, en) and not any(re.search(has, x["nazwa"], re.I) for x in out_ingr):
+            if name == "olej" and any(re.search(r"oliw", x["nazwa"], re.I) for x in out_ingr):
+                continue
+            out_ingr.append({"nazwa": name, "ilosc": "brak danych", "zrodlo": "mowa"})
     out_equip = []
     for x in _lst(ingr_raw.get("sprzet") or ingr_raw.get("sprzęt") or ingr_raw.get("equipment")):
         name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)

@@ -1,0 +1,3479 @@
+{
+  "schema": "vidsum.analysis/1",
+  "narzedzie": {
+    "nazwa": "VidSum",
+    "wersja": "0.11.4"
+  },
+  "utworzono": "2026-11-11T00:17:39+01:00",
+  "zrodlo": {
+    "rodzaj": "link",
+    "wejscie": "https://youtube.com/shorts/BwNqsHb7YQU?si=iGSKyheAUnxKcw5z",
+    "url": "https://www.youtube.com/watch?v=BwNqsHb7YQU",
+    "tytul": "The Perfect French Fry",
+    "autor": "Fallow",
+    "plik": "pobrane_BwNqsHb7YQU.mp4",
+    "sha256": "8aa909db8de62e2dca1dcc2d870ddc71797aaeb451b0824b33e7f7764a6a0356",
+    "dlugosc_s": 58.31,
+    "szerokosc": 360,
+    "wysokosc": 640,
+    "audio": true,
+    "film": "film.mp4",
+    "opis": null,
+    "rozdzialy_autora": null,
+    "obraz_bez_pasow": null
+  },
+  "ustawienia": {
+    "whisper": "faster-whisper:large-v3-turbo:cuda",
+    "jezyk": "auto",
+    "tlumaczenia": [
+      "pl"
+    ],
+    "obraz": "ollama:qwen3-vl:4b-instruct",
+    "streszczenie": "ollama:gemma3:4b",
+    "limit_kadrow": 15,
+    "pokrycie_co_s": 5.55,
+    "uwagi_techniczne": []
+  },
+  "transkrypcja": {
+    "jezyk": "en",
+    "jezyk_nazwa": "angielski",
+    "segmenty": [
+      {
+        "start": 0.0,
+        "end": 0.54,
+        "text": "This is it."
+      },
+      {
+        "start": 1.09,
+        "end": 2.63,
+        "text": "This is the perfect French fry."
+      },
+      {
+        "start": 2.81,
+        "end": 4.57,
+        "text": "The secret to super crispy fries."
+      },
+      {
+        "start": 4.77,
+        "end": 5.81,
+        "text": "Start with agria potatoes."
+      },
+      {
+        "start": 6.13,
+        "end": 7.53,
+        "text": "This particular potato variety."
+      },
+      {
+        "start": 7.75,
+        "end": 9.49,
+        "text": "Is a very high starch content."
+      },
+      {
+        "start": 9.71,
+        "end": 10.87,
+        "text": "And a very low water content."
+      },
+      {
+        "start": 11.09,
+        "end": 12.35,
+        "text": "Perfect for crispiness."
+      },
+      {
+        "start": 12.57,
+        "end": 12.85,
+        "text": "Peel."
+      },
+      {
+        "start": 12.97,
+        "end": 13.91,
+        "text": "Trim the ends and sides."
+      },
+      {
+        "start": 14.05,
+        "end": 15.17,
+        "text": "And cut them off lengthways."
+      },
+      {
+        "start": 15.39,
+        "end": 16.19,
+        "text": "Into uniform fries."
+      },
+      {
+        "start": 16.47,
+        "end": 17.79,
+        "text": "Roughly one centimetre square."
+      },
+      {
+        "start": 18.13,
+        "end": 19.11,
+        "text": "Soak them in cold water."
+      },
+      {
+        "start": 19.23,
+        "end": 20.49,
+        "text": "To remove any excess starch."
+      },
+      {
+        "start": 20.71,
+        "end": 21.89,
+        "text": "And wash them a few times."
+      },
+      {
+        "start": 22.05,
+        "end": 23.63,
+        "text": "Until the water runs perfectly clear."
+      },
+      {
+        "start": 23.79,
+        "end": 24.93,
+        "text": "Bring a pot of water to the boil."
+      },
+      {
+        "start": 25.05,
+        "end": 25.85,
+        "text": "Add baking soda."
+      },
+      {
+        "start": 26.11,
+        "end": 27.79,
+        "text": "Which is going to help them to fluff and break down."
+      },
+      {
+        "start": 27.91,
+        "end": 28.31,
+        "text": "And salt."
+      },
+      {
+        "start": 28.43,
+        "end": 29.19,
+        "text": "Which is going to season them."
+      },
+      {
+        "start": 29.33,
+        "end": 30.55,
+        "text": "Then boil the fries until just."
+      },
+      {
+        "start": 30.63,
+        "end": 30.89,
+        "text": "Tender."
+      },
+      {
+        "start": 31.07,
+        "end": 32.01,
+        "text": "They should break without snapping."
+      },
+      {
+        "start": 32.23,
+        "end": 33.93,
+        "text": "Drain just lightly with potato starch."
+      },
+      {
+        "start": 34.13,
+        "end": 35.73,
+        "text": "This is going to add a beautiful crispy layer."
+      },
+      {
+        "start": 35.93,
+        "end": 37.69,
+        "text": "And then place them into the fridge or freezer."
+      },
+      {
+        "start": 37.89,
+        "end": 38.71,
+        "text": "To completely cool."
+      },
+      {
+        "start": 38.89,
+        "end": 39.67,
+        "text": "Heat oil in a pot."
+      },
+      {
+        "start": 39.81,
+        "end": 41.21,
+        "text": "We've got some duck fat too for flavour."
+      },
+      {
+        "start": 41.39,
+        "end": 43.67,
+        "text": "And once it reaches around about 140 degrees."
+      },
+      {
+        "start": 44.01,
+        "end": 45.03,
+        "text": "We're going to drop in our fries."
+      },
+      {
+        "start": 45.17,
+        "end": 46.01,
+        "text": "And par-fry them."
+      },
+      {
+        "start": 46.21,
+        "end": 46.69,
+        "text": "Or blanch them."
+      },
+      {
+        "start": 46.91,
+        "end": 48.33,
+        "text": "Stirring constantly for ruffled edges."
+      },
+      {
+        "start": 48.55,
+        "end": 49.03,
+        "text": "Remove them."
+      },
+      {
+        "start": 49.17,
+        "end": 49.81,
+        "text": "Lay them in a tray."
+      },
+      {
+        "start": 50.03,
+        "end": 51.07,
+        "text": "And freeze or chill again."
+      },
+      {
+        "start": 51.31,
+        "end": 52.03,
+        "text": "For the final fry."
+      },
+      {
+        "start": 52.11,
+        "end": 53.01,
+        "text": "Heat the oil up to 190."
+      },
+      {
+        "start": 53.41,
+        "end": 54.63,
+        "text": "Fry until golden and crispy."
+      },
+      {
+        "start": 54.85,
+        "end": 56.19,
+        "text": "Finish with a sprinkle of maldon salt."
+      },
+      {
+        "start": 56.19,
+        "end": 57.03,
+        "text": "Extra crunch."
+      }
+    ],
+    "tlumaczenia": {
+      "pl": {
+        "silnik": "ollama:gemma3:4b",
+        "segmenty": [
+          {
+            "start": 0.0,
+            "end": 0.54,
+            "text": "To jest to."
+          },
+          {
+            "start": 1.09,
+            "end": 2.63,
+            "text": "To jest idealny fryk z ziemniaków."
+          },
+          {
+            "start": 2.81,
+            "end": 4.57,
+            "text": "Sekret do super chrupiących frytek."
+          },
+          {
+            "start": 4.77,
+            "end": 5.81,
+            "text": "Zacznij od ziemniaków agria."
+          },
+          {
+            "start": 6.13,
+            "end": 7.53,
+            "text": "Ta konkretna odmiana ziemniaka."
+          },
+          {
+            "start": 7.75,
+            "end": 9.49,
+            "text": "Posiada bardzo wysokie stężenie skrobi."
+          },
+          {
+            "start": 9.71,
+            "end": 10.87,
+            "text": "I bardzo niską zawartość wody."
+          },
+          {
+            "start": 11.09,
+            "end": 12.35,
+            "text": "Idealne do chrupkości."
+          },
+          {
+            "start": 12.57,
+            "end": 12.85,
+            "text": "Obierz."
+          },
+          {
+            "start": 12.97,
+            "end": 13.91,
+            "text": "Przytnij końce i boki."
+          },
+          {
+            "start": 14.05,
+            "end": 15.17,
+            "text": "I pokrój je wzdłuż."
+          },
+          {
+            "start": 15.39,
+            "end": 16.19,
+            "text": "Na jednolite frytki."
+          },
+          {
+            "start": 16.47,
+            "end": 17.79,
+            "text": "Około jednego centymetra kwadratowego."
+          },
+          {
+            "start": 18.13,
+            "end": 19.11,
+            "text": "Namocz je w zimnej wodzie."
+          },
+          {
+            "start": 19.23,
+            "end": 20.49,
+            "text": "Aby usunąć nadmiar skrobi."
+          },
+          {
+            "start": 20.71,
+            "end": 21.89,
+            "text": "I przepłucz kilka razy."
+          },
+          {
+            "start": 22.05,
+            "end": 23.63,
+            "text": "Do momentu, aż woda będzie idealnie czysta."
+          },
+          {
+            "start": 23.79,
+            "end": 24.93,
+            "text": "Zagotuj garnek wody."
+          },
+          {
+            "start": 25.05,
+            "end": 25.85,
+            "text": "Dodaj sodę oczyszczoną."
+          },
+          {
+            "start": 26.11,
+            "end": 27.79,
+            "text": "Co pomoże im się napowietrzyć i rozbić."
+          },
+          {
+            "start": 27.91,
+            "end": 28.31,
+            "text": "I i sól."
+          },
+          {
+            "start": 28.43,
+            "end": 29.19,
+            "text": "Co doda przyprawy."
+          },
+          {
+            "start": 29.33,
+            "end": 30.55,
+            "text": "Następnie gotuj frytki do momentu, aż..."
+          },
+          {
+            "start": 30.63,
+            "end": 30.89,
+            "text": "Miękkie."
+          },
+          {
+            "start": 31.07,
+            "end": 32.01,
+            "text": "Powinny łamać się, ale nie pękać."
+          },
+          {
+            "start": 32.23,
+            "end": 33.93,
+            "text": "Odcedź lekko z mąki ziemniaczanej."
+          },
+          {
+            "start": 34.13,
+            "end": 35.73,
+            "text": "To doda pięknej, chrupiącej warstwy."
+          },
+          {
+            "start": 35.93,
+            "end": 37.69,
+            "text": "I następnie umieść je w lodówce lub zamrażarce."
+          },
+          {
+            "start": 37.89,
+            "end": 38.71,
+            "text": "Aby całkowicie ostudzić."
+          },
+          {
+            "start": 38.89,
+            "end": 39.67,
+            "text": "Rozgrzej olej na patelni."
+          },
+          {
+            "start": 39.81,
+            "end": 41.21,
+            "text": "Mamy też tłuszcz z kaczki dla smaku."
+          },
+          {
+            "start": 41.39,
+            "end": 43.67,
+            "text": "A gdy osiągnie około 140 stopni."
+          },
+          {
+            "start": 44.01,
+            "end": 45.03,
+            "text": "Wrzuć frytki."
+          },
+          {
+            "start": 45.17,
+            "end": 46.01,
+            "text": "I podsmaż je wstępnie."
+          },
+          {
+            "start": 46.21,
+            "end": 46.69,
+            "text": "Albo blanszuj je."
+          },
+          {
+            "start": 46.91,
+            "end": 48.33,
+            "text": "Mieszając stale, aby uzyskać faliste brzegi."
+          },
+          {
+            "start": 48.55,
+            "end": 49.03,
+            "text": "Wyjmij je."
+          },
+          {
+            "start": 49.17,
+            "end": 49.81,
+            "text": "Rozłóż na tacy."
+          },
+          {
+            "start": 50.03,
+            "end": 51.07,
+            "text": "I ponownie zamroź lub schłodź."
+          },
+          {
+            "start": 51.31,
+            "end": 52.03,
+            "text": "Przed ostatecznym smażeniem."
+          },
+          {
+            "start": 52.11,
+            "end": 53.01,
+            "text": "Rozgrzej olej do 190 stopni."
+          },
+          {
+            "start": 53.41,
+            "end": 54.63,
+            "text": "Smaż, aż będą złote i chrupiące."
+          },
+          {
+            "start": 54.85,
+            "end": 56.19,
+            "text": "Posyp solą Maldon."
+          },
+          {
+            "start": 56.19,
+            "end": 57.03,
+            "text": "Dodatkowa chrupkość."
+          }
+        ],
+        "nieprzetlumaczone": 0
+      }
+    },
+    "poprawki_z_napisow": [
+      {
+        "t": 46.91,
+        "bylo": "Steering",
+        "jest": "Stirring",
+        "napis": "stirring constantly for"
+      },
+      {
+        "t": 54.85,
+        "bylo": "chocolate",
+        "jest": "salt",
+        "napis": "sprinkle of maldon salt"
+      }
+    ]
+  },
+  "napisy_ekranowe": [
+    {
+      "start": 0.0,
+      "end": 1.5,
+      "text": "This is it",
+      "score": 0.9051197279583324
+    },
+    {
+      "start": 1.5,
+      "end": 3.0,
+      "text": "perfect french fry",
+      "score": 0.947
+    },
+    {
+      "start": 3.0,
+      "end": 3.5,
+      "text": "the secret",
+      "score": 0.908
+    },
+    {
+      "start": 3.5,
+      "end": 4.5,
+      "text": "to super crispy fries",
+      "score": 0.9539616162126715
+    },
+    {
+      "start": 4.5,
+      "end": 6.0,
+      "text": "start with agria potatoes",
+      "score": 0.9609020100190089
+    },
+    {
+      "start": 6.0,
+      "end": 7.0,
+      "text": "this particular potato",
+      "score": 0.948
+    },
+    {
+      "start": 7.0,
+      "end": 8.5,
+      "text": "variety has a very",
+      "score": 0.944
+    },
+    {
+      "start": 8.5,
+      "end": 9.5,
+      "text": "high starch content",
+      "score": 0.949
+    },
+    {
+      "start": 9.5,
+      "end": 10.0,
+      "text": "and a very low",
+      "score": 0.905
+    },
+    {
+      "start": 10.0,
+      "end": 11.0,
+      "text": "water content",
+      "score": 0.923
+    },
+    {
+      "start": 11.0,
+      "end": 11.5,
+      "text": "perfect",
+      "score": 0.874
+    },
+    {
+      "start": 11.5,
+      "end": 12.5,
+      "text": "for crispiness",
+      "score": 0.933
+    },
+    {
+      "start": 13.0,
+      "end": 14.0,
+      "text": "trim the ends and sides",
+      "score": 0.950537179907163
+    },
+    {
+      "start": 14.0,
+      "end": 14.5,
+      "text": "and cut them off",
+      "score": 0.926
+    },
+    {
+      "start": 14.5,
+      "end": 15.5,
+      "text": "lengthways into",
+      "score": 0.936
+    },
+    {
+      "start": 15.5,
+      "end": 16.5,
+      "text": "uniform fries",
+      "score": 0.9280459071908679
+    },
+    {
+      "start": 16.5,
+      "end": 17.5,
+      "text": "roughly one centimetre",
+      "score": 0.955
+    },
+    {
+      "start": 17.5,
+      "end": 18.0,
+      "text": "squared",
+      "score": 0.874
+    },
+    {
+      "start": 18.0,
+      "end": 19.0,
+      "text": "soak them in cold water",
+      "score": 0.958
+    },
+    {
+      "start": 19.0,
+      "end": 19.5,
+      "text": "to remove",
+      "score": 0.864
+    },
+    {
+      "start": 19.5,
+      "end": 20.5,
+      "text": "any excess starch",
+      "score": 0.9310349424680074
+    },
+    {
+      "start": 20.5,
+      "end": 21.5,
+      "text": "and wash them",
+      "score": 0.92282749073846
+    },
+    {
+      "start": 21.5,
+      "end": 22.0,
+      "text": "a few times",
+      "score": 0.911
+    },
+    {
+      "start": 22.0,
+      "end": 23.0,
+      "text": "until the water runs",
+      "score": 0.9511576351665315
+    },
+    {
+      "start": 23.0,
+      "end": 23.5,
+      "text": "perfectly clear",
+      "score": 0.923
+    },
+    {
+      "start": 23.5,
+      "end": 24.5,
+      "text": "bring a pot of water",
+      "score": 0.9388900370824904
+    },
+    {
+      "start": 24.5,
+      "end": 25.0,
+      "text": "to the boil",
+      "score": 0.916
+    },
+    {
+      "start": 25.0,
+      "end": 26.0,
+      "text": "add baking soda",
+      "score": 0.937
+    },
+    {
+      "start": 26.0,
+      "end": 26.5,
+      "text": "which is going",
+      "score": 0.932
+    },
+    {
+      "start": 26.5,
+      "end": 27.5,
+      "text": "to help them to fluff",
+      "score": 0.952
+    },
+    {
+      "start": 27.5,
+      "end": 28.0,
+      "text": "and break down",
+      "score": 0.933
+    },
+    {
+      "start": 28.0,
+      "end": 28.5,
+      "text": "and salt",
+      "score": 0.889
+    },
+    {
+      "start": 28.5,
+      "end": 29.5,
+      "text": "to season them",
+      "score": 0.933
+    },
+    {
+      "start": 29.5,
+      "end": 30.0,
+      "text": "then boil the fries",
+      "score": 0.948
+    },
+    {
+      "start": 30.0,
+      "end": 31.0,
+      "text": "until just tender",
+      "score": 0.9426462584071689
+    },
+    {
+      "start": 31.0,
+      "end": 31.5,
+      "text": "they should break",
+      "score": 0.94
+    },
+    {
+      "start": 31.5,
+      "end": 32.0,
+      "text": "without snapping",
+      "score": 0.941
+    },
+    {
+      "start": 32.5,
+      "end": 33.0,
+      "text": "dust lightly with",
+      "score": 0.928
+    },
+    {
+      "start": 33.0,
+      "end": 34.0,
+      "text": "potato starch",
+      "score": 0.9282922957624707
+    },
+    {
+      "start": 34.0,
+      "end": 34.5,
+      "text": "-this is going to add",
+      "score": 0.937
+    },
+    {
+      "start": 34.5,
+      "end": 35.0,
+      "text": "a beautiful",
+      "score": 0.916
+    },
+    {
+      "start": 35.0,
+      "end": 36.0,
+      "text": "crispy layer",
+      "score": 0.92
+    },
+    {
+      "start": 36.0,
+      "end": 36.5,
+      "text": "and then place them",
+      "score": 0.95
+    },
+    {
+      "start": 36.5,
+      "end": 37.0,
+      "text": "into the fridge",
+      "score": 0.933
+    },
+    {
+      "start": 37.0,
+      "end": 38.0,
+      "text": "or freezer",
+      "score": 0.907
+    },
+    {
+      "start": 38.0,
+      "end": 39.0,
+      "text": "to completely cool",
+      "score": 0.946
+    },
+    {
+      "start": 39.0,
+      "end": 39.5,
+      "text": "heat oil in a pot",
+      "score": 0.928
+    },
+    {
+      "start": 39.5,
+      "end": 40.5,
+      "text": "we've got some duck fat",
+      "score": 0.9453638195991516
+    },
+    {
+      "start": 40.5,
+      "end": 41.5,
+      "text": "too for flavour",
+      "score": 0.87
+    },
+    {
+      "start": 41.5,
+      "end": 42.5,
+      "text": "and once it reaches",
+      "score": 0.948
+    },
+    {
+      "start": 44.0,
+      "end": 44.5,
+      "text": "we're going to",
+      "score": 0.917
+    },
+    {
+      "start": 44.5,
+      "end": 45.0,
+      "text": "drop in our fries",
+      "score": 0.944
+    },
+    {
+      "start": 45.0,
+      "end": 46.0,
+      "text": "and par-fry them",
+      "score": 0.941
+    },
+    {
+      "start": 46.0,
+      "end": 47.0,
+      "text": "or blanch them",
+      "score": 0.9322779615720113
+    },
+    {
+      "start": 47.0,
+      "end": 47.5,
+      "text": "stirring constantly for",
+      "score": 0.941
+    },
+    {
+      "start": 47.5,
+      "end": 48.5,
+      "text": "ruffled edges",
+      "score": 0.9109668518815722
+    },
+    {
+      "start": 48.5,
+      "end": 49.0,
+      "text": "remove them",
+      "score": 0.916
+    },
+    {
+      "start": 49.0,
+      "end": 50.0,
+      "text": "lay them in a tray",
+      "score": 0.94
+    },
+    {
+      "start": 50.5,
+      "end": 51.0,
+      "text": "or chill again",
+      "score": 0.911
+    },
+    {
+      "start": 51.0,
+      "end": 52.0,
+      "text": "for the final fry",
+      "score": 0.9420266085200839
+    },
+    {
+      "start": 52.0,
+      "end": 53.5,
+      "text": "heat the oil up to 190°C",
+      "score": 0.9252741575241089
+    },
+    {
+      "start": 53.5,
+      "end": 54.0,
+      "text": "fry until golden",
+      "score": 0.931
+    },
+    {
+      "start": 54.0,
+      "end": 55.0,
+      "text": "and crispy",
+      "score": 0.9072409651496194
+    },
+    {
+      "start": 55.0,
+      "end": 56.5,
+      "text": "sprinkle of maldon salt",
+      "score": 0.958
+    },
+    {
+      "start": 56.5,
+      "end": 57.0,
+      "text": "extra crunch",
+      "score": 0.923
+    },
+    {
+      "start": 57.0,
+      "end": 58.5,
+      "text": "[crunch]",
+      "score": 0.879
+    }
+  ],
+  "kadry": [
+    {
+      "t": 7.5,
+      "file": "kadry/kadr_001_00-08.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.434,
+      "vision": {
+        "scena": "Ręce kroją ziemniak na desce z drewna.",
+        "czynnosci": [
+          "krojenie"
+        ],
+        "obiekty": [
+          "deska z drewna",
+          "ziemniak",
+          "nóż"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 13.0,
+      "file": "kadry/kadr_002_00-13.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.41,
+      "vision": {
+        "scena": "Kucharz w kuchni trzyma ziemniak i kroje go.",
+        "czynnosci": [
+          "krojenie",
+          "trimowanie"
+        ],
+        "obiekty": [
+          "ziemniak",
+          "nóż",
+          "deska do krojenia",
+          "kuchnia",
+          "kuchenny kocioł"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz trzyma ziemniak i kroje go.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 19.0,
+      "file": "kadry/kadr_003_00-19.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.363,
+      "vision": {
+        "scena": "Kucharz w kuchni przetwarza warzywa w misce.",
+        "czynnosci": [
+          "wymieszanie",
+          "wyciągnięcie",
+          "przygotowanie"
+        ],
+        "obiekty": [
+          "kucharz",
+          "miseczka",
+          "deska do krojenia",
+          "woda",
+          "kuchnia"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz stoi, trzyma miseczkę, patrzy w nią.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 20.0,
+      "file": "kadry/kadr_004_00-20.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.38,
+      "vision": {
+        "scena": "Osoba wyciera ręce nad miską z warzywami.",
+        "czynnosci": [
+          "wycieranie rąk",
+          "przygotowywanie rąk",
+          "wycieranie rąk nad miską"
+        ],
+        "obiekty": [
+          "miska",
+          "warzywa",
+          "ręce",
+          "stół"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Ręce wycierane nad miską, stojące nad nią.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 21.0,
+      "file": "kadry/kadr_005_00-21.jpg",
+      "reasons": [
+        "zmiana_sceny",
+        "aktywnosc"
+      ],
+      "score": 0.345,
+      "vision": {
+        "scena": "Ręce myją ziemniaki w misce pod kranem.",
+        "czynnosci": [
+          "mycie",
+          "wlewanie wody",
+          "trzymanie miski"
+        ],
+        "obiekty": [
+          "kran",
+          "miseczka",
+          "ziemniaki",
+          "kuchnia",
+          "woda"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Ręce trzymają miseczkę, woda wylewa się na ziemniaki.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 22.5,
+      "file": "kadry/kadr_006_00-22.jpg",
+      "reasons": [
+        "zmiana_sceny",
+        "pokrycie"
+      ],
+      "score": 0.345,
+      "vision": {
+        "scena": "Kucharz w kuchni wycierka zlew w misce.",
+        "czynnosci": [
+          "wycieranie",
+          "trzymanie misy",
+          "wycieranie wody"
+        ],
+        "obiekty": [
+          "kucharz",
+          "miseczka",
+          "kawałek drewna",
+          "kuchnia",
+          "woda"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz stoi, trzyma misę, wyciera wodę.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 26.0,
+      "file": "kadry/kadr_007_00-26.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.538,
+      "vision": {
+        "scena": "Ręka wlewa coś do garnka na naczyniu kuchennym.",
+        "czynnosci": [
+          "wlewanie"
+        ],
+        "obiekty": [
+          "garnka",
+          "naczynie kuchenne",
+          "ręczne narzędzie kuchenne"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 27.5,
+      "file": "kadry/kadr_008_00-28.jpg",
+      "reasons": [
+        "zmiana_sceny",
+        "aktywnosc",
+        "pokrycie"
+      ],
+      "score": 0.568,
+      "vision": {
+        "scena": "Kucharz dodaje coś do garnka na naczyniu indukcyjnym.",
+        "czynnosci": [
+          "wlewanie",
+          "mieszanie"
+        ],
+        "obiekty": [
+          "garnki",
+          "naczynie indukcyjne",
+          "naczynie kuchenne"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz wchodzi w kadrze, patrzy w dół, trzyma naczynie kuchenne.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 43.0,
+      "file": "kadry/kadr_009_00-43.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.353,
+      "vision": {
+        "scena": "Kucharz dodaje składniki do garnka na indukcyjnej plastry.",
+        "czynnosci": [
+          "dodawanie",
+          "mieszanie",
+          "wymieszanie"
+        ],
+        "obiekty": [
+          "garnka",
+          "plastr",
+          "czekolada",
+          "zakrętka"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Ręce w ruchu nad garnkiem, nie widoczna cała postać.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 44.0,
+      "file": "kadry/kadr_010_00-44.jpg",
+      "reasons": [
+        "zmiana_sceny",
+        "pokrycie"
+      ],
+      "score": 0.395,
+      "vision": {
+        "scena": "Kucharz w kuchni dodaje składnik do garnka.",
+        "czynnosci": [
+          "dodawanie",
+          "wyciąganie",
+          "przygotowywanie"
+        ],
+        "obiekty": [
+          "garnki",
+          "kuchnia",
+          "czarny napis"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz trzyma składnik nad garnkiem.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 47.5,
+      "file": "kadry/kadr_011_00-48.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.575,
+      "vision": {
+        "scena": "Kucharz mieszający zioła w garnku z siecią.",
+        "czynnosci": [
+          "mieszanie",
+          "wstrzymanie"
+        ],
+        "obiekty": [
+          "garnka",
+          "sieć kuchenna",
+          "zioła"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 49.5,
+      "file": "kadry/kadr_012_00-50.jpg",
+      "reasons": [
+        "zmiana_sceny",
+        "pokrycie"
+      ],
+      "score": 0.557,
+      "vision": {
+        "scena": "Kucharz trzyma ziemniaki w garnku.",
+        "czynnosci": [
+          "trzymanie ziemniaków",
+          "podnoszenie garnka"
+        ],
+        "obiekty": [
+          "ziemniaki",
+          "garnki",
+          "narzędzie kuchenne"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "niska"
+      }
+    },
+    {
+      "t": 53.5,
+      "file": "kadry/kadr_013_00-54.jpg",
+      "reasons": [
+        "zmiana_sceny"
+      ],
+      "score": 0.544,
+      "vision": {
+        "scena": "Kucharz smaży ziemniaki w garnku.",
+        "czynnosci": [
+          "wyciąganie ziemniaków z oleju",
+          "podnoszenie garnka",
+          "wyciąganie ziemniaków z sieci"
+        ],
+        "obiekty": [
+          "kucharz",
+          "ziemniaki",
+          "garnki",
+          "narzędzie kuchenne",
+          "olej"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz wchodzi w kamerę, podnosi ziemniaki z sieci.",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 55.0,
+      "file": "kadry/kadr_014_00-55.jpg",
+      "reasons": [
+        "zmiana_sceny",
+        "aktywnosc"
+      ],
+      "score": 0.476,
+      "vision": {
+        "scena": "Ręka wyciąga z miski z papierem ziemniaki.",
+        "czynnosci": [
+          "wyciąganie",
+          "przytrzymywanie",
+          "wyciąganie z miski"
+        ],
+        "obiekty": [
+          "miska",
+          "papier",
+          "ziemniaki",
+          "narzędzie kuchenne"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    },
+    {
+      "t": 56.5,
+      "file": "kadry/kadr_015_00-56.jpg",
+      "reasons": [
+        "zmiana_sceny",
+        "pokrycie"
+      ],
+      "score": 0.417,
+      "vision": {
+        "scena": "Zdjęcie przedstawia wypuszczanie frytek na talerz.",
+        "czynnosci": [
+          "wypuszczanie frytek"
+        ],
+        "obiekty": [
+          "frytki",
+          "talerz",
+          "miska"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka"
+      }
+    }
+  ],
+  "os_czasu": [
+    {
+      "start": 0.0,
+      "end": 12.5,
+      "kadr": "kadry/kadr_001_00-08.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "napisy": "This is it | perfect french fry | the secret | to super crispy fries | start with agria potatoes | this particular potato | variety has a very | high starch content | and a very low | water content | perfect | for crispiness",
+      "widac": {
+        "scena": "Ręce kroją ziemniak na desce z drewna.",
+        "czynnosci": [
+          "krojenie"
+        ],
+        "obiekty": [
+          "deska z drewna",
+          "ziemniak",
+          "nóż"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "This is it. This is the perfect French fry. The secret to super crispy fries. Start with agria potatoes. This particular potato variety. Is a very high starch content. And a very low water content. Perfect for crispiness.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": null
+    },
+    {
+      "start": 12.5,
+      "end": 18.5,
+      "kadr": "kadry/kadr_002_00-13.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "napisy": "trim the ends and sides | and cut them off | lengthways into | uniform fries | roughly one centimetre | squared | soak them in cold water",
+      "widac": {
+        "scena": "Kucharz w kuchni trzyma ziemniak i kroje go.",
+        "czynnosci": [
+          "krojenie",
+          "trimowanie"
+        ],
+        "obiekty": [
+          "ziemniak",
+          "nóż",
+          "deska do krojenia",
+          "kuchnia",
+          "kuchenny kocioł"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz trzyma ziemniak i kroje go.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Peel. Trim the ends and sides. And cut them off lengthways. Into uniform fries. Roughly one centimetre square. Soak them in cold water.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "deska do krojenia",
+          "kuchenny kocioł",
+          "kuchnia",
+          "trimowanie"
+        ],
+        "zniknely": [
+          "deska z drewna"
+        ]
+      }
+    },
+    {
+      "start": 18.5,
+      "end": 19.5,
+      "kadr": "kadry/kadr_003_00-19.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "napisy": "to remove",
+      "widac": {
+        "scena": "Kucharz w kuchni przetwarza warzywa w misce.",
+        "czynnosci": [
+          "wymieszanie",
+          "wyciągnięcie",
+          "przygotowanie"
+        ],
+        "obiekty": [
+          "kucharz",
+          "miseczka",
+          "deska do krojenia",
+          "woda",
+          "kuchnia"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz stoi, trzyma miseczkę, patrzy w nią.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "To remove any excess starch.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "kucharz",
+          "miseczka",
+          "przygotowanie",
+          "woda",
+          "wyciągnięcie",
+          "wymieszanie"
+        ],
+        "zniknely": [
+          "krojenie",
+          "kuchenny kocioł",
+          "nóż",
+          "trimowanie",
+          "ziemniak"
+        ]
+      }
+    },
+    {
+      "start": 19.5,
+      "end": 20.5,
+      "kadr": "kadry/kadr_004_00-20.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "napisy": "any excess starch",
+      "widac": {
+        "scena": "Osoba wyciera ręce nad miską z warzywami.",
+        "czynnosci": [
+          "wycieranie rąk",
+          "przygotowywanie rąk",
+          "wycieranie rąk nad miską"
+        ],
+        "obiekty": [
+          "miska",
+          "warzywa",
+          "ręce",
+          "stół"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Ręce wycierane nad miską, stojące nad nią.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "miska",
+          "przygotowywanie rąk",
+          "ręce",
+          "stół",
+          "warzywa",
+          "wycieranie rąk",
+          "wycieranie rąk nad miską"
+        ],
+        "zniknely": [
+          "deska do krojenia",
+          "kucharz",
+          "kuchnia",
+          "miseczka",
+          "przygotowanie",
+          "woda",
+          "wyciągnięcie",
+          "wymieszanie"
+        ]
+      }
+    },
+    {
+      "start": 20.5,
+      "end": 22.0,
+      "kadr": "kadry/kadr_005_00-21.jpg",
+      "powod_kadru": [
+        "zmiana_sceny",
+        "aktywnosc"
+      ],
+      "napisy": "and wash them | a few times",
+      "widac": {
+        "scena": "Ręce myją ziemniaki w misce pod kranem.",
+        "czynnosci": [
+          "mycie",
+          "wlewanie wody",
+          "trzymanie miski"
+        ],
+        "obiekty": [
+          "kran",
+          "miseczka",
+          "ziemniaki",
+          "kuchnia",
+          "woda"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Ręce trzymają miseczkę, woda wylewa się na ziemniaki.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "And wash them a few times.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "kran",
+          "kuchnia",
+          "miseczka",
+          "mycie",
+          "trzymanie miski",
+          "wlewanie wody",
+          "woda",
+          "ziemniaki"
+        ],
+        "zniknely": [
+          "miska",
+          "przygotowywanie rąk",
+          "ręce",
+          "stół",
+          "warzywa",
+          "wycieranie rąk",
+          "wycieranie rąk nad miską"
+        ]
+      }
+    },
+    {
+      "start": 22.0,
+      "end": 25.5,
+      "kadr": "kadry/kadr_006_00-22.jpg",
+      "powod_kadru": [
+        "zmiana_sceny",
+        "pokrycie"
+      ],
+      "napisy": "until the water runs | perfectly clear | bring a pot of water | to the boil | add baking soda",
+      "widac": {
+        "scena": "Kucharz w kuchni wycierka zlew w misce.",
+        "czynnosci": [
+          "wycieranie",
+          "trzymanie misy",
+          "wycieranie wody"
+        ],
+        "obiekty": [
+          "kucharz",
+          "miseczka",
+          "kawałek drewna",
+          "kuchnia",
+          "woda"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz stoi, trzyma misę, wyciera wodę.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Until the water runs perfectly clear. Bring a pot of water to the boil. Add baking soda.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "kawałek drewna",
+          "kucharz",
+          "trzymanie misy",
+          "wycieranie",
+          "wycieranie wody"
+        ],
+        "zniknely": [
+          "kran",
+          "mycie",
+          "trzymanie miski",
+          "wlewanie wody",
+          "ziemniaki"
+        ]
+      }
+    },
+    {
+      "start": 25.5,
+      "end": 27.0,
+      "kadr": "kadry/kadr_007_00-26.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "napisy": "which is going | to help them to fluff",
+      "widac": {
+        "scena": "Ręka wlewa coś do garnka na naczyniu kuchennym.",
+        "czynnosci": [
+          "wlewanie"
+        ],
+        "obiekty": [
+          "garnka",
+          "naczynie kuchenne",
+          "ręczne narzędzie kuchenne"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Which is going to help them to fluff and break down.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "garnka",
+          "naczynie kuchenne",
+          "ręczne narzędzie kuchenne",
+          "wlewanie"
+        ],
+        "zniknely": [
+          "kawałek drewna",
+          "kucharz",
+          "kuchnia",
+          "miseczka",
+          "trzymanie misy",
+          "woda",
+          "wycieranie",
+          "wycieranie wody"
+        ]
+      }
+    },
+    {
+      "start": 27.0,
+      "end": 42.5,
+      "kadr": "kadry/kadr_008_00-28.jpg",
+      "powod_kadru": [
+        "zmiana_sceny",
+        "aktywnosc",
+        "pokrycie"
+      ],
+      "napisy": "and break down | and salt | to season them | then boil the fries | until just tender | they should break | without snapping | dust lightly with | potato starch | -this is going to add | a beautiful | crispy layer | and then place them | into the fridge | or freezer | to completely cool | heat oil in a pot | we've got some duck fat | too for flavour | and once it reaches",
+      "widac": {
+        "scena": "Kucharz dodaje coś do garnka na naczyniu indukcyjnym.",
+        "czynnosci": [
+          "wlewanie",
+          "mieszanie"
+        ],
+        "obiekty": [
+          "garnki",
+          "naczynie indukcyjne",
+          "naczynie kuchenne"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz wchodzi w kadrze, patrzy w dół, trzyma naczynie kuchenne.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "And salt. Which is going to season them. Then boil the fries until just. Tender. They should break without snapping. Drain just lightly with potato starch. This is going to add a beautiful crispy layer. And then place them into the fridge or freezer. To completely cool. Heat oil in a pot. We've got some duck fat too for flavour. And once it reaches around about 140 degrees.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "garnki",
+          "mieszanie",
+          "naczynie indukcyjne"
+        ],
+        "zniknely": [
+          "garnka",
+          "ręczne narzędzie kuchenne"
+        ]
+      }
+    },
+    {
+      "start": 42.5,
+      "end": 43.5,
+      "kadr": "kadry/kadr_009_00-43.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "napisy": "",
+      "widac": {
+        "scena": "Kucharz dodaje składniki do garnka na indukcyjnej plastry.",
+        "czynnosci": [
+          "dodawanie",
+          "mieszanie",
+          "wymieszanie"
+        ],
+        "obiekty": [
+          "garnka",
+          "plastr",
+          "czekolada",
+          "zakrętka"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Ręce w ruchu nad garnkiem, nie widoczna cała postać.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "czekolada",
+          "dodawanie",
+          "garnka",
+          "plastr",
+          "wymieszanie",
+          "zakrętka"
+        ],
+        "zniknely": [
+          "garnki",
+          "naczynie indukcyjne",
+          "naczynie kuchenne",
+          "wlewanie"
+        ]
+      }
+    },
+    {
+      "start": 43.5,
+      "end": 47.0,
+      "kadr": "kadry/kadr_010_00-44.jpg",
+      "powod_kadru": [
+        "zmiana_sceny",
+        "pokrycie"
+      ],
+      "napisy": "we're going to | drop in our fries | and par-fry them | or blanch them",
+      "widac": {
+        "scena": "Kucharz w kuchni dodaje składnik do garnka.",
+        "czynnosci": [
+          "dodawanie",
+          "wyciąganie",
+          "przygotowywanie"
+        ],
+        "obiekty": [
+          "garnki",
+          "kuchnia",
+          "czarny napis"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz trzyma składnik nad garnkiem.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "We're going to drop in our fries. And par-fry them. Or blanch them. Stirring constantly for ruffled edges.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "czarny napis",
+          "garnki",
+          "kuchnia",
+          "przygotowywanie",
+          "wyciąganie"
+        ],
+        "zniknely": [
+          "czekolada",
+          "garnka",
+          "mieszanie",
+          "plastr",
+          "wymieszanie",
+          "zakrętka"
+        ]
+      }
+    },
+    {
+      "start": 47.0,
+      "end": 49.0,
+      "kadr": "kadry/kadr_011_00-48.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "napisy": "stirring constantly for | ruffled edges | remove them",
+      "widac": {
+        "scena": "Kucharz mieszający zioła w garnku z siecią.",
+        "czynnosci": [
+          "mieszanie",
+          "wstrzymanie"
+        ],
+        "obiekty": [
+          "garnka",
+          "sieć kuchenna",
+          "zioła"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Remove them.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "garnka",
+          "mieszanie",
+          "sieć kuchenna",
+          "wstrzymanie",
+          "zioła"
+        ],
+        "zniknely": [
+          "czarny napis",
+          "dodawanie",
+          "garnki",
+          "kuchnia",
+          "przygotowywanie",
+          "wyciąganie"
+        ]
+      }
+    },
+    {
+      "start": 49.0,
+      "end": 53.0,
+      "kadr": "kadry/kadr_012_00-50.jpg",
+      "powod_kadru": [
+        "zmiana_sceny",
+        "pokrycie"
+      ],
+      "napisy": "lay them in a tray | or chill again | for the final fry | heat the oil up to 190°C",
+      "widac": {
+        "scena": "Kucharz trzyma ziemniaki w garnku.",
+        "czynnosci": [
+          "trzymanie ziemniaków",
+          "podnoszenie garnka"
+        ],
+        "obiekty": [
+          "ziemniaki",
+          "garnki",
+          "narzędzie kuchenne"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "niska",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Lay them in a tray. And freeze or chill again. For the final fry. Heat the oil up to 190.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "garnki",
+          "narzędzie kuchenne",
+          "podnoszenie garnka",
+          "trzymanie ziemniaków",
+          "ziemniaki"
+        ],
+        "zniknely": [
+          "garnka",
+          "mieszanie",
+          "sieć kuchenna",
+          "wstrzymanie",
+          "zioła"
+        ]
+      }
+    },
+    {
+      "start": 53.0,
+      "end": 54.5,
+      "kadr": "kadry/kadr_013_00-54.jpg",
+      "powod_kadru": [
+        "zmiana_sceny"
+      ],
+      "napisy": "fry until golden | and crispy",
+      "widac": {
+        "scena": "Kucharz smaży ziemniaki w garnku.",
+        "czynnosci": [
+          "wyciąganie ziemniaków z oleju",
+          "podnoszenie garnka",
+          "wyciąganie ziemniaków z sieci"
+        ],
+        "obiekty": [
+          "kucharz",
+          "ziemniaki",
+          "garnki",
+          "narzędzie kuchenne",
+          "olej"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "Kucharz wchodzi w kamerę, podnosi ziemniaki z sieci.",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Fry until golden and crispy.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "kucharz",
+          "olej",
+          "wyciąganie ziemniaków z oleju",
+          "wyciąganie ziemniaków z sieci"
+        ],
+        "zniknely": [
+          "trzymanie ziemniaków"
+        ]
+      }
+    },
+    {
+      "start": 54.5,
+      "end": 56.0,
+      "kadr": "kadry/kadr_014_00-55.jpg",
+      "powod_kadru": [
+        "zmiana_sceny",
+        "aktywnosc"
+      ],
+      "napisy": "sprinkle of maldon salt",
+      "widac": {
+        "scena": "Ręka wyciąga z miski z papierem ziemniaki.",
+        "czynnosci": [
+          "wyciąganie",
+          "przytrzymywanie",
+          "wyciąganie z miski"
+        ],
+        "obiekty": [
+          "miska",
+          "papier",
+          "ziemniaki",
+          "narzędzie kuchenne"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Finish with a sprinkle of maldon salt.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "miska",
+          "papier",
+          "przytrzymywanie",
+          "wyciąganie",
+          "wyciąganie z miski"
+        ],
+        "zniknely": [
+          "garnki",
+          "kucharz",
+          "olej",
+          "podnoszenie garnka",
+          "wyciąganie ziemniaków z oleju",
+          "wyciąganie ziemniaków z sieci"
+        ]
+      }
+    },
+    {
+      "start": 56.0,
+      "end": 58.31,
+      "kadr": "kadry/kadr_015_00-56.jpg",
+      "powod_kadru": [
+        "zmiana_sceny",
+        "pokrycie"
+      ],
+      "napisy": "extra crunch | [crunch]",
+      "widac": {
+        "scena": "Zdjęcie przedstawia wypuszczanie frytek na talerz.",
+        "czynnosci": [
+          "wypuszczanie frytek"
+        ],
+        "obiekty": [
+          "frytki",
+          "talerz",
+          "miska"
+        ],
+        "tekst_na_ekranie": [],
+        "napisy_na_przedmiotach": [],
+        "cialo": "",
+        "pewnosc": "wysoka",
+        "zrodlo": "obraz"
+      },
+      "slychac": {
+        "tekst": "Extra crunch.",
+        "zrodlo": "mowa"
+      },
+      "zmiana": {
+        "nowe": [
+          "frytki",
+          "talerz",
+          "wypuszczanie frytek"
+        ],
+        "zniknely": [
+          "narzędzie kuchenne",
+          "papier",
+          "przytrzymywanie",
+          "wyciąganie",
+          "wyciąganie z miski",
+          "ziemniaki"
+        ]
+      }
+    }
+  ],
+  "streszczenie": {
+    "silnik": "ollama:gemma3:4b",
+    "markdown": "## W skrócie\n**Typ:** przepis. Ten przepis pokazuje, jak przygotować wyjątkowo chrupiące frytki francuskie z ziemniaków agria, wykorzystując kilka kluczowych technik i składników.\n\n_Czas czytania streszczenia: ≈ 1 min 22 s_\n\nFilm to instruktażowy przepis na idealne frytki francuskie, przeznaczony dla osób zainteresowanych gotowaniem i poszukujących prostego sposobu na przygotowanie pysznego klasycznego dania. Film szczegółowo opisuje proces tworzenia frytek, zaczynając od wyboru odpowiednich ziemniaków – agria – ze względu na ich wysoką zawartość skrobi oraz niską zawartość wody, co gwarantuje wyjątkową chrupkość. Następnie przedstawione są kroki niezbędne do przygotowania idealnych frytek francuskich, obejmujące obieranie, krojenie, namaczanie w zimnej wodzie i gotowanie.\n\nPrzepis rozpoczyna się od wyboru ziemniaków agria, które dzięki wysokiej zawartości skrobi i niskiej zawartości wody idealnie nadają się do przygotowania chrupiących frytek. Następnie film pokazuje, jak należy obierać, kroić ziemniaki wzdłuż na jednolite kawałki o wymiarach około jednego centymetra kwadratowego oraz namaczać je w zimnej wodzie, aby usunąć nadmiar skrobi. Po tym procesie ziemniaki gotuje się w wodzie z sodą oczyszczoną, która pomaga im się napowietrzyć i rozbić, a następnie osuszają i smażą wstępnie w oleju, co zapewnia idealną chrupkość.\n\nAby uzyskać jeszcze bardziej intensywny smak i chrupkość, frytki są ponownie zamrażane lub schładzane przed ostatecznym smażeniem. Ostatnim krokiem jest smażenie ich na głęboki olej podgrzany do 190 stopni Celsjusza, aż staną się złote i chrupiące, a końcowym akcentem stanowi posypanie solą Maldon. Autor podkreśla znaczenie użycia tłuszczu z kaczki dla wzmocnienia smaku oraz dodawania mąki ziemniaczanej do odsączania frytek.\n\nPodsumowując, ten przepis oferuje praktyczne wskazówki dotyczące przygotowania idealnych frytek francuskich, podkreślając znaczenie odpowiedniego wyboru składników i zastosowanie technik wstępnego smażenia oraz wstępnego smażenia. Dzięki temu każdy może samodzielnie cieszyć się pysznymi, chrupiącymi frytkami.\n\n> **Do zapamiętania:** Frytki agria to najlepszy wybór do przygotowania chrupiących frytek francuskich dzięki wysokiej zawartości skrobi i niskiej zawartości wody.\n\n## Co masz zrobić\n### Składniki\n- ziemniaki agria — brak danych [mowa]\n- soda oczyszczona — brak danych [mowa]\n- sól — brak danych [mowa]\n- skrobia ziemniaczana — brak danych [mowa]\n- tłuszcz z kaczki — brak danych [mowa]\n- sól Maldon — brak danych [mowa]\n\n### Kroki\n1. `00:05` Zacznij od ziemniaków agria. [mowa+obraz]\n2. `00:13` Obierz. [mowa]\n3. `00:13` Przytnij końce i boki. [mowa+obraz]\n4. `00:14` Pokrój je wzdłuż, w jednolite frytki, około jednego centymetra kwadratowego. [mowa+obraz]\n5. `00:18` Namocz je w zimnej wodzie, aby usunąć nadmiar skrobi. [mowa+obraz]\n6. `00:21` Przepłucz kilka razy, do momentu, aż woda będzie idealnie czysta. [mowa+obraz]\n7. `00:24` Zagotuj wodę w garnku. [mowa+obraz]\n8. `00:25` Dodaj sodę oczyszczoną, co pomoże im się napowietrzyć i rozbić. [mowa+obraz]\n9. `00:28` Dodaj sól, która to przyprawi. [mowa+obraz]\n10. `00:29` Następnie gotuj frytki do miękkości, powinny łamać się, ale nie pękać. [mowa+obraz]\n11. `00:32` Oprósz lekko mąką ziemniaczaną. [mowa+obraz]\n12. `00:36` Następnie umieść je w lodówce lub zamrażarce, aby całkowicie ostudzić. [mowa+obraz]\n13. `00:39` Rozgrzej olej w garnku, gdy osiągnie około 140 stopni. [mowa+obraz]\n14. `00:44` Wrzuć frytki. [mowa+obraz]\n15. `00:45` Podsmaż wstępnie, blanszuj w oleju. [mowa+obraz]\n16. `00:47` Mieszaj stale dla falistej krawędzi. [mowa+obraz]\n17. `00:49` Wyjmij je. [mowa+obraz]\n18. `00:49` Połóż na tacy. [mowa+obraz]\n19. `00:50` Ponownie zamroź lub schłodź, przed ostatecznym smażeniem. [mowa+obraz]\n20. `00:52` Rozgrzej olej do 190 stopni. [mowa+obraz]\n21. `00:53` Smaż, aż będą złote i chrupiące. [mowa+obraz]\n22. `00:55` Zakończ posypując solą Maldon. [mowa+obraz]\n\n### Sprzęt\n- garnek\n- taca\n\n### Wskazówki\n- Ta konkretna odmiana ziemniaka, posiada bardzo wysoką zawartość skrobi, bardzo niską zawartość wody, idealne dla chrupkości.\n- To doda piękną, chrupiącą warstwę.\n- Mamy też tłuszcz z kaczki dla smaku.\n\n## Najważniejsze\n1. `00:05` **Ziemniaki Agria** — Wykorzystanie ziemniaków agria jest kluczowe dla uzyskania chrupiącej frytki ze względu na ich skład.\n2. `00:45` **Wstępne smażenie w Oleju** — Podsmaż wstępnie (wstępne smażenie) frytek w oleju jest niezbędne do uzyskania idealnej tekstury i chrupkości.\n3. `00:52` **Smażenie na Głębokim Oleju** — Ostateczne smażenie frytek na głęboki olej podgrzany do 190°C zapewnia złoty kolor i chrupkość.\n\n## Rozdziały\n- `00:00–00:05` **Wstęp** — Zapowiedź tematu filmu.\n- `00:05–00:14` **Przygotowanie ziemniaków** — Zacznij od ziemniaków agria; Obierz; Przytnij końce i boki.\n- `00:14–00:24` **Krojenie i moczenie** — Pokrój je wzdłuż, w jednolite frytki, około jednego centymetra kwadratowego; Namocz je w zimnej wodzie, aby usunąć nadmiar skrobi; Przepłucz kilka razy, do momentu, aż woda będzie idealnie czysta.\n- `00:24–00:45` **Gotowanie ziemniaków** — Zagotuj wodę w garnku; Dodaj sodę oczyszczoną, co pomoże im się napowietrzyć i rozbić; Dodaj sól, która to przyprawi i dalej.\n- `00:45–00:50` **Blanszowanie frytek** — Podsmaż wstępnie, blanszuj w oleju; Mieszaj stale dla falistej krawędzi; Wyjmij je i dalej.\n- `00:50–00:58` **Smażenie w wysokiej temperaturze** — Ponownie zamroź lub schłodź, przed ostatecznym smażeniem; Rozgrzej olej do 190 stopni; Smaż, aż będą złote i chrupiące i dalej.\n\n## Momenty\n- `00:05` Zacznij od ziemniaków agria.\n- `00:14` Pokrój je wzdłuż, w jednolite frytki, około jednego centymetra kwadratowego.\n- `00:24` Zagotuj wodę w garnku.\n- `00:39` Rozgrzej olej w garnku, gdy osiągnie około 140 stopni.\n- `00:45` Podsmaż wstępnie, blanszuj w oleju.\n- `00:50` Ponownie zamroź lub schłodź, przed ostatecznym smażeniem.\n- `00:52` Rozgrzej olej do 190 stopni.\n\n## Cytaty\n- `00:00` „This is it. This is the perfect French fry.” (To jest to. To idealna frytki francuskie.)\n- `00:03` „The secret to super crispy fries.” (Sekret do wyjątkowo chrupiących frytek.)\n- `00:26` „Which is going to help them to fluff and break down.” (Co pomoże im się napowietrzyć i rozbić.)\n- `00:34` „This is going to add a beautiful crispy layer.” (To doda piękną, chrupiącą warstwę.)\n\n## Szczera ocena\nFilm przedstawia dobrze zorganizowany proces przygotowania frytek francuskich, jednak brakuje szczegółowych informacji dotyczących czasu gotowania ziemniaków w wodzie oraz dokładnych proporcji użytych składników. Dodatkowo, film nie omawia wpływu temperatury oleju na końcowy efekt – chociaż podaje zakres temperatur, to nie wyjaśnia, jak te temperatury wpływają na proces smażenia. [szacunek]\n\n## Czego nie wiadomo\n- Dokładny czas gotowania ziemniaków w wodzie z sodą oczyszczoną.\n- Proporcje użytych składników (np. ilość soli, mąki ziemniaczanej).\n",
+    "dane": {
+      "schema": "vidsum.summary/1",
+      "typ": "przepis",
+      "tytul": "Idealne Frytki Francuskie",
+      "tytul_akcent": "",
+      "teza": "Ten przepis pokazuje, jak przygotować wyjątkowo chrupiące frytki francuskie z ziemniaków agria, wykorzystując kilka kluczowych technik i składników.",
+      "streszczenie": [
+        "Film to instruktażowy przepis na idealne frytki francuskie, przeznaczony dla osób zainteresowanych gotowaniem i poszukujących prostego sposobu na przygotowanie pysznego klasycznego dania. Film szczegółowo opisuje proces tworzenia frytek, zaczynając od wyboru odpowiednich ziemniaków – agria – ze względu na ich wysoką zawartość skrobi oraz niską zawartość wody, co gwarantuje wyjątkową chrupkość. Następnie przedstawione są kroki niezbędne do przygotowania idealnych frytek francuskich, obejmujące obieranie, krojenie, namaczanie w zimnej wodzie i gotowanie.",
+        "Przepis rozpoczyna się od wyboru ziemniaków agria, które dzięki wysokiej zawartości skrobi i niskiej zawartości wody idealnie nadają się do przygotowania chrupiących frytek. Następnie film pokazuje, jak należy obierać, kroić ziemniaki wzdłuż na jednolite kawałki o wymiarach około jednego centymetra kwadratowego oraz namaczać je w zimnej wodzie, aby usunąć nadmiar skrobi. Po tym procesie ziemniaki gotuje się w wodzie z sodą oczyszczoną, która pomaga im się napowietrzyć i rozbić, a następnie osuszają i smażą wstępnie w oleju, co zapewnia idealną chrupkość.",
+        "Aby uzyskać jeszcze bardziej intensywny smak i chrupkość, frytki są ponownie zamrażane lub schładzane przed ostatecznym smażeniem. Ostatnim krokiem jest smażenie ich na głęboki olej podgrzany do 190 stopni Celsjusza, aż staną się złote i chrupiące, a końcowym akcentem stanowi posypanie solą Maldon. Autor podkreśla znaczenie użycia tłuszczu z kaczki dla wzmocnienia smaku oraz dodawania mąki ziemniaczanej do odsączania frytek.",
+        "Podsumowując, ten przepis oferuje praktyczne wskazówki dotyczące przygotowania idealnych frytek francuskich, podkreślając znaczenie odpowiedniego wyboru składników i zastosowanie technik wstępnego smażenia oraz wstępnego smażenia. Dzięki temu każdy może samodzielnie cieszyć się pysznymi, chrupiącymi frytkami."
+      ],
+      "co_masz_zrobic": {
+        "skladniki": [
+          {
+            "nazwa": "ziemniaki agria",
+            "ilosc": "brak danych",
+            "zrodlo": "mowa"
+          },
+          {
+            "nazwa": "soda oczyszczona",
+            "ilosc": "brak danych",
+            "zrodlo": "mowa"
+          },
+          {
+            "nazwa": "sól",
+            "ilosc": "brak danych",
+            "zrodlo": "mowa"
+          },
+          {
+            "nazwa": "skrobia ziemniaczana",
+            "ilosc": "brak danych",
+            "zrodlo": "mowa"
+          },
+          {
+            "nazwa": "tłuszcz z kaczki",
+            "ilosc": "brak danych",
+            "zrodlo": "mowa"
+          },
+          {
+            "nazwa": "sól Maldon",
+            "ilosc": "brak danych",
+            "zrodlo": "mowa"
+          }
+        ],
+        "kroki": [
+          {
+            "t": 4.77,
+            "tekst": "Zacznij od ziemniaków agria.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 12.57,
+            "tekst": "Obierz.",
+            "zrodlo": "mowa"
+          },
+          {
+            "t": 12.97,
+            "tekst": "Przytnij końce i boki.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 14.05,
+            "tekst": "Pokrój je wzdłuż, w jednolite frytki, około jednego centymetra kwadratowego.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 18.13,
+            "tekst": "Namocz je w zimnej wodzie, aby usunąć nadmiar skrobi.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 20.71,
+            "tekst": "Przepłucz kilka razy, do momentu, aż woda będzie idealnie czysta.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 23.79,
+            "tekst": "Zagotuj wodę w garnku.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 25.05,
+            "tekst": "Dodaj sodę oczyszczoną, co pomoże im się napowietrzyć i rozbić.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 27.91,
+            "tekst": "Dodaj sól, która to przyprawi.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 29.33,
+            "tekst": "Następnie gotuj frytki do miękkości, powinny łamać się, ale nie pękać.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 32.23,
+            "tekst": "Oprósz lekko mąką ziemniaczaną.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 35.93,
+            "tekst": "Następnie umieść je w lodówce lub zamrażarce, aby całkowicie ostudzić.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 38.89,
+            "tekst": "Rozgrzej olej w garnku, gdy osiągnie około 140 stopni.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 44.01,
+            "tekst": "Wrzuć frytki.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 45.17,
+            "tekst": "Podsmaż wstępnie, blanszuj w oleju.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 46.91,
+            "tekst": "Mieszaj stale dla falistej krawędzi.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 48.55,
+            "tekst": "Wyjmij je.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 49.17,
+            "tekst": "Połóż na tacy.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 50.03,
+            "tekst": "Ponownie zamroź lub schłodź, przed ostatecznym smażeniem.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 52.11,
+            "tekst": "Rozgrzej olej do 190 stopni.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 53.41,
+            "tekst": "Smaż, aż będą złote i chrupiące.",
+            "zrodlo": "mowa+obraz"
+          },
+          {
+            "t": 54.85,
+            "tekst": "Zakończ posypując solą Maldon.",
+            "zrodlo": "mowa+obraz"
+          }
+        ],
+        "sprzet": [
+          "garnek",
+          "taca"
+        ],
+        "czas": "",
+        "cwiczenia": [],
+        "wskazowki": [
+          "Ta konkretna odmiana ziemniaka, posiada bardzo wysoką zawartość skrobi, bardzo niską zawartość wody, idealne dla chrupkości.",
+          "To doda piękną, chrupiącą warstwę.",
+          "Mamy też tłuszcz z kaczki dla smaku."
+        ],
+        "bledy": [],
+        "wnioski": []
+      },
+      "najwazniejsze": [
+        {
+          "t": 4.77,
+          "tytul": "Ziemniaki Agria",
+          "opis": "Wykorzystanie ziemniaków agria jest kluczowe dla uzyskania chrupiącej frytki ze względu na ich skład.",
+          "zrodlo": ""
+        },
+        {
+          "t": 45.17,
+          "tytul": "Wstępne smażenie w Oleju",
+          "opis": "Podsmaż wstępnie (wstępne smażenie) frytek w oleju jest niezbędne do uzyskania idealnej tekstury i chrupkości.",
+          "zrodlo": ""
+        },
+        {
+          "t": 52.11,
+          "tytul": "Smażenie na Głębokim Oleju",
+          "opis": "Ostateczne smażenie frytek na głęboki olej podgrzany do 190°C zapewnia złoty kolor i chrupkość.",
+          "zrodlo": ""
+        }
+      ],
+      "momenty": [
+        {
+          "t": 4.77,
+          "tekst": "Zacznij od ziemniaków agria."
+        },
+        {
+          "t": 14.05,
+          "tekst": "Pokrój je wzdłuż, w jednolite frytki, około jednego centymetra kwadratowego."
+        },
+        {
+          "t": 23.79,
+          "tekst": "Zagotuj wodę w garnku."
+        },
+        {
+          "t": 38.89,
+          "tekst": "Rozgrzej olej w garnku, gdy osiągnie około 140 stopni."
+        },
+        {
+          "t": 45.17,
+          "tekst": "Podsmaż wstępnie, blanszuj w oleju."
+        },
+        {
+          "t": 50.03,
+          "tekst": "Ponownie zamroź lub schłodź, przed ostatecznym smażeniem."
+        },
+        {
+          "t": 52.11,
+          "tekst": "Rozgrzej olej do 190 stopni."
+        }
+      ],
+      "cytaty": [
+        {
+          "t": 0.0,
+          "tekst": "This is it. This is the perfect French fry.",
+          "tlumaczenie": "To jest to. To idealna frytki francuskie."
+        },
+        {
+          "t": 2.81,
+          "tekst": "The secret to super crispy fries.",
+          "tlumaczenie": "Sekret do wyjątkowo chrupiących frytek."
+        },
+        {
+          "t": 26.11,
+          "tekst": "Which is going to help them to fluff and break down.",
+          "tlumaczenie": "Co pomoże im się napowietrzyć i rozbić."
+        },
+        {
+          "t": 34.13,
+          "tekst": "This is going to add a beautiful crispy layer.",
+          "tlumaczenie": "To doda piękną, chrupiącą warstwę."
+        }
+      ],
+      "rozdzialy": [
+        {
+          "start": 0.0,
+          "end": 4.77,
+          "tytul": "Wstęp",
+          "opis": "Zapowiedź tematu filmu.",
+          "momenty": []
+        },
+        {
+          "start": 4.77,
+          "end": 14.05,
+          "tytul": "Przygotowanie ziemniaków",
+          "opis": "Zacznij od ziemniaków agria; Obierz; Przytnij końce i boki.",
+          "momenty": []
+        },
+        {
+          "start": 14.05,
+          "end": 23.79,
+          "tytul": "Krojenie i moczenie",
+          "opis": "Pokrój je wzdłuż, w jednolite frytki, około jednego centymetra kwadratowego; Namocz je w zimnej wodzie, aby usunąć nadmiar skrobi; Przepłucz kilka razy, do momentu, aż woda będzie idealnie czysta.",
+          "momenty": []
+        },
+        {
+          "start": 23.79,
+          "end": 45.17,
+          "tytul": "Gotowanie ziemniaków",
+          "opis": "Zagotuj wodę w garnku; Dodaj sodę oczyszczoną, co pomoże im się napowietrzyć i rozbić; Dodaj sól, która to przyprawi i dalej.",
+          "momenty": []
+        },
+        {
+          "start": 45.17,
+          "end": 50.03,
+          "tytul": "Blanszowanie frytek",
+          "opis": "Podsmaż wstępnie, blanszuj w oleju; Mieszaj stale dla falistej krawędzi; Wyjmij je i dalej.",
+          "momenty": []
+        },
+        {
+          "start": 50.03,
+          "end": 58.31,
+          "tytul": "Smażenie w wysokiej temperaturze",
+          "opis": "Ponownie zamroź lub schłodź, przed ostatecznym smażeniem; Rozgrzej olej do 190 stopni; Smaż, aż będą złote i chrupiące i dalej.",
+          "momenty": []
+        }
+      ],
+      "do_zapamietania": "Frytki agria to najlepszy wybór do przygotowania chrupiących frytek francuskich dzięki wysokiej zawartości skrobi i niskiej zawartości wody.",
+      "szczera_ocena": "Film przedstawia dobrze zorganizowany proces przygotowania frytek francuskich, jednak brakuje szczegółowych informacji dotyczących czasu gotowania ziemniaków w wodzie oraz dokładnych proporcji użytych składników. Dodatkowo, film nie omawia wpływu temperatury oleju na końcowy efekt – chociaż podaje zakres temperatur, to nie wyjaśnia, jak te temperatury wpływają na proces smażenia.",
+      "czego_nie_wiadomo": [
+        "Dokładny czas gotowania ziemniaków w wodzie z sodą oczyszczoną.",
+        "Proporcje użytych składników (np. ilość soli, mąki ziemniaczanej)."
+      ],
+      "pytania": [
+        "Dlaczego autor poleca użycie ziemniaków agria?",
+        "Jakie składniki dodatkowe są wykorzystane w tym przepisie dla uzyskania lepszego smaku?",
+        "Co to jest par-fry i dlaczego jest ważne w tym przepisie?",
+        "Jaki wpływ ma soda oczyszczona na proces smażenia frytek?"
+      ],
+      "metoda": "kroki z linii mowy",
+      "czas_czytania_s": 82
+    }
+  },
+  "luki": [
+    "Kadry co najwyżej co 16 s — krótkie czynności między kadrami mogły zostać pominięte."
+  ],
+  "czasy": {
+    "pobieranie_s": 5.3,
+    "kadry_s": 1.6,
+    "obraz_wczytanie_s": 11.3,
+    "obraz_rownoleglosc": 1.99,
+    "obraz_s": 31.3,
+    "ocr_s": 19.1,
+    "transkrypcja_s": 0.0,
+    "transkrypcja_poprawka_s": 14.1,
+    "tekst_wczytanie_s": 12.5,
+    "tlumaczenie_s": 9.7,
+    "streszczenie_s": 24.7,
+    "tekst_razem_s": 24.7,
+    "razem_s": 78.6,
+    "mowa_rownolegle": true
+  },
+  "podglad": null,
+  "zasoby": {
+    "przed": {
+      "karta": "NVIDIA GeForce RTX 3070 Ti",
+      "pamiec_mb": 8192,
+      "zajete_mb": 5720,
+      "wolne_mb": 2298,
+      "programy": [
+        {
+          "nazwa": "msedgewebview2.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "steamwebhelper.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "explorer.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "CrossDeviceResume.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "AdobeNotificationClient.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "SearchHost.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "StartMenuExperienceHost.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "ProtonPass.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "Cold Turkey Blocker.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "SteelSeriesPrism.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "TextInputHost.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "ShellHost.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "PowerToys.ColorPickerUI.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "PowerToys.FancyZones.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "PowerToys.PowerLauncher.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "ProtonVPN.Client.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "PowerToys.Peek.UI.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "llama-server.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "Creative Cloud UI Helper.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "ApplicationFrameHost.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "BlueStacksServices.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "XboxPcTray.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "XboxPcApp.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "ShellExperienceHost.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "MicrosoftSecurityApp.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "firefox.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "iCloudHome.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "mmgaserver.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "pythonw.exe",
+          "pamiec_mb": null
+        },
+        {
+          "nazwa": "SystemSettings.exe",
+          "pamiec_mb": null
+        }
+      ],
+      "modele_poprzednie": [
+        {
+          "model": "gemma3:4b",
+          "rozmiar_mb": 3101,
+          "na_karcie_proc": 100
+        }
+      ],
+      "zajete_innych_mb": 2619
+    },
+    "modele": {
+      "opis_kadrow": [
+        {
+          "model": "qwen3-vl:4b-instruct",
+          "rozmiar_mb": 4257,
+          "na_karcie_proc": 100
+        }
+      ],
+      "streszczenie": [
+        {
+          "model": "gemma3:4b",
+          "rozmiar_mb": 3101,
+          "na_karcie_proc": 100
+        }
+      ]
+    },
+    "w_trakcie": {
+      "najmniej_wolnej_mb": 269,
+      "najwiecej_zajetej_mb": 7749
+    }
+  },
+  "tlumaczenie_calosci": {
+    "en": {
+      "jezyk": "en",
+      "silnik": "ollama:gemma3:4b",
+      "dane": {
+        "schema": "vidsum.summary/1",
+        "typ": "przepis",
+        "tytul": "Ideal French Fries",
+        "tytul_akcent": "",
+        "teza": "This recipe shows how to prepare exceptionally crispy French fries from Agria potatoes, using several key techniques and ingredients.",
+        "streszczenie": [
+          "The film is an instructional recipe for perfect French fries, intended for people interested in cooking and looking for a simple way to prepare a delicious classic dish. The film details the creation of fries, starting with choosing appropriate potatoes – Agria – due to their high starch content and low water content, which guarantees exceptional crispness. Then the steps necessary to make ideal French fries are presented, including peeling, cutting, soaking in cold water and cooking.",
+          "The recipe begins by selecting Agria potatoes, which, thanks to their high starch content and low water content, are perfectly suitable for preparing crispy fries. Next, the film shows how to peel, cut the potatoes lengthwise into uniform pieces with dimensions of about one square centimeter and soak them in cold water to remove excess starch. After this process, the potatoes are cooked in water with baking soda, which helps them aerate and break down, then they are dried and pre-fried in oil, ensuring ideal crispness.",
+          "To achieve an even more intense flavor and crispness, the fries are re-frozen or chilled before final frying. The last step is to fry them in deep oil heated to 190 degrees Celsius until golden brown and crispy, with a finishing touch of Maldon salt being sprinkled on top. The author emphasizes the importance of using duck fat for enhancing the flavor as well as adding potato starch to drain the fries.",
+          "To summarize, this recipe offers practical tips for preparing perfect French fries, emphasizing the importance of choosing ingredients correctly and applying pre-frying techniques as well as preliminary frying. This allows everyone to enjoy delicious, crispy fries on their own."
+        ],
+        "co_masz_zrobic": {
+          "skladniki": [
+            {
+              "nazwa": "Agria potatoes",
+              "ilosc": "no data",
+              "zrodlo": "mowa"
+            },
+            {
+              "nazwa": "baking soda",
+              "ilosc": "no data",
+              "zrodlo": "mowa"
+            },
+            {
+              "nazwa": "salt",
+              "ilosc": "no data",
+              "zrodlo": "mowa"
+            },
+            {
+              "nazwa": "cornstarch",
+              "ilosc": "no data",
+              "zrodlo": "mowa"
+            },
+            {
+              "nazwa": "duck fat",
+              "ilosc": "no data",
+              "zrodlo": "mowa"
+            },
+            {
+              "nazwa": "Maldon salt",
+              "ilosc": "no data",
+              "zrodlo": "mowa"
+            }
+          ],
+          "kroki": [
+            {
+              "t": 4.77,
+              "tekst": "Deep Frying",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 12.57,
+              "tekst": "Peel them.",
+              "zrodlo": "mowa"
+            },
+            {
+              "t": 12.97,
+              "tekst": "Cut off the ends and sides.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 14.05,
+              "tekst": "Cut them lengthwise into uniform fries, about one square centimeter.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 18.13,
+              "tekst": "Soak them in cold water to remove excess starch.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 20.71,
+              "tekst": "Rinse several times until the water is perfectly clean.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 23.79,
+              "tekst": "Boil water in a pot.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 25.05,
+              "tekst": "Add baking soda, which will help them fluff up and break apart.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 27.91,
+              "tekst": "Add salt, which will season it.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 29.33,
+              "tekst": "Then cook the fries until soft; they should bend but not crack.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 32.23,
+              "tekst": "Dust lightly with potato starch.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 35.93,
+              "tekst": "Then place them in the refrigerator or freezer to completely cool down.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 38.89,
+              "tekst": "Heat the oil in the pan when it reaches approximately 140 degrees.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 44.01,
+              "tekst": "Throw in the fries.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 45.17,
+              "tekst": "Pre-fry, blanch in oil.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 46.91,
+              "tekst": "Stir constantly for a wavy edge.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 48.55,
+              "tekst": "Take them out.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 49.17,
+              "tekst": "Lay on a tray.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 50.03,
+              "tekst": "Re-freeze or cool before final frying.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 52.11,
+              "tekst": "Heat the oil to 190 degrees.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 53.41,
+              "tekst": "Fry until golden and crispy.",
+              "zrodlo": "mowa+obraz"
+            },
+            {
+              "t": 54.85,
+              "tekst": "Finish by sprinkling with Maldon salt.",
+              "zrodlo": "mowa+obraz"
+            }
+          ],
+          "sprzet": [
+            "pot",
+            "tray"
+          ],
+          "czas": "",
+          "cwiczenia": [],
+          "wskazowki": [
+            "This specific potato variety has very high starch content, very low water content, ideal for crispness.",
+            "This adds a beautiful, crunchy layer.",
+            "We also have duck fat for flavor."
+          ],
+          "bledy": [],
+          "wnioski": []
+        },
+        "najwazniejsze": [
+          {
+            "t": 4.77,
+            "tytul": "Agria Potatoes",
+            "opis": "Using Agria potatoes is crucial for achieving crispy fries due to their composition.",
+            "zrodlo": ""
+          },
+          {
+            "t": 45.17,
+            "tytul": "Pre-frying in Oil",
+            "opis": "Preliminary frying (pre-frying) of the fries is necessary to achieve an ideal texture and crispness.",
+            "zrodlo": ""
+          },
+          {
+            "t": 52.11,
+            "tytul": "Deep Frying",
+            "opis": "Final frying of the fries in deep oil heated to 190°C ensures a golden color and crispness.",
+            "zrodlo": ""
+          }
+        ],
+        "momenty": [
+          {
+            "t": 4.77,
+            "tekst": "Deep Frying"
+          },
+          {
+            "t": 14.05,
+            "tekst": "Cut them lengthwise into uniform fries, about one square centimeter."
+          },
+          {
+            "t": 23.79,
+            "tekst": "Boil water in a pot."
+          },
+          {
+            "t": 38.89,
+            "tekst": "Heat the oil in the pan when it reaches approximately 140 degrees."
+          },
+          {
+            "t": 45.17,
+            "tekst": "Pre-fry, blanch in oil."
+          },
+          {
+            "t": 50.03,
+            "tekst": "Re-freeze or cool before final frying."
+          },
+          {
+            "t": 52.11,
+            "tekst": "Heat the oil to 190 degrees."
+          }
+        ],
+        "cytaty": [
+          {
+            "t": 0.0,
+            "tekst": "This is it. This is the perfect French fry.",
+            "tlumaczenie": "That's it. These are perfect French fries."
+          },
+          {
+            "t": 2.81,
+            "tekst": "The secret to super crispy fries.",
+            "tlumaczenie": "The secret to exceptionally crispy fries."
+          },
+          {
+            "t": 26.11,
+            "tekst": "Which is going to help them to fluff and break down.",
+            "tlumaczenie": "What will help them fluff up and break apart."
+          },
+          {
+            "t": 34.13,
+            "tekst": "This is going to add a beautiful crispy layer.",
+            "tlumaczenie": "This adds a beautiful, crunchy layer."
+          }
+        ],
+        "rozdzialy": [
+          {
+            "start": 0.0,
+            "end": 4.77,
+            "tytul": "Introduction",
+            "opis": "Movie topic preview.",
+            "momenty": []
+          },
+          {
+            "start": 4.77,
+            "end": 14.05,
+            "tytul": "Potato preparation",
+            "opis": "Start with Agria potatoes; Peel them; Cut off ends and sides.",
+            "momenty": []
+          },
+          {
+            "start": 14.05,
+            "end": 23.79,
+            "tytul": "Cutting and soaking",
+            "opis": "Cut them lengthwise into uniform fries, about one square centimeter; Soak them in cold water to remove excess starch; Rinse several times until the water is perfectly clean.",
+            "momenty": []
+          },
+          {
+            "start": 23.79,
+            "end": 45.17,
+            "tytul": "Cooking potatoes",
+            "opis": "Boil water in a pot; Add baking soda, which will help them aerate and break up; Add salt, which seasons it and continues.",
+            "momenty": []
+          },
+          {
+            "start": 45.17,
+            "end": 50.03,
+            "tytul": "Frying of fries",
+            "opis": "Pre-fry, blanch in oil; Stir constantly for ruffled edges; Take them out and continue.",
+            "momenty": []
+          },
+          {
+            "start": 50.03,
+            "end": 58.31,
+            "tytul": "High temperature frying",
+            "opis": "Re-freeze or cool before final frying; Heat the oil to 190 degrees; Fry until golden and crispy and continue.",
+            "momenty": []
+          }
+        ],
+        "do_zapamietania": "Agria potatoes are the best choice for making crispy French fries thanks to their high starch content and low water content.",
+        "szczera_ocena": "The film presents a well-organized process of preparing French fries, however, there is a lack of detailed information regarding the cooking time of the potatoes in water as well as precise proportions of used ingredients. Furthermore, the film does not discuss the impact of oil temperature on the final effect – although it provides temperature ranges, it does not explain how these temperatures affect the frying process.",
+        "czego_nie_wiadomo": [
+          "Exact cooking time of potatoes in water with baking soda",
+          "Proportions of used ingredients (e.g., amount of salt, potato starch)"
+        ],
+        "pytania": [
+          "Why does the author recommend using Agria potatoes?",
+          "What additional ingredients are used in this recipe to achieve a better flavor?",
+          "What is par-fry and why is it important in this recipe?",
+          "What impact does baking soda have on the frying process of fries?"
+        ],
+        "metoda": "kroki z linii mowy",
+        "czas_czytania_s": 82
+      },
+      "kadry": [
+        {
+          "t": 7.5,
+          "file": "kadry/kadr_001_00-08.jpg",
+          "vision": {
+            "scena": "Hands cut potatoes on a wooden board.",
+            "czynnosci": [
+              "cutting"
+            ],
+            "obiekty": [
+              "wooden board",
+              "potato",
+              "knife"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 13.0,
+          "file": "kadry/kadr_002_00-13.jpg",
+          "vision": {
+            "scena": "The chef in the kitchen holds a potato and cuts it.",
+            "czynnosci": [
+              "cutting",
+              "trimming"
+            ],
+            "obiekty": [
+              "potato",
+              "knife",
+              "cutting board",
+              "kitchen",
+              "cooker"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Kucharz trzyma ziemniak i kroje go.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 19.0,
+          "file": "kadry/kadr_003_00-19.jpg",
+          "vision": {
+            "scena": "The chef in the kitchen processes vegetables in a bowl.",
+            "czynnosci": [
+              "mixing",
+              "extraction",
+              "preparation"
+            ],
+            "obiekty": [
+              "chef",
+              "small bowl",
+              "cutting board",
+              "water",
+              "kitchen"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Kucharz stoi, trzyma miseczkę, patrzy w nią.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 20.0,
+          "file": "kadry/kadr_004_00-20.jpg",
+          "vision": {
+            "scena": "Person wipes hands over a bowl with vegetables.",
+            "czynnosci": [
+              "hand wiping",
+              "hand washing",
+              "wiping hands over the bowl"
+            ],
+            "obiekty": [
+              "bowl",
+              "vegetables",
+              "hands",
+              "table"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Ręce wycierane nad miską, stojące nad nią.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 21.0,
+          "file": "kadry/kadr_005_00-21.jpg",
+          "vision": {
+            "scena": "Hands wash potatoes in a bowl under the tap.",
+            "czynnosci": [
+              "washing",
+              "pouring water",
+              "holding the bowl"
+            ],
+            "obiekty": [
+              "tap",
+              "small bowl",
+              "potatoes",
+              "kitchen",
+              "water"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Ręce trzymają miseczkę, woda wylewa się na ziemniaki.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 22.5,
+          "file": "kadry/kadr_006_00-22.jpg",
+          "vision": {
+            "scena": "Chef in the kitchen wipes the sink out of the bowl.",
+            "czynnosci": [
+              "wiping",
+              "holding the bowl",
+              "wiping water"
+            ],
+            "obiekty": [
+              "chef",
+              "small bowl",
+              "a piece of wood",
+              "kitchen",
+              "water"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Kucharz stoi, trzyma misę, wyciera wodę.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 26.0,
+          "file": "kadry/kadr_007_00-26.jpg",
+          "vision": {
+            "scena": "A hand is pouring something into a pot on a kitchen utensil.",
+            "czynnosci": [
+              "pouring"
+            ],
+            "obiekty": [
+              "pots",
+              "kitchenware",
+              "hand tool in the kitchen"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 27.5,
+          "file": "kadry/kadr_008_00-28.jpg",
+          "vision": {
+            "scena": "The cook adds something to the pot on an induction cookware.",
+            "czynnosci": [
+              "pouring",
+              "mixing"
+            ],
+            "obiekty": [
+              "pots",
+              "induction cookware",
+              "kitchenware"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Kucharz wchodzi w kadrze, patrzy w dół, trzyma naczynie kuchenne.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 43.0,
+          "file": "kadry/kadr_009_00-43.jpg",
+          "vision": {
+            "scena": "The cook is adding ingredients to a pot on induction slices.",
+            "czynnosci": [
+              "adding",
+              "mixing",
+              "mixing"
+            ],
+            "obiekty": [
+              "pots",
+              "slice",
+              "chocolate",
+              "lid"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Ręce w ruchu nad garnkiem, nie widoczna cała postać.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 44.0,
+          "file": "kadry/kadr_010_00-44.jpg",
+          "vision": {
+            "scena": "The cook adds an ingredient to the pot in the kitchen.",
+            "czynnosci": [
+              "adding",
+              "removing",
+              "preparation"
+            ],
+            "obiekty": [
+              "pots",
+              "kitchen",
+              "black writing"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Kucharz trzyma składnik nad garnkiem.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 47.5,
+          "file": "kadry/kadr_011_00-48.jpg",
+          "vision": {
+            "scena": "The cook is mixing herbs in a pot with a mesh.",
+            "czynnosci": [
+              "mixing",
+              "pause"
+            ],
+            "obiekty": [
+              "pots",
+              "kitchen mesh",
+              "herbs"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 49.5,
+          "file": "kadry/kadr_012_00-50.jpg",
+          "vision": {
+            "scena": "The cook holds potatoes in the pot.",
+            "czynnosci": [
+              "holding potatoes",
+              "lifting the pot"
+            ],
+            "obiekty": [
+              "potatoes",
+              "pots",
+              "kitchen utensil"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "",
+            "pewnosc": "niska"
+          }
+        },
+        {
+          "t": 53.5,
+          "file": "kadry/kadr_013_00-54.jpg",
+          "vision": {
+            "scena": "The cook is frying potatoes in the pot.",
+            "czynnosci": [
+              "removing potatoes from oil",
+              "lifting the pot",
+              "removing potatoes from the mesh"
+            ],
+            "obiekty": [
+              "chef",
+              "potatoes",
+              "pots",
+              "kitchen utensil",
+              "oil"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "Kucharz wchodzi w kamerę, podnosi ziemniaki z sieci.",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 55.0,
+          "file": "kadry/kadr_014_00-55.jpg",
+          "vision": {
+            "scena": "A hand is taking potatoes out of a bowl with paper.",
+            "czynnosci": [
+              "removing",
+              "supporting",
+              "taking out of the bowl"
+            ],
+            "obiekty": [
+              "bowl",
+              "paper",
+              "potatoes",
+              "kitchen utensil"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "",
+            "pewnosc": "wysoka"
+          }
+        },
+        {
+          "t": 56.5,
+          "file": "kadry/kadr_015_00-56.jpg",
+          "vision": {
+            "scena": "The photo shows releasing fries onto a plate.",
+            "czynnosci": [
+              "releasing fries"
+            ],
+            "obiekty": [
+              "fries",
+              "plate",
+              "bowl"
+            ],
+            "tekst_na_ekranie": [],
+            "napisy_na_przedmiotach": [],
+            "cialo": "",
+            "pewnosc": "wysoka"
+          }
+        }
+      ],
+      "transkrypcja": {
+        "segmenty": [
+          {
+            "start": 0.0,
+            "end": 0.54,
+            "text": "This is it."
+          },
+          {
+            "start": 1.09,
+            "end": 2.63,
+            "text": "This is the perfect French fry."
+          },
+          {
+            "start": 2.81,
+            "end": 4.57,
+            "text": "The secret to super crispy fries."
+          },
+          {
+            "start": 4.77,
+            "end": 5.81,
+            "text": "Start with agria potatoes."
+          },
+          {
+            "start": 6.13,
+            "end": 7.53,
+            "text": "This particular potato variety."
+          },
+          {
+            "start": 7.75,
+            "end": 9.49,
+            "text": "Is a very high starch content."
+          },
+          {
+            "start": 9.71,
+            "end": 10.87,
+            "text": "And a very low water content."
+          },
+          {
+            "start": 11.09,
+            "end": 12.35,
+            "text": "Perfect for crispiness."
+          },
+          {
+            "start": 12.57,
+            "end": 12.85,
+            "text": "Peel."
+          },
+          {
+            "start": 12.97,
+            "end": 13.91,
+            "text": "Trim the ends and sides."
+          },
+          {
+            "start": 14.05,
+            "end": 15.17,
+            "text": "And cut them off lengthways."
+          },
+          {
+            "start": 15.39,
+            "end": 16.19,
+            "text": "Into uniform fries."
+          },
+          {
+            "start": 16.47,
+            "end": 17.79,
+            "text": "Roughly one centimetre square."
+          },
+          {
+            "start": 18.13,
+            "end": 19.11,
+            "text": "Soak them in cold water."
+          },
+          {
+            "start": 19.23,
+            "end": 20.49,
+            "text": "To remove any excess starch."
+          },
+          {
+            "start": 20.71,
+            "end": 21.89,
+            "text": "And wash them a few times."
+          },
+          {
+            "start": 22.05,
+            "end": 23.63,
+            "text": "Until the water runs perfectly clear."
+          },
+          {
+            "start": 23.79,
+            "end": 24.93,
+            "text": "Bring a pot of water to the boil."
+          },
+          {
+            "start": 25.05,
+            "end": 25.85,
+            "text": "Add baking soda."
+          },
+          {
+            "start": 26.11,
+            "end": 27.79,
+            "text": "Which is going to help them to fluff and break down."
+          },
+          {
+            "start": 27.91,
+            "end": 28.31,
+            "text": "And salt."
+          },
+          {
+            "start": 28.43,
+            "end": 29.19,
+            "text": "Which is going to season them."
+          },
+          {
+            "start": 29.33,
+            "end": 30.55,
+            "text": "Then boil the fries until just."
+          },
+          {
+            "start": 30.63,
+            "end": 30.89,
+            "text": "Tender."
+          },
+          {
+            "start": 31.07,
+            "end": 32.01,
+            "text": "They should break without snapping."
+          },
+          {
+            "start": 32.23,
+            "end": 33.93,
+            "text": "Drain just lightly with potato starch."
+          },
+          {
+            "start": 34.13,
+            "end": 35.73,
+            "text": "This is going to add a beautiful crispy layer."
+          },
+          {
+            "start": 35.93,
+            "end": 37.69,
+            "text": "And then place them into the fridge or freezer."
+          },
+          {
+            "start": 37.89,
+            "end": 38.71,
+            "text": "To completely cool."
+          },
+          {
+            "start": 38.89,
+            "end": 39.67,
+            "text": "Heat oil in a pot."
+          },
+          {
+            "start": 39.81,
+            "end": 41.21,
+            "text": "We've got some duck fat too for flavour."
+          },
+          {
+            "start": 41.39,
+            "end": 43.67,
+            "text": "And once it reaches around about 140 degrees."
+          },
+          {
+            "start": 44.01,
+            "end": 45.03,
+            "text": "We're going to drop in our fries."
+          },
+          {
+            "start": 45.17,
+            "end": 46.01,
+            "text": "And par-fry them."
+          },
+          {
+            "start": 46.21,
+            "end": 46.69,
+            "text": "Or blanch them."
+          },
+          {
+            "start": 46.91,
+            "end": 48.33,
+            "text": "Stirring constantly for ruffled edges."
+          },
+          {
+            "start": 48.55,
+            "end": 49.03,
+            "text": "Remove them."
+          },
+          {
+            "start": 49.17,
+            "end": 49.81,
+            "text": "Lay them in a tray."
+          },
+          {
+            "start": 50.03,
+            "end": 51.07,
+            "text": "And freeze or chill again."
+          },
+          {
+            "start": 51.31,
+            "end": 52.03,
+            "text": "For the final fry."
+          },
+          {
+            "start": 52.11,
+            "end": 53.01,
+            "text": "Heat the oil up to 190."
+          },
+          {
+            "start": 53.41,
+            "end": 54.63,
+            "text": "Fry until golden and crispy."
+          },
+          {
+            "start": 54.85,
+            "end": 56.19,
+            "text": "Finish with a sprinkle of maldon salt."
+          },
+          {
+            "start": 56.19,
+            "end": 57.03,
+            "text": "Extra crunch."
+          }
+        ],
+        "zrodlo": "oryginał"
+      },
+      "nieprzetlumaczone": 0,
+      "czas_s": 26.8,
+      "zrodlo_hash": "1747d4a5dd6add8a",
+      "pamiec": {
+        "Idealne Frytki Francuskie": "Ideal French Fries",
+        "Ten przepis pokazuje, jak przygotować wyjątkowo chrupiące frytki francuskie z ziemniaków agria, wykorzystując kilka kluczowych technik i składników.": "This recipe shows how to prepare exceptionally crispy French fries from Agria potatoes, using several key techniques and ingredients.",
+        "Frytki agria to najlepszy wybór do przygotowania chrupiących frytek francuskich dzięki wysokiej zawartości skrobi i niskiej zawartości wody.": "Agria potatoes are the best choice for making crispy French fries thanks to their high starch content and low water content.",
+        "Film przedstawia dobrze zorganizowany proces przygotowania frytek francuskich, jednak brakuje szczegółowych informacji dotyczących czasu gotowania ziemniaków w wodzie oraz dokładnych proporcji użytych składników. Dodatkowo, film nie omawia wpływu temperatury oleju na końcowy efekt – chociaż podaje zakres temperatur, to nie wyjaśnia, jak te temperatury wpływają na proces smażenia.": "The film presents a well-organized process of preparing French fries, however, there is a lack of detailed information regarding the cooking time of the potatoes in water as well as precise proportions of used ingredients. Furthermore, the film does not discuss the impact of oil temperature on the final effect – although it provides temperature ranges, it does not explain how these temperatures affect the frying process.",
+        "Film to instruktażowy przepis na idealne frytki francuskie, przeznaczony dla osób zainteresowanych gotowaniem i poszukujących prostego sposobu na przygotowanie pysznego klasycznego dania. Film szczegółowo opisuje proces tworzenia frytek, zaczynając od wyboru odpowiednich ziemniaków – agria – ze względu na ich wysoką zawartość skrobi oraz niską zawartość wody, co gwarantuje wyjątkową chrupkość. Następnie przedstawione są kroki niezbędne do przygotowania idealnych frytek francuskich, obejmujące obieranie, krojenie, namaczanie w zimnej wodzie i gotowanie.": "The film is an instructional recipe for perfect French fries, intended for people interested in cooking and looking for a simple way to prepare a delicious classic dish. The film details the creation of fries, starting with choosing appropriate potatoes – Agria – due to their high starch content and low water content, which guarantees exceptional crispness. Then the steps necessary to make ideal French fries are presented, including peeling, cutting, soaking in cold water and cooking.",
+        "Przepis rozpoczyna się od wyboru ziemniaków agria, które dzięki wysokiej zawartości skrobi i niskiej zawartości wody idealnie nadają się do przygotowania chrupiących frytek. Następnie film pokazuje, jak należy obierać, kroić ziemniaki wzdłuż na jednolite kawałki o wymiarach około jednego centymetra kwadratowego oraz namaczać je w zimnej wodzie, aby usunąć nadmiar skrobi. Po tym procesie ziemniaki gotuje się w wodzie z sodą oczyszczoną, która pomaga im się napowietrzyć i rozbić, a następnie osuszają i smażą wstępnie w oleju, co zapewnia idealną chrupkość.": "The recipe begins by selecting Agria potatoes, which, thanks to their high starch content and low water content, are perfectly suitable for preparing crispy fries. Next, the film shows how to peel, cut the potatoes lengthwise into uniform pieces with dimensions of about one square centimeter and soak them in cold water to remove excess starch. After this process, the potatoes are cooked in water with baking soda, which helps them aerate and break down, then they are dried and pre-fried in oil, ensuring ideal crispness.",
+        "Aby uzyskać jeszcze bardziej intensywny smak i chrupkość, frytki są ponownie zamrażane lub schładzane przed ostatecznym smażeniem. Ostatnim krokiem jest smażenie ich na głęboki olej podgrzany do 190 stopni Celsjusza, aż staną się złote i chrupiące, a końcowym akcentem stanowi posypanie solą Maldon. Autor podkreśla znaczenie użycia tłuszczu z kaczki dla wzmocnienia smaku oraz dodawania mąki ziemniaczanej do odsączania frytek.": "To achieve an even more intense flavor and crispness, the fries are re-frozen or chilled before final frying. The last step is to fry them in deep oil heated to 190 degrees Celsius until golden brown and crispy, with a finishing touch of Maldon salt being sprinkled on top. The author emphasizes the importance of using duck fat for enhancing the flavor as well as adding potato starch to drain the fries.",
+        "Podsumowując, ten przepis oferuje praktyczne wskazówki dotyczące przygotowania idealnych frytek francuskich, podkreślając znaczenie odpowiedniego wyboru składników i zastosowanie technik wstępnego smażenia oraz wstępnego smażenia. Dzięki temu każdy może samodzielnie cieszyć się pysznymi, chrupiącymi frytkami.": "To summarize, this recipe offers practical tips for preparing perfect French fries, emphasizing the importance of choosing ingredients correctly and applying pre-frying techniques as well as preliminary frying. This allows everyone to enjoy delicious, crispy fries on their own.",
+        "Dokładny czas gotowania ziemniaków w wodzie z sodą oczyszczoną.": "Exact cooking time of potatoes in water with baking soda",
+        "Proporcje użytych składników (np. ilość soli, mąki ziemniaczanej).": "Proportions of used ingredients (e.g., amount of salt, potato starch)",
+        "Dlaczego autor poleca użycie ziemniaków agria?": "Why does the author recommend using Agria potatoes?",
+        "Jakie składniki dodatkowe są wykorzystane w tym przepisie dla uzyskania lepszego smaku?": "What additional ingredients are used in this recipe to achieve a better flavor?",
+        "Co to jest par-fry i dlaczego jest ważne w tym przepisie?": "What is par-fry and why is it important in this recipe?",
+        "Jaki wpływ ma soda oczyszczona na proces smażenia frytek?": "What impact does baking soda have on the frying process of fries?",
+        "Ziemniaki Agria": "Agria Potatoes",
+        "Wykorzystanie ziemniaków agria jest kluczowe dla uzyskania chrupiącej frytki ze względu na ich skład.": "Using Agria potatoes is crucial for achieving crispy fries due to their composition.",
+        "Wstępne smażenie w Oleju": "Pre-frying in Oil",
+        "Podsmaż wstępnie (wstępne smażenie) frytek w oleju jest niezbędne do uzyskania idealnej tekstury i chrupkości.": "Preliminary frying (pre-frying) of the fries is necessary to achieve an ideal texture and crispness.",
+        "Smażenie na Głębokim Oleju": "Deep Frying",
+        "Ostateczne smażenie frytek na głęboki olej podgrzany do 190°C zapewnia złoty kolor i chrupkość.": "Final frying of the fries in deep oil heated to 190°C ensures a golden color and crispness.",
+        "Zacznij od ziemniaków agria.": "Deep Frying",
+        "Pokrój je wzdłuż, w jednolite frytki, około jednego centymetra kwadratowego.": "Cut them lengthwise into uniform fries, about one square centimeter.",
+        "Zagotuj wodę w garnku.": "Boil water in a pot.",
+        "Rozgrzej olej w garnku, gdy osiągnie około 140 stopni.": "Heat the oil in the pan when it reaches approximately 140 degrees.",
+        "Podsmaż wstępnie, blanszuj w oleju.": "Pre-fry, blanch in oil.",
+        "Ponownie zamroź lub schłodź, przed ostatecznym smażeniem.": "Re-freeze or cool before final frying.",
+        "Rozgrzej olej do 190 stopni.": "Heat the oil to 190 degrees.",
+        "Wstęp": "Introduction",
+        "Zapowiedź tematu filmu.": "Movie topic preview.",
+        "Przygotowanie ziemniaków": "Potato preparation",
+        "Zacznij od ziemniaków agria; Obierz; Przytnij końce i boki.": "Start with Agria potatoes; Peel them; Cut off ends and sides.",
+        "Krojenie i moczenie": "Cutting and soaking",
+        "Pokrój je wzdłuż, w jednolite frytki, około jednego centymetra kwadratowego; Namocz je w zimnej wodzie, aby usunąć nadmiar skrobi; Przepłucz kilka razy, do momentu, aż woda będzie idealnie czysta.": "Cut them lengthwise into uniform fries, about one square centimeter; Soak them in cold water to remove excess starch; Rinse several times until the water is perfectly clean.",
+        "Gotowanie ziemniaków": "Cooking potatoes",
+        "Zagotuj wodę w garnku; Dodaj sodę oczyszczoną, co pomoże im się napowietrzyć i rozbić; Dodaj sól, która to przyprawi i dalej.": "Boil water in a pot; Add baking soda, which will help them aerate and break up; Add salt, which seasons it and continues.",
+        "Blanszowanie frytek": "Frying of fries",
+        "Podsmaż wstępnie, blanszuj w oleju; Mieszaj stale dla falistej krawędzi; Wyjmij je i dalej.": "Pre-fry, blanch in oil; Stir constantly for ruffled edges; Take them out and continue.",
+        "Smażenie w wysokiej temperaturze": "High temperature frying",
+        "Ponownie zamroź lub schłodź, przed ostatecznym smażeniem; Rozgrzej olej do 190 stopni; Smaż, aż będą złote i chrupiące i dalej.": "Re-freeze or cool before final frying; Heat the oil to 190 degrees; Fry until golden and crispy and continue.",
+        "To jest to. To idealna frytki francuskie.": "That's it. These are perfect French fries.",
+        "Sekret do wyjątkowo chrupiących frytek.": "The secret to exceptionally crispy fries.",
+        "Co pomoże im się napowietrzyć i rozbić.": "What will help them fluff up and break apart.",
+        "To doda piękną, chrupiącą warstwę.": "This adds a beautiful, crunchy layer.",
+        "garnek": "pot",
+        "taca": "tray",
+        "Ta konkretna odmiana ziemniaka, posiada bardzo wysoką zawartość skrobi, bardzo niską zawartość wody, idealne dla chrupkości.": "This specific potato variety has very high starch content, very low water content, ideal for crispness.",
+        "Mamy też tłuszcz z kaczki dla smaku.": "We also have duck fat for flavor.",
+        "ziemniaki agria": "Agria potatoes",
+        "soda oczyszczona": "baking soda",
+        "sól": "salt",
+        "skrobia ziemniaczana": "cornstarch",
+        "tłuszcz z kaczki": "duck fat",
+        "sól Maldon": "Maldon salt",
+        "Obierz.": "Peel them.",
+        "Przytnij końce i boki.": "Cut off the ends and sides.",
+        "Namocz je w zimnej wodzie, aby usunąć nadmiar skrobi.": "Soak them in cold water to remove excess starch.",
+        "Przepłucz kilka razy, do momentu, aż woda będzie idealnie czysta.": "Rinse several times until the water is perfectly clean.",
+        "Dodaj sodę oczyszczoną, co pomoże im się napowietrzyć i rozbić.": "Add baking soda, which will help them fluff up and break apart.",
+        "Dodaj sól, która to przyprawi.": "Add salt, which will season it.",
+        "Następnie gotuj frytki do miękkości, powinny łamać się, ale nie pękać.": "Then cook the fries until soft; they should bend but not crack.",
+        "Oprósz lekko mąką ziemniaczaną.": "Dust lightly with potato starch.",
+        "Następnie umieść je w lodówce lub zamrażarce, aby całkowicie ostudzić.": "Then place them in the refrigerator or freezer to completely cool down.",
+        "Wrzuć frytki.": "Throw in the fries.",
+        "Mieszaj stale dla falistej krawędzi.": "Stir constantly for a wavy edge.",
+        "Wyjmij je.": "Take them out.",
+        "Połóż na tacy.": "Lay on a tray.",
+        "Smaż, aż będą złote i chrupiące.": "Fry until golden and crispy.",
+        "Zakończ posypując solą Maldon.": "Finish by sprinkling with Maldon salt.",
+        "Ręce kroją ziemniak na desce z drewna.": "Hands cut potatoes on a wooden board.",
+        "krojenie": "cutting",
+        "deska z drewna": "wooden board",
+        "ziemniak": "potato",
+        "nóż": "knife",
+        "Kucharz w kuchni trzyma ziemniak i kroje go.": "The chef in the kitchen holds a potato and cuts it.",
+        "trimowanie": "trimming",
+        "deska do krojenia": "cutting board",
+        "kuchnia": "kitchen",
+        "kuchenny kocioł": "cooker",
+        "Kucharz w kuchni przetwarza warzywa w misce.": "The chef in the kitchen processes vegetables in a bowl.",
+        "wymieszanie": "mixing",
+        "wyciągnięcie": "extraction",
+        "przygotowanie": "preparation",
+        "kucharz": "chef",
+        "miseczka": "small bowl",
+        "woda": "water",
+        "Osoba wyciera ręce nad miską z warzywami.": "Person wipes hands over a bowl with vegetables.",
+        "wycieranie rąk": "hand wiping",
+        "przygotowywanie rąk": "hand washing",
+        "wycieranie rąk nad miską": "wiping hands over the bowl",
+        "miska": "bowl",
+        "warzywa": "vegetables",
+        "ręce": "hands",
+        "stół": "table",
+        "Ręce myją ziemniaki w misce pod kranem.": "Hands wash potatoes in a bowl under the tap.",
+        "mycie": "washing",
+        "wlewanie wody": "pouring water",
+        "trzymanie miski": "holding the bowl",
+        "kran": "tap",
+        "ziemniaki": "potatoes",
+        "Kucharz w kuchni wycierka zlew w misce.": "Chef in the kitchen wipes the sink out of the bowl.",
+        "wycieranie": "wiping",
+        "trzymanie misy": "holding the bowl",
+        "wycieranie wody": "wiping water",
+        "kawałek drewna": "a piece of wood",
+        "Ręka wlewa coś do garnka na naczyniu kuchennym.": "A hand is pouring something into a pot on a kitchen utensil.",
+        "wlewanie": "pouring",
+        "garnka": "pots",
+        "naczynie kuchenne": "kitchenware",
+        "ręczne narzędzie kuchenne": "hand tool in the kitchen",
+        "Kucharz dodaje coś do garnka na naczyniu indukcyjnym.": "The cook adds something to the pot on an induction cookware.",
+        "mieszanie": "mixing",
+        "garnki": "pots",
+        "naczynie indukcyjne": "induction cookware",
+        "Kucharz dodaje składniki do garnka na indukcyjnej plastry.": "The cook is adding ingredients to a pot on induction slices.",
+        "dodawanie": "adding",
+        "plastr": "slice",
+        "czekolada": "chocolate",
+        "zakrętka": "lid",
+        "Kucharz w kuchni dodaje składnik do garnka.": "The cook adds an ingredient to the pot in the kitchen.",
+        "wyciąganie": "removing",
+        "przygotowywanie": "preparation",
+        "czarny napis": "black writing",
+        "Kucharz mieszający zioła w garnku z siecią.": "The cook is mixing herbs in a pot with a mesh.",
+        "wstrzymanie": "pause",
+        "sieć kuchenna": "kitchen mesh",
+        "zioła": "herbs",
+        "Kucharz trzyma ziemniaki w garnku.": "The cook holds potatoes in the pot.",
+        "trzymanie ziemniaków": "holding potatoes",
+        "podnoszenie garnka": "lifting the pot",
+        "narzędzie kuchenne": "kitchen utensil",
+        "Kucharz smaży ziemniaki w garnku.": "The cook is frying potatoes in the pot.",
+        "wyciąganie ziemniaków z oleju": "removing potatoes from oil",
+        "wyciąganie ziemniaków z sieci": "removing potatoes from the mesh",
+        "olej": "oil",
+        "Ręka wyciąga z miski z papierem ziemniaki.": "A hand is taking potatoes out of a bowl with paper.",
+        "przytrzymywanie": "supporting",
+        "wyciąganie z miski": "taking out of the bowl",
+        "papier": "paper",
+        "Zdjęcie przedstawia wypuszczanie frytek na talerz.": "The photo shows releasing fries onto a plate.",
+        "wypuszczanie frytek": "releasing fries",
+        "frytki": "fries",
+        "talerz": "plate"
+      },
+      "z_pamieci": 0
+    }
+  }
+}

@@ -919,14 +919,15 @@ def test_grounded_steps_fix_wrong_number_english_and_keep_order():
                                    {"nazwa": "papryka", "ilosc": "2 łyżki"}], "sprzet": ["garnek", "papierowy ręcznik"]})
     g = grounded_steps(eng, speech_lines(FRY), "przepis", "")
     texts = [s["tekst"] for s in g["kroki"]]
-    # „And once it reaches 140” (po linii-wyjaśnieniu o tłuszczu z kaczki) dokleja się do „Rozgrzej olej”
-    assert texts == ["Rozgrzej olej w garnku, poczekaj, aż olej osiągnie około 140 stopni.", "Wrzuć frytki.",
+    # „And once it reaches 140” to warunek do NASTĘPNEGO polecenia (0.11.5; wcześniej doklejany do „Rozgrzej olej”)
+    assert texts == ["Rozgrzej olej w garnku.", "Poczekaj, aż olej osiągnie około 140 stopni, potem wrzuć frytki.",
                      "Zamroź albo schłodź ponownie.", "Rozgrzej olej do 190 stopni.", "Posyp solą Maldon."]
-    t140 = g["kroki"][0]["t"]
+    t140 = g["kroki"][1]["t"]
     t190 = g["kroki"][3]["t"]
     assert t140 < 44 < 52 <= t190
     assert g["wyjasnienia"][0]["tekst"] == "tłuszcz z kaczki dodaje smaku."
-    assert g["skladniki"] == [{"nazwa": "sól Maldon", "ilosc": "brak danych", "zrodlo": "mowa"}]   # bez zmyśleń
+    assert g["skladniki"] == [{"nazwa": "sól Maldon", "ilosc": "brak danych", "zrodlo": "mowa"},   # bez zmyśleń
+                              {"nazwa": "olej", "ilosc": "brak danych", "zrodlo": "mowa"}]       # „Heat oil” (0.11.5)
     assert g["sprzet"] == ["garnek"]
     rounds = [p for p in eng.prompts if p.startswith("You turn numbered lines")]
     assert len(rounds) >= 2 and all(len(re.findall(r"^\d+\. ", p, re.M)) == 1 for p in rounds[1:])   # poprawki pojedynczo (0.11.5)
@@ -1555,3 +1556,63 @@ def test_measured_0114_reask_one_line_each():
     src = "For the final fry."
     assert fix_terms("Ponownie zamroź lub schłodź, na ostateczny frit.", src) == "Ponownie zamroź lub schłodź, przed ostatecznym smażeniem."
     assert fix_terms("Na ostatnie smażenie.", src) == "Przed ostatecznym smażeniem."
+
+
+def test_measured_0114_najszybciej_fixes():
+    """Przebieg 0.11.4 „najszybciej” (frytki, 1:19): odtworzenie zapisanych odpowiedzi modelu na nowym kodzie."""
+    from types import SimpleNamespace as N
+    from vidsum.llm import _clean_vision
+    from vidsum.ocr import correct_from_captions
+    from vidsum.summary import fix_terms, grounded_steps, speech_lines
+    d = DATA / "frytki_0114"
+    a = json.loads((d / "analiza.json").read_text(encoding="utf-8"))
+    rec = json.loads((d / "streszczenie_kroki.json").read_text(encoding="utf-8"))
+    segs = a["transkrypcja"]["segmenty"]
+    # „Drain just lightly with potato starch” — na ekranie „dust lightly with”; „just” zostaje, nic innego się nie zmienia
+    ns = [N(start=s["start"], end=s["end"], text=s["text"]) for s in segs]
+    fixes = correct_from_captions(ns, [N(**x) for x in a["napisy_ekranowe"]])
+    assert [(x["bylo"], x["jest"]) for x in fixes] == [("Drain", "Dust")]
+    assert ns[25].text == "Dust just lightly with potato starch."
+    kroki = [json.loads(r["odpowiedz"]) for r in rec if r["etap"] == "kroki"]
+    reask = {"This is the perfect French fry.": "To jest idealny frytek.", "Peel.": "Obierz.",
+             "This particular potato variety.": "Ta konkretna odmiana ziemniaka."}
+
+    class Rec:
+        model = "atrapa"
+
+        def complete(self, prompt, as_json=False, **kw):
+            if '"sprzet"' in prompt:
+                return rec[1]["odpowiedz"]
+            nums = re.findall(r"^\d+\. (.*)$", prompt, re.M)
+            if len(nums) == 1:
+                return json.dumps({"1": reask.get(nums[0].strip(), "")})
+            return json.dumps(kroki[0] if "And salt." not in prompt else kroki[1])
+    pl = [s["text"] for s in a["transkrypcja"]["tlumaczenia"]["pl"]["segmenty"]]
+    g = grounded_steps(Rec(), speech_lines(segs, a["napisy_ekranowe"], pl), "przepis", "")
+    texts = [s["tekst"] for s in g["kroki"]]
+    assert "Obierz." in texts
+    assert "Rozgrzej olej w garnku." in texts                                   # bez „gdy osiągnie 140”
+    assert any(t.startswith("Gdy osiągnie około 140 stopni, wyrzuć frytki") for t in texts)   # „wyrzuć” → fix_terms dalej
+    assert "Podsmaż wstępnie albo blanszuj w oleju." in texts
+    assert {"nazwa": "olej", "ilosc": "brak danych", "zrodlo": "mowa"} in g["skladniki"]
+    src = " ".join(s["text"] for s in segs) + " Dust just lightly"
+    assert fix_terms("Gdy osiągnie około 140 stopni, wyrzuć frytki.", src) == "Gdy osiągnie około 140 stopni, wrzuć frytki."
+    # dubel z naszej zamiany par-fry i nawias z tym samym
+    assert fix_terms("zastosowanie technik parzenia oraz wstępnego smażenia.", src) == "zastosowanie technik wstępnego smażenia."
+    assert fix_terms("Podsmaż wstępnie (parowanie) frytek w oleju", src) == "Podsmaż wstępnie frytek w oleju"
+    # tłumaczenie transkrypcji i cytatów
+    assert fix_terms("To jest idealny fryk z ziemniaków.", src) == "To jest idealna frytka."
+    assert fix_terms("To jest to. To idealna frytki francuskie.", src) == "To jest to. To idealna frytka."
+    assert fix_terms("To idealne frytki.", src) == "To idealne frytki."                     # liczba mnoga zostaje
+    assert fix_terms("I i sól.", "And salt.") == "I sól."
+    assert fix_terms("Rozgrzej olej na patelni.", "Heat oil in a pot.") == "Rozgrzej olej w garnku."
+    assert fix_terms("Rozgrzej olej na patelni.", "Heat oil in a frying pan.") == "Rozgrzej olej na patelni."
+    assert fix_terms("Zagotuj garnek wody.", "Bring a pot of water to the boil.") == "Zagotuj wodę w garnku."
+    assert fix_terms("Odcedź lekko z mąki ziemniaczanej.", "Dust just lightly with potato starch.") \
+        == "Oprósz lekko mąką ziemniaczaną."
+    assert fix_terms("Odcedź frytki.", "Drain the fries.") == "Odcedź frytki."
+    # opis kadru: zniekształcone słowa (nie treść)
+    v = _clean_vision({"scena": "Kucharz w kuchni wycierka zlew w misce na indukcyjnej plastry.", "czynnosci": [],
+                       "obiekty": ["garnka", "plastr", "zimniaki", "czekolada"], "pewnosc": "wysoka"})
+    assert v["scena"] == "Kucharz w kuchni wyciera zlew w misce na płycie indukcyjnej."
+    assert v["obiekty"] == ["garnek", "płyta indukcyjna", "ziemniaki", "czekolada"]   # zmyślenia zostają widoczne
