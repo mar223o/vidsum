@@ -243,8 +243,8 @@ def to_markdown(s: dict) -> str:
 
 # ---------------- czat z filmem ----------------
 CHAT_PROMPT = """You answer questions about ONE specific video. You have its transcript with times, the on-screen text,
-the steps that were extracted from it and its short summary. Answer in the language of the QUESTION ({lang}), briefly
-(1–4 sentences or a short list). Never repeat or paste the summary. Talk about the video in the third person
+what was extracted from it (ingredients, steps, exercises, facts, tips) and its short summary. Answer in the language of
+the QUESTION ({lang}), briefly and concretely (1–4 sentences, or a short list with "- " when listing several things). Never repeat or paste the summary. Talk about the video in the third person
 ("the author says…", "w filmie autor…"), never as "we".
 
 Rules:
@@ -259,6 +259,15 @@ Rules:
 7. A question that has nothing to do with the video (news, other topics): say "{off_topic}" and offer to answer
    questions about the video. Do not summarise the video.
 8. Small talk or a trivial question (e.g. arithmetic): answer it in one short sentence.
+9. "What do I need / ingredients / equipment / exercises": list them from the lists below, each with its amount
+   (or "the video does not give the amount"), with mm:ss when known. Do not add anything that is not on the lists.
+10. Scaling or converting (portions, people, grams ↔ spoons): only from amounts the video gives; show the result and
+   start with "{inference}". If the video gives no amounts, say so and do not invent them.
+11. Composition or nutrition (calories, protein, fat, what something contains) and substitutions ("can I use X instead"):
+   the video almost never says it — start with "{general}", give a rough typical value or option and say it depends on
+   the portion and the method; then one sentence on what the video actually uses.
+12. A question about a moment ("what happens at 0:45", "what does he do with the fries"): use the transcript and the
+   frames around that time and give mm:ss.
 
 Examples (answer in the language of the question):
 Q: ile minut gotować według filmu?
@@ -267,6 +276,8 @@ Q: wypadek na autostradzie
 A: To nie wynika z analizowanego nagrania — znam tylko ten film (przepis na chrupiące frytki). Zapytaj o przepis, kroki albo temperatury.
 Q: jakiej marki jest garnek?
 A: Nie mam wystarczających informacji, aby odpowiedzieć na to pytanie — w filmie nie pada nazwa marki, a z kadrów jej nie widać.
+Q: jaki jest skład tych frytek, ile mają kalorii?
+A: Wiedza ogólna (nie z filmu): frytki smażone w głębokim oleju mają zwykle ok. 300 kcal na 100 g — zależy od oleju i porcji. W filmie autor używa ziemniaków agria, sody, soli, mąki ziemniaczanej, oleju i tłuszczu z kaczki, bez ilości.
 Q: how long does the video say to boil them?
 A: The video does not give a boiling time. The author says to boil them until just tender — they should break without snapping (00:29–00:31).
 
@@ -274,6 +285,7 @@ VIDEO: {meta}
 SUMMARY (for context only): {thesis}
 STEPS:
 {steps}
+{extra}
 TRANSCRIPT:
 {transcript}
 FRAMES (what an image model saw; less reliable than the transcript, use them only when the transcript says nothing):
@@ -326,10 +338,30 @@ def build_chat_prompt(analysis: dict, question: str, history: list[dict]) -> str
         if txt:
             fr.append(f"[{_mmss(f.get('t', 0))}] {txt}")
     hist = "\n".join(f"{'User' if h['rola'] == 'user' else 'Assistant'}: {h['tekst']}" for h in history[-6:]) or "—"
+    c = d.get("co_masz_zrobic") or {}
+    ex: list[str] = []
+    if c.get("skladniki"):
+        ex.append("INGREDIENTS:\n" + "\n".join(f"- {x.get('nazwa', '')} — {x.get('ilosc') or 'brak danych'}"
+                                                for x in c["skladniki"][:40]))
+    if c.get("sprzet"):
+        ex.append("EQUIPMENT: " + ", ".join(str(x) for x in c["sprzet"][:20]))
+    if c.get("cwiczenia"):
+        ex.append("EXERCISES:\n" + "\n".join(
+            f"- {_mmss(x.get('t', 0))} {x.get('nazwa', '')} — {' × '.join(v for v in (x.get('serie'), x.get('powtorzenia')) if v) or '?'}"
+            + (f"; {x['technika']}" if x.get("technika") else "") for x in c["cwiczenia"][:30]))
+    if c.get("fakty"):
+        ex.append("FACTS:\n" + "\n".join(f"- {_mmss(x.get('t', 0))} ({x.get('rodzaj', '')}) {x.get('tekst', '')}"
+                                          for x in c["fakty"][:40]))
+    tips = [str(x) for x in (c.get("wskazowki") or []) + (c.get("bledy") or []) + (c.get("wnioski") or [])][:20]
+    if tips:
+        ex.append("TIPS / TAKEAWAYS:\n" + "\n".join(f"- {x}" for x in tips))
+    if d.get("rozdzialy"):
+        ex.append("CHAPTERS: " + "; ".join(f"{_mmss(x.get('start', 0))} {x.get('tytul', '')}" for x in d["rozdzialy"][:12]))
+    extra = "\n".join(ex)[:5000]
     return CHAT_PROMPT.format(lang="Polish" if lang == "pl" else "English", general=_GENERAL[lang],
                               no_info=_NO_INFO[lang], inference=_INFER[lang], off_topic=_OFF[lang],
                               meta=f"{z.get('tytul', '')} — {z.get('autor', '')}".strip(" —"),
-                              thesis=d.get("teza") or "—", steps=steps, transcript=tr or "—",
+                              thesis=d.get("teza") or "—", steps=steps, extra=extra, transcript=tr or "—",
                               frames="\n".join(fr)[:4000] or "—",
                               history=hist, question=question.strip()[:2000])
 

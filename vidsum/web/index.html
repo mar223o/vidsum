@@ -543,7 +543,7 @@ const I18N = {
    mistakes:"Błędy, których unikać",takeaways:"Wnioski",honest:"Szczera ocena",unknown:"Czego nie wiadomo",
    how:"Jak to przeanalizowano",took:"Czas analizy",engines:"Silniki",gaps:"Ograniczenia",parallel:"mowa równolegle z obrazem",
    chat:"zapytaj",chat_hint:"Zapytaj o cokolwiek z tego filmu — znam transkrypcję i kadry.",ask_ph:"Zapytaj o ten film…",
-   thinking:"Myślę…",copy:"Kopiuj prompt",copy_hint:"Surowy prompt z całą osią czasu — do wklejenia w dowolny czat z AI",note:"Kopiuj notatkę",note_hint:"Całe streszczenie, kroki, oś czasu i transkrypcja jako czysty tekst — dla innego LLM, Notatnika albo opisu",note_dl:"Pobierz notatkę (.md)",note_copied:"Notatka skopiowana",copy_tr:"Kopiuj transkrypcję",tr_copied:"Transkrypcja skopiowana",claude:"Podsumuj przez Claude",folder:"Otwórz folder",json:"Pobierz JSON",
+   thinking:"Myślę…",copy:"Kopiuj prompt",copy_hint:"Surowy prompt z całą osią czasu — do wklejenia w dowolny czat z AI",note:"Kopiuj notatkę",note_hint:"Całe streszczenie, kroki, oś czasu i transkrypcja jako czysty tekst — dla innego LLM, Notatnika albo opisu",note_dl:"Pobierz notatkę (.md)",note_copied:"Notatka skopiowana",sq_przepis:["Jakie składniki są potrzebne?","Przelicz składniki na 4 porcje","Jaki jest skład i ile to ma kalorii?"],sq_trening:["Jakie ćwiczenia, ile serii i powtórzeń?","Na co uważać przy technice?"],sq_sport:["Jak wykonać to krok po kroku?","Jakie błędy są najczęstsze?"],sq_poradnik:["Co jest potrzebne na start?","Który krok jest najtrudniejszy?"],sq_dokument:["Jakie są najważniejsze daty i liczby?","Kim są osoby w filmie?"],sq_inne:["Jaki jest najważniejszy wniosek?"],copy_tr:"Kopiuj transkrypcję",tr_copied:"Transkrypcja skopiowana",claude:"Podsumuj przez Claude",folder:"Otwórz folder",json:"Pobierz JSON",
    copied:"Prompt skopiowany — wklej do czatu z AI",saved:"Zapisano",claude_wait:"Claude pisze streszczenie…",
    no_film:"Film niedostępny (plik przeniesiony albo usunięty) — czasy nadal działają w kadrach.",
    no_data:"Brak streszczenia — użyj „Kopiuj prompt” i wklej go do czatu z AI.",
@@ -605,7 +605,7 @@ const I18N = {
    mistakes:"Mistakes to avoid",takeaways:"Takeaways",honest:"Honest take",unknown:"Unknown",
    how:"How this was analyzed",took:"Analysis time",engines:"Engines",gaps:"Limits",parallel:"speech in parallel with vision",
    chat:"ask",chat_hint:"Ask anything about this video — I've read the transcript and frames.",ask_ph:"Ask about this video…",
-   thinking:"Thinking…",copy:"Copy prompt",copy_hint:"Raw prompt with the whole timeline — paste into any AI chat",note:"Copy note",note_hint:"The whole summary, steps, timeline and transcript as plain text — for another LLM, Notepad or a description",note_dl:"Download note (.md)",note_copied:"Note copied",copy_tr:"Copy transcript",tr_copied:"Transcript copied",claude:"Summarize with Claude",folder:"Open folder",json:"Download JSON",
+   thinking:"Thinking…",copy:"Copy prompt",copy_hint:"Raw prompt with the whole timeline — paste into any AI chat",note:"Copy note",note_hint:"The whole summary, steps, timeline and transcript as plain text — for another LLM, Notepad or a description",note_dl:"Download note (.md)",note_copied:"Note copied",sq_przepis:["What ingredients do I need?","Scale the ingredients to 4 servings","What is in it and how many calories?"],sq_trening:["Which exercises, how many sets and reps?","What to watch out for in the technique?"],sq_sport:["How do I do it step by step?","What are the most common mistakes?"],sq_poradnik:["What do I need to start?","Which step is the hardest?"],sq_dokument:["What are the key dates and numbers?","Who are the people in the video?"],sq_inne:["What is the main takeaway?"],copy_tr:"Copy transcript",tr_copied:"Transcript copied",claude:"Summarize with Claude",folder:"Open folder",json:"Download JSON",
    copied:"Prompt copied — paste into an AI chat",saved:"Saved",claude_wait:"Claude is writing the summary…",
    no_film:"Video unavailable (file moved or deleted) — timestamps still work in frames.",
    no_data:"No summary — use “Copy prompt” and paste it into an AI chat.",
@@ -1176,6 +1176,13 @@ function comHtml(){
 }
 const tabIco = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${TAB_ICO[k] || ""}</svg>`;
 const TODO_TYPES = ["przepis","trening","sport","poradnik","dokument"];
+/* propozycje pytań (0.11.5): pytania od modelu + 2 typowe dla rodzaju filmu (składniki, porcje, skład, ćwiczenia, daty) */
+function suggQ(d){
+  if (!d) return [];
+  const typed = t("sq_" + (TODO_TYPES.includes(d.typ) ? d.typ : "inne")) || [];
+  const all = [...typed, ...(d.pytania || [])];
+  return all.filter((q, i) => q && all.findIndex(x => x.toLowerCase() === q.toLowerCase()) === i).slice(0, 6);
+}
 function renderTab(d){
   const r = cur.r;
   if (tab === "todo") {
@@ -1312,7 +1319,7 @@ function chatHtml(d){
   if (cur.live) return "";
   return `<div class="hand">~ ${t("chat")} ~</div><hr class="rule"><div class="hint">${t("chat_hint")}</div>
     <div class="msgs" id="msgs"></div>
-    ${d?.pytania.length ? `<div class="sugg" id="sugg">${d.pytania.map(q => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}
+    ${(() => { const qs = suggQ(d); return qs.length ? `<div class="sugg" id="sugg">${qs.map(q => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""; })()}
     <form class="ask" id="askf"><input id="askq" placeholder="${esc(t("ask_ph"))}" autocomplete="off"><button aria-label="send">↑</button></form>`;
 }
 /* podmiana treści sekcji tylko, gdy się zmieniła; zwraca true, gdy podmieniono */

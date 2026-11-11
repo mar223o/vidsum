@@ -70,6 +70,26 @@ def main(argv: list[str] | None = None) -> int:
             print(f"✖ {e}", file=sys.stderr)
             return 1
         return 0
+    if args[:1] == ["--zapytaj"]:               # 0.11.5: pytanie do czatu o gotową analizę (pomiar modelu czatu)
+        if len(args) < 3:
+            print('Użycie: VidSum.exe --zapytaj "folder analizy" "pytanie" [model]', file=sys.stderr)
+            return 2
+        import json as _json
+        import time as _time
+        from .llm import LLMError, Ollama
+        from .summary import build_chat_prompt, check_chat_answer
+        try:
+            analysis = _json.loads((Path(args[1]) / "analiza.json").read_text(encoding="utf-8"))
+            eng = Ollama(args[3] if len(args) > 3 else DEFAULT_TEXT_MODEL)
+            eng.ensure(lambda m: None)
+            t0 = _time.time()
+            ans = check_chat_answer(eng.complete(build_chat_prompt(analysis, args[2], [])).strip(), analysis)
+        except (OSError, ValueError, LLMError) as e:
+            print(f"✖ {e}", file=sys.stderr)
+            return 1
+        print(ans)
+        print(f"\n({eng.model}, {_time.time() - t0:.1f} s)")
+        return 0
     if args[:1] == ["--pobierz-model"]:         # lokalny model tekstowy do Ollamy (jednorazowo)
         from .llm import LLMError, Ollama
         try:

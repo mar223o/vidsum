@@ -323,3 +323,22 @@ def test_type_panels_document_and_sport(live, typ):
             assert "Elastico" in txt
         assert not errors, errors
         b.close()
+
+
+def test_chat_suggestions_by_type(live):
+    """0.11.5: propozycje pytań w czacie — 2–3 typowe dla przepisu (składniki, porcje, skład) + pytania od modelu."""
+    base, app, job, out, segs = live
+    _final(out, segs)
+    job.status, job.finished = "gotowe", time.time()
+    with pw.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as e:
+            pytest.skip(f"brak Chromium: {e}")
+        page = b.new_page(viewport={"width": 1280, "height": 900})
+        page.goto(f"{base}/?t={TOKEN}#/wynik/{job.id}")
+        page.wait_for_selector("#sugg button")
+        qs = page.eval_on_selector_all("#sugg button", "bs => bs.map(b => b.dataset.q)")
+        assert qs[:3] == ["Jakie składniki są potrzebne?", "Przelicz składniki na 4 porcje", "Jaki jest skład i ile to ma kalorii?"]
+        assert "Dlaczego soda?" in qs and len(qs) <= 6
+        b.close()
