@@ -474,7 +474,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 if eng2.recovered:
                     tr2.note = f"Odzyskano {eng2.recovered} zdań pominiętych przez Whispera (drugi przebieg bez podpowiedzi)."
                 ref_box["tr"] = tr2
-            log(f"        poprawka mowy gotowa ({time.time() - t_r:.1f} s)")
+            tm = eng2.timings
+            log(f"        poprawka mowy gotowa ({time.time() - t_r:.1f} s"
+                + (f": wczytanie Whispera {tm.get('wczytanie_s')} s, rozpoznanie {tm.get('rozpoznanie_s')} s, "
+                   f"drugi przebieg {tm.get('drugi_przebieg_s', 0)} s" if tm else "") + ")")
+            ref_box["czasy"] = tm
         except Exception as e:                     # np. brak pamięci karty obok modelu obrazu → po opisie kadrów
             ref_box["err"] = e
             log(f"        ! poprawka transkrypcji: {str(e)[:120]}")

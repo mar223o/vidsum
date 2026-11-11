@@ -1773,3 +1773,49 @@ def test_chat_moment_direct_answer_and_marker_strip():
     out = check_chat_answer("Wniosek (nie pada wprost w filmie): W filmie autor używa tłuszczu z kaczki dla smaku. "
                             "Wiedza ogólna (nie z filmu): Można go zastąpić olejem.", a)
     assert out.startswith("W filmie autor używa") and "Wiedza ogólna (nie z filmu): Można go zastąpić" in out
+
+
+def test_speed_bench_with_fakes(tmp_path):
+    """--zmierz-czasy: wszystkie warianty (Whisper float16/int8, równolegle z opisem kadrów, wczytanie modelu tekstowego)
+    na atrapach — wynik w md/json, błąd jednego wariantu nie przerywa reszty."""
+    import shutil
+    from types import SimpleNamespace as N
+    from vidsum import speed_bench
+    src = DATA / "frytki_0114" / "analiza.json"
+    a = json.loads(src.read_text(encoding="utf-8"))
+    (tmp_path / "kadry").mkdir()
+    for f in a["kadry"][:3]:
+        (tmp_path / f["file"]).write_bytes(b"jpg")
+    a["kadry"] = a["kadry"][:3]
+    (tmp_path / "analiza.json").write_text(json.dumps(a), encoding="utf-8")
+    (tmp_path / "film.mp4").write_bytes(b"x")
+    calls = []
+
+    class W:
+        def __init__(self, ct):
+            self.ct, self.timings, self.coverage_hints = ct, {}, []
+
+        def transcribe(self, wav, lang):
+            calls.append(("w", self.ct))
+            if self.ct == "int8_float16" and any(c == ("o", "describe") for c in calls) and calls.count(("w", self.ct)) > 1:
+                raise RuntimeError("CUDA out of memory")
+            self.timings = {"wczytanie_s": 1.0, "rozpoznanie_s": 2.0, "drugi_przebieg_s": 0.0, "typ": self.ct}
+            segs = a["transkrypcja"]["segmenty"] if self.ct == "float16" else a["transkrypcja"]["segmenty"][:-5]
+            return N(segments=[N(text=s["text"]) for s in segs])
+
+    class O:
+        def __init__(self, m, ctx): self.m = m
+        def unload(self): calls.append(("o", "unload"))
+        def preload(self, ctx=None): calls.append(("o", "preload"))
+        def describe_frame(self, f, t, light=False): calls.append(("o", "describe")); return {}
+        def gpu_share(self): return 1.0
+    out = speed_bench.run(tmp_path, log=lambda s: None, whisper_factory=W, ollama_factory=O, free_fn=lambda: 4000,
+                          extract=lambda v, w: w)
+    r = json.loads((tmp_path / "pomiar_czasow.json").read_text(encoding="utf-8"))
+    assert r["whisper"]["float16"]["zgodnosc_z_analiza"] == 1.0
+    assert 0.8 < r["whisper"]["int8_float16"]["zgodnosc_z_analiza"] < 1.0
+    assert set(r["rownolegle"]) == {"sam_opis_kadrow", "opis_kadrow+whisper_float16", "opis_kadrow+whisper_int8_float16"}
+    assert "blad" in r["rownolegle"]["opis_kadrow+whisper_int8_float16"]                  # brak pamięci → zapisany błąd
+    assert set(r["model_tekstowy"]) == {"ctx8192_zimny", "ctx8192_cieply", "ctx4096_cieply"}
+    md = out.read_text(encoding="utf-8")
+    assert "| float16 | 1.0 | 2.0 |" in md and "CUDA out of memory" in md

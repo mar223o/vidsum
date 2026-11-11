@@ -70,6 +70,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"✖ {e}", file=sys.stderr)
             return 1
         return 0
+    if args[:1] == ["--zmierz-czasy"]:          # 0.11.9: gdzie da się odzyskać czas — Whisper, równoległość, model tekstowy
+        if len(args) < 2:
+            print('Użycie: VidSum.exe --zmierz-czasy "folder analizy"', file=sys.stderr)
+            return 2
+        from .speed_bench import run as _bench
+        try:
+            out = _bench(Path(args[1]))
+        except (OSError, ValueError, RuntimeError) as e:
+            print(f"✖ {e}", file=sys.stderr)
+            return 1
+        print(f"✔ wynik: {out}")
+        return 0
     if args[:1] == ["--zapytaj"]:               # 0.11.5: pytanie do czatu o gotową analizę (pomiar modelu czatu)
         if len(args) < 3:
             print('Użycie: VidSum.exe --zapytaj "folder analizy" "pytanie" [model]', file=sys.stderr)

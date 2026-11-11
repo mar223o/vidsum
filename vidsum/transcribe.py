@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import gc
+import time
 import json
 import re
 from dataclasses import dataclass, field
@@ -35,6 +36,7 @@ class WhisperEngine:
         self.recovered = 0                  # ile zdań odzyskano drugim przebiegiem
         self.cuda_download = False          # pobierz biblioteki CUDA, jeśli jest karta NVIDIA, a ich brak
         self._resolved: tuple[str, str | None] | None = None
+        self.timings: dict = {}             # 0.11.9: wczytanie modelu / rozpoznanie / drugi przebieg (s) — pomiar czasu
 
     def resolve_device(self, log=None) -> tuple[str, str | None]:
         """Zwraca (urządzenie, uwaga). GPU tylko wtedy, gdy biblioteki CUDA da się NAPRAWDĘ załadować.
@@ -91,7 +93,10 @@ class WhisperEngine:
         if compute == "auto":
             compute = "float16" if device == "cuda" else "int8"
         audio = _load_wav16k(wav)
+        t_load = time.time()
         model = WhisperModel(self.model_name, device=device, compute_type=compute, download_root=self.root)
+        self.timings = {"wczytanie_s": round(time.time() - t_load, 1), "typ": compute}
+        t_dec = time.time()
         try:
             beam = self.beam_size or 5      # dokładność ważniejsza niż szybkość (turbo: beam 5 ≈ ten sam czas)
 
@@ -125,6 +130,8 @@ class WhisperEngine:
                 return res, info
 
             out, info = decode(audio, 0.0, self.hotwords)
+            self.timings["rozpoznanie_s"] = round(time.time() - t_dec, 1)
+            t_dec = time.time()
             # Zabezpieczenie: z podpowiedzią Whisper czasem POMIJA zdanie. Tam, gdzie na ekranie są napisy
             # (zwykle = mowa), a w transkrypcji nic nie ma — przepisz ten fragment jeszcze raz BEZ podpowiedzi.
             if self.hotwords and self.coverage_hints:
@@ -140,6 +147,7 @@ class WhisperEngine:
                         out = [o for o in out if o not in old] + extra
                         self.recovered += len(extra)
                 out.sort(key=lambda x: x.start)
+            self.timings["drugi_przebieg_s"] = round(time.time() - t_dec, 1)
         finally:
             del model          # zwolnij VRAM przed modelem wizyjnym (8 GB nie zmieści obu naraz)
             gc.collect()
