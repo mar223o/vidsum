@@ -1616,3 +1616,25 @@ def test_measured_0114_najszybciej_fixes():
                        "obiekty": ["garnka", "plastr", "zimniaki", "czekolada"], "pewnosc": "wysoka"})
     assert v["scena"] == "Kucharz w kuchni wyciera zlew w misce na płycie indukcyjnej."
     assert v["obiekty"] == ["garnek", "płyta indukcyjna", "ziemniaki", "czekolada"]   # zmyślenia zostają widoczne
+
+
+def test_types_sport_and_document():
+    """0.11.5: typy „sport” (ćwiczenia i elementy techniki) i „dokument” (fakty, liczby, osoby, daty)."""
+    from vidsum.summary import TYPES, parse_summary, to_markdown
+    assert {"sport", "dokument"} <= set(TYPES)
+    base = {"tytul": "T", "teza": "x", "streszczenie": ["a"], "co_masz_zrobic": {
+        "skladniki": [{"nazwa": "sól"}], "kroki": [{"t": 1, "tekst": "Zrób."}],
+        "cwiczenia": [{"nazwa": "Elastico", "t": 5, "technika": "zewnętrzną częścią stopy"}],
+        "fakty": [{"t": 9, "tekst": "Most otwarto w 1937.", "rodzaj": "DATA"}, {"t": 2, "tekst": "Ma 2737 m.", "rodzaj": "coś"},
+                  "zły wpis"]}}
+    d = parse_summary(json.dumps({**base, "typ": "dokument"}), 60)
+    c = d["co_masz_zrobic"]
+    assert c["skladniki"] == [] and c["cwiczenia"] == []
+    assert [(x["t"], x["rodzaj"]) for x in c["fakty"]] == [(2, "fakt"), (9, "data")]
+    md = to_markdown(d)
+    assert "### Fakty, liczby, osoby, daty" in md and "(data) Most otwarto w 1937." in md
+    s = parse_summary(json.dumps({**base, "typ": "sport"}), 60)
+    assert s["co_masz_zrobic"]["skladniki"] == [] and s["co_masz_zrobic"]["fakty"] == []
+    assert "### Ćwiczenia i elementy techniki" in to_markdown(s)
+    p = parse_summary(json.dumps({**base, "typ": "przepis"}), 60)
+    assert p["co_masz_zrobic"]["fakty"] == [] and p["co_masz_zrobic"]["cwiczenia"] == []

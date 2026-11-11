@@ -533,7 +533,7 @@ const I18N = {
    part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
    quit:"Zamknij program",quit_q:"Zamknąć Vidsumly? Trwająca analiza zostanie zapisana w kolejce i zacznie się od nowa po wznowieniu.",quit_done:"Vidsumly wyłączone. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
-   t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_poradnik:"Kroki",t_todo_inne:"Wnioski",
+   t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_sport:"Ćwiczenia i technika",t_todo_poradnik:"Kroki",t_todo_dokument:"Fakty",t_todo_inne:"Wnioski",facts:"Fakty, liczby, osoby, daty",ex_sport:"Ćwiczenia i elementy techniki",fk_liczba:"liczba",fk_osoba:"osoba",fk_data:"data",fk_miejsce:"miejsce",fk_fakt:"fakt",
    t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
    map_hint:"Kliknij gałąź: szczegóły i przewinięcie filmu. Powiększanie: przyciski albo Ctrl + kółko myszy (na pełnym ekranie samo kółko), przeciąganie — przesuwanie.",
    map_full:"Pełny ekran",map_reset:"Dopasuj",t_tr:"Transkrypcja",t_fr:"Kadry",t_desc:"Opis",t_com:"Komentarze",desc_h:"Opis od autora",desc_note:"Tekst autora z serwisu, nie wynik analizy.",au_ch:"Rozdziały od autora",model_ch:"Rozdziały z analizy",of_film:p=>`${p}% filmu`,com_h:"Komentarze widzów",com_note:"Opinie widzów z serwisu, nie fakty z filmu.",com_get:"Pobierz komentarze",com_wait:"Pobieram komentarze…",com_none:"Pod filmem nie ma komentarzy albo serwis ich nie udostępnił.",com_from:(n,d)=>`Najpopularniejsze: ${n}, pobrane ${d}`,com_reply:"odpowiedź",likes:"polubień",open_src:s=>`Otwórz film na ${s}`,cinema:"Tryb kinowy",bars_show:"Pokaż cały kadr",bars_hide:"Ukryj czarne pasy",bars_hint:"Program wykrył czarne pasy wpalone w obraz i je ukrywa. Plik filmu się nie zmienia.",cinema_off:"Zamknij tryb kinowy",expand_all:"Rozwiń wszystkie",collapse_all:"Zwiń wszystkie",
@@ -549,7 +549,7 @@ const I18N = {
    no_data:"Brak streszczenia — użyj „Kopiuj prompt” i wklej go do czatu z AI.",
    t_pobieranie_s:"pobieranie",t_ocr_s:"napisy (OCR)",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
-   typ_przepis:"przepis",typ_trening:"trening",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_inne:"inne",
+   typ_przepis:"przepis",typ_trening:"trening",typ_sport:"sport",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_dokument:"dokument",typ_inne:"inne",
    chip_ff:"Silnik wideo",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu",
    open_browser:"Otwórz w przeglądarce",copy_sum:"Kopiuj",tr_sum:"Wersja angielska",tr_sum_q:"Przetłumacz streszczenie na angielski.",tr_back:"Wersja polska",
    res_lang:"Język wyniku",tr_all_wait:"Tłumaczę całą analizę na angielski (streszczenie, kroki, kadry, transkrypcja)…",
@@ -595,7 +595,7 @@ const I18N = {
    part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
    quit:"Quit app",quit_q:"Quit Vidsumly? The running analysis is saved in the queue and starts again when you resume it.",quit_done:"Vidsumly stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
-   t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_poradnik:"Steps",t_todo_inne:"Takeaways",
+   t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_sport:"Drills and technique",t_todo_poradnik:"Steps",t_todo_dokument:"Facts",t_todo_inne:"Takeaways",facts:"Facts, numbers, people, dates",ex_sport:"Drills and technique",fk_liczba:"number",fk_osoba:"person",fk_data:"date",fk_miejsce:"place",fk_fakt:"fact",
    t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
    map_hint:"Click a branch: details and jump in the video. Zoom: buttons or Ctrl + mouse wheel (wheel alone in full screen), drag to pan.",
    map_full:"Full screen",map_reset:"Fit",t_tr:"Transcript",t_fr:"Frames",t_desc:"Description",t_com:"Comments",desc_h:"Description from the author",desc_note:"The author's text from the site, not an analysis result.",au_ch:"Chapters from the author",model_ch:"Chapters from the analysis",of_film:p=>`${p}% of the video`,com_h:"Viewer comments",com_note:"Viewers' opinions from the site, not facts from the video.",com_get:"Load comments",com_wait:"Loading comments…",com_none:"The video has no comments, or the site did not provide them.",com_from:(n,d)=>`Top comments: ${n}, loaded ${d}`,com_reply:"reply",likes:"likes",open_src:s=>`Open the video on ${s}`,cinema:"Cinema mode",bars_show:"Show full frame",bars_hide:"Hide black bars",bars_hint:"Black bars burned into the picture were detected and are hidden. The video file is unchanged.",cinema_off:"Exit cinema mode",expand_all:"Expand all",collapse_all:"Collapse all",
@@ -611,7 +611,7 @@ const I18N = {
    no_data:"No summary — use “Copy prompt” and paste it into an AI chat.",
    t_pobieranie_s:"download",t_ocr_s:"on-screen text",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
-   typ_przepis:"recipe",typ_trening:"workout",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_inne:"other",
+   typ_przepis:"recipe",typ_trening:"workout",typ_sport:"sport",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_dokument:"documentary",typ_inne:"other",
    chip_ff:"Video engine",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text",
    open_browser:"Open in browser",copy_sum:"Copy",tr_sum:"English version",tr_sum_q:"Translate the summary into English.",tr_back:"Polish version",
    res_lang:"Result language",tr_all_wait:"Translating the whole analysis into English (summary, steps, frames, transcript)…",
@@ -1021,7 +1021,7 @@ function renderLib(){
   const done = jobs.filter(j => j.status === "gotowe").filter(j => {
     const c = j.card || {}, hay = `${c.tytul||""} ${c.akcent||""} ${c.teza||""} ${j.label}`.toLowerCase();
     return (!lib.q || hay.includes(lib.q.toLowerCase())) && (!lib.typ || c.typ === lib.typ); });
-  const types = ["", "przepis", "trening", "poradnik", "wyklad", "inne"];
+  const types = ["", "przepis", "trening", "sport", "poradnik", "wyklad", "dokument", "inne"];
   if (!$("#libq")) {
     $("#app").innerHTML = `<section class="hero"><div class="eyebrow">${t("nav_lib")}</div><h1>${t("lib_title")}</h1><p>${t("lib_sub")}</p></section>
       <div class="lib-tools"><input id="libq" placeholder="${esc(t("search"))}" value="${esc(lib.q)}">
@@ -1125,8 +1125,8 @@ async function switchLang(l){
 function tabsFor(d){
   const tl = [];
   if (d) {
-    const c = d.co_masz_zrobic, has = c && (c.skladniki.length||c.kroki.length||c.cwiczenia.length||c.wnioski.length||c.wskazowki.length);
-    if (has) tl.push(["todo", t("t_todo_"+(["przepis","trening","poradnik"].includes(d.typ) ? d.typ : "inne"))]);
+    const c = d.co_masz_zrobic, has = c && (c.skladniki.length||c.kroki.length||c.cwiczenia.length||c.wnioski.length||c.wskazowki.length||(c.fakty||[]).length);
+    if (has) tl.push(["todo", t("t_todo_"+(TODO_TYPES.includes(d.typ) ? d.typ : "inne"))]);
     if (d.najwazniejsze.length) tl.push(["key", t("t_key")]);
     if (d.momenty.length) tl.push(["mom", t("t_mom")]);
     if (d.cytaty.length) tl.push(["quo", t("t_quo")]);
@@ -1175,13 +1175,15 @@ function comHtml(){
     `<div class="com${x.odpowiedz ? " reply" : ""}"><div class="ctop"><b>${esc(x.autor || "—")}</b><span class="muted">${x.polubienia} ${t("likes")}${x.odpowiedz ? " · " + t("com_reply") : ""}</span></div><p>${esc(x.tekst)}</p></div>`).join("")}</div>`;
 }
 const tabIco = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${TAB_ICO[k] || ""}</svg>`;
+const TODO_TYPES = ["przepis","trening","sport","poradnik","dokument"];
 function renderTab(d){
   const r = cur.r;
   if (tab === "todo") {
-    const c = d.co_masz_zrobic; let h = `<h3 class="big">${t("t_todo_"+(["przepis","trening","poradnik"].includes(d.typ) ? d.typ : "inne"))}</h3>`;
+    const c = d.co_masz_zrobic; let h = `<h3 class="big">${t("t_todo_"+(TODO_TYPES.includes(d.typ) ? d.typ : "inne"))}</h3>`;
     if (c.skladniki.length) h += `<div class="sub">${t("ingredients")}</div><ul class="ingr">${c.skladniki.map(x => `<li><b>${esc(x.nazwa)}${src(x.zrodlo)}</b><span>${esc(x.ilosc)}</span></li>`).join("")}</ul>`;
     if (c.kroki.length) h += `<div class="sub">${t("steps")}</div><div class="items">${c.kroki.map((x,i) => `<div class="it" data-t="${x.t}"><span class="n">${i+1}</span><div><label class="chk"><input type="checkbox"><p>${tsb(x.t)} ${esc(x.tekst)}${src(x.zrodlo)}</p></label></div></div>`).join("")}</div>`;
-    if (c.cwiczenia.length) h += `<div class="sub">${t("exercises")}</div><div class="items">${c.cwiczenia.map((x,i) => `<div class="it" data-t="${x.t}"><span class="n">${i+1}</span><div><div class="top">${tsb(x.t)}<span class="tag">${esc([x.serie,x.powtorzenia].filter(Boolean).join(" × ") || "—")}</span></div><h4>${esc(x.nazwa)}${src(x.zrodlo)}</h4>${x.technika ? `<p>${esc(x.technika)}</p>` : ""}</div></div>`).join("")}</div>`;
+    if ((c.fakty||[]).length) h += `<div class="sub">${t("facts")}</div><div class="items">${c.fakty.map(x => `<div class="it simple" data-t="${x.t}"><div><div class="top">${tsb(x.t)}<span class="tag">${esc(t("fk_"+x.rodzaj))}</span></div><p>${esc(x.tekst)}${src(x.zrodlo)}</p></div></div>`).join("")}</div>`;
+    if (c.cwiczenia.length) h += `<div class="sub">${t(d.typ === "sport" ? "ex_sport" : "exercises")}</div><div class="items">${c.cwiczenia.map((x,i) => `<div class="it" data-t="${x.t}"><span class="n">${i+1}</span><div><div class="top">${tsb(x.t)}<span class="tag">${esc([x.serie,x.powtorzenia].filter(Boolean).join(" × ") || "—")}</span></div><h4>${esc(x.nazwa)}${src(x.zrodlo)}</h4>${x.technika ? `<p>${esc(x.technika)}</p>` : ""}</div></div>`).join("")}</div>`;
     for (const [k, lab] of [["sprzet","equipment"],["wskazowki","tips"],["bledy","mistakes"],["wnioski","takeaways"]])
       if (c[k].length) h += `<div class="sub">${t(lab)}</div><ul>${c[k].map(x => `<li>${inline(x)}</li>`).join("")}</ul>`;
     if (c.czas) h += `<div class="sub">${t("time")}</div><p>${inline(c.czas)}</p>`;

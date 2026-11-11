@@ -11,7 +11,7 @@ import re
 from .analysis import beats_as_text, ts
 
 SUMMARY_SCHEMA = "vidsum.summary/1"
-TYPES = ("przepis", "trening", "poradnik", "wyklad", "inne")
+TYPES = ("przepis", "trening", "sport", "poradnik", "wyklad", "dokument", "inne")
 
 SUMMARY_JSON_PROMPT = """Jesteś asystentem, który ogląda film za użytkownika i mówi mu konkretnie, co z niego wynika.
 Dostajesz oś czasu filmu z niezależnych źródeł:
@@ -21,7 +21,7 @@ Dostajesz oś czasu filmu z niezależnych źródeł:
 
 Odpowiedz WYŁĄCZNIE poprawnym JSON-em (bez komentarzy i bez ```), po polsku, według schematu:
 {{
- "typ": "przepis" | "trening" | "poradnik" | "wyklad" | "inne",
+ "typ": "przepis" | "trening" | "sport" | "poradnik" | "wyklad" | "dokument" | "inne",
  "tytul": "krótki tytuł po polsku (3–6 słów)",
  "tytul_akcent": "druga, krótka część tytułu (2–4 słowa) — puenta",
  "teza": "jedno zdanie: o co chodzi w filmie i co z niego wynika",
@@ -34,7 +34,8 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em (bez komentarzy i bez ```), po polsku, w
    "cwiczenia": [{{"nazwa": "...", "serie": "...", "powtorzenia": "... albo czas", "t": sekundy, "technika": "...", "zrodlo": "..."}}],
    "wskazowki": ["..."],
    "bledy": ["błędy, których unikać"],
-   "wnioski": ["dla wykładu/poradnika/innych: 3–7 najważniejszych wniosków lub działań"]
+   "wnioski": ["dla wykładu/poradnika/innych: 3–7 najważniejszych wniosków lub działań"],
+   "fakty": [{{"t": sekundy, "tekst": "jeden konkretny fakt", "rodzaj": "liczba|osoba|data|miejsce|fakt", "zrodlo": "..."}}]
  }},
  "najwazniejsze": [{{"t": sekundy, "tytul": "krótki tytuł", "opis": "1–2 zdania", "zrodlo": "..."}}],
  "momenty": [{{"t": sekundy, "tekst": "co się dzieje — jedno zdanie"}}],
@@ -47,7 +48,8 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em (bez komentarzy i bez ```), po polsku, w
 
 Zasady (obowiązkowe):
 1. Wypełnij tylko pola pasujące do typu (przepis → skladniki/kroki/sprzet/czas; trening → cwiczenia/wskazowki/bledy;
-   poradnik → kroki; inne → wnioski). Pozostałe zostaw jako puste listy / pusty tekst.
+   sport (np. piłka: technika, sztuczki, ćwiczenia z piłką, analiza gry) → cwiczenia (ćwiczenia i elementy techniki)/wskazowki/bledy;
+   poradnik → kroki; dokument → fakty (liczby, osoby, daty, miejsca); inne → wnioski). Pozostałe zostaw jako puste listy / pusty tekst.
 2. Czasy "t", "start", "end" to liczby sekund z osi czasu. Kolejność chronologiczna.
 3. Niczego nie zmyślaj. Brak informacji → „brak danych”. Wnioski spoza danych oznacz źródłem "szacunek".
 4. Mowa jest pewniejsza niż opisy kadrów; NAPISY są pewniejsze w nazwach i liczbach niż MOWA.
@@ -145,6 +147,10 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
             "wskazowki": [_str(x) for x in _lst(cmz.get("wskazowki")) if _str(x)],
             "bledy": [_str(x) for x in _lst(cmz.get("bledy")) if _str(x)],
             "wnioski": [_str(x) for x in _lst(cmz.get("wnioski")) if _str(x)],
+            "fakty": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")),
+                       "rodzaj": _str(x.get("rodzaj")).lower() if _str(x.get("rodzaj")).lower() in _FACT_KINDS else "fakt",
+                       "zrodlo": _zr(x.get("zrodlo"))}
+                      for x in _lst(cmz.get("fakty")) if isinstance(x, dict) and _str(x.get("tekst"))],
         },
         "najwazniejsze": [{"t": clamp(x.get("t")), "tytul": _str(x.get("tytul")), "opis": _str(x.get("opis")),
                            "zrodlo": _zr(x.get("zrodlo"))}
@@ -167,8 +173,13 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
     c = out["co_masz_zrobic"]
     if out["typ"] == "przepis":
         c["cwiczenia"] = []
-    elif out["typ"] == "trening":
+    elif out["typ"] in ("trening", "sport"):
         c["skladniki"] = []
+    elif out["typ"] == "dokument":
+        c["skladniki"], c["cwiczenia"] = [], []
+    if out["typ"] != "dokument":
+        c["fakty"] = []
+    c["fakty"].sort(key=lambda x: x["t"])
     for k in ("najwazniejsze", "momenty", "cytaty"):
         out[k].sort(key=lambda x: x["t"])
     out["co_masz_zrobic"]["kroki"].sort(key=lambda x: x["t"])
@@ -176,6 +187,9 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
     if not (out["streszczenie"] or out["najwazniejsze"] or out["teza"]) and not allow_partial:
         return None
     return out
+
+
+_FACT_KINDS = ("liczba", "osoba", "data", "miejsce", "fakt")
 
 
 def _src(z: str) -> str:
@@ -192,14 +206,17 @@ def to_markdown(s: dict) -> str:
     if s.get("do_zapamietania"):
         L += [f"> **Do zapamiętania:** {s['do_zapamietania']}", ""]
     c = s["co_masz_zrobic"]
-    if any(c[k] for k in ("skladniki", "kroki", "sprzet", "cwiczenia", "wskazowki", "bledy", "wnioski")) or c["czas"]:
+    if any(c.get(k) for k in ("skladniki", "kroki", "sprzet", "cwiczenia", "wskazowki", "bledy", "wnioski", "fakty")) or c["czas"]:
         L.append("## Co masz zrobić")
         if c["skladniki"]:
             L += ["### Składniki"] + [f"- {x['nazwa']} — {x['ilosc']}{_src(x['zrodlo'])}" for x in c["skladniki"]] + [""]
         if c["kroki"]:
             L += ["### Kroki"] + [f"{i}. `{ts(x['t'])}` {x['tekst']}{_src(x['zrodlo'])}" for i, x in enumerate(c["kroki"], 1)] + [""]
+        if c.get("fakty"):
+            L += ["### Fakty, liczby, osoby, daty"] + [f"- `{ts(x['t'])}` ({x['rodzaj']}) {x['tekst']}{_src(x['zrodlo'])}"
+                                                      for x in c["fakty"]] + [""]
         if c["cwiczenia"]:
-            L += ["### Ćwiczenia"] + [
+            L += ["### Ćwiczenia i elementy techniki" if s["typ"] == "sport" else "### Ćwiczenia"] + [
                 f"- `{ts(x['t'])}` **{x['nazwa']}** — {x['serie'] or '?'} × {x['powtorzenia'] or '?'}"
                 f"{(' — ' + x['technika']) if x['technika'] else ''}{_src(x['zrodlo'])}" for x in c["cwiczenia"]] + [""]
         for k, lab in (("sprzet", "Sprzęt"), ("wskazowki", "Wskazówki"), ("bledy", "Błędy, których unikać"),
@@ -381,12 +398,13 @@ jasno wskazują poprawne słowo; w razie wątpliwości pomiń. Źródło: "mowa"
 {glossary}
 
 Odpowiedz WYŁĄCZNIE JSON-em:
-{{"typ": "przepis|trening|poradnik|wyklad|inne",
+{{"typ": "przepis|trening|sport|poradnik|wyklad|dokument|inne",
  "kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "..."}}],
  "skladniki": [{{"nazwa": "...", "ilosc": "ilość TYLKO jeśli padła w filmie, inaczej brak danych", "zrodlo": "..."}}],
  "cwiczenia": [{{"nazwa": "...", "serie": "...", "powtorzenia": "...", "t": sekundy, "technika": "...", "zrodlo": "..."}}],
  "sprzet": ["..."], "wskazowki": ["porada / wyjaśnienie dlaczego"], "bledy": ["czego unikać"],
- "fakty": ["inne ważne informacje z filmu (dla wykładów, rozmów, recenzji)"]}}
+ "fakty": [{{"t": sekundy, "tekst": "inny ważny konkret z filmu: liczba, osoba, data, miejsce, fakt", "rodzaj": "liczba|osoba|data|miejsce|fakt", "zrodlo": "..."}}]}}
+Przy sporcie (np. piłka) w "cwiczenia" wpisz ćwiczenia i elementy techniki (nazwa, opis techniki, powtórzenia jeśli padły).
 Puste listy dla tego, czego w filmie nie ma.
 
 ZAPIS:
@@ -647,9 +665,11 @@ GLOSSARY = ("Uwaga na tłumaczenie: baking soda = soda oczyszczona (NIE proszek 
             "drain = odsącz / odcedź, dust = oprósz, tray = taca, pot = garnek, sprinkle = posyp.")
 
 TYPE_PROMPT = """Fragment transkrypcji filmu. {meta}
-Jaki to typ filmu? Do wyboru: przepis — gotowanie; trening — ćwiczenia; poradnik — instrukcja krok po kroku;
-wyklad — wykład, rozmowa, wyjaśnianie, recenzja, wiadomości; inne.
-Odpowiedz WYŁĄCZNIE JSON-em z jednym słowem: {{"typ": "przepis|trening|poradnik|wyklad|inne"}}
+Jaki to typ filmu? Do wyboru: przepis — gotowanie; trening — ćwiczenia na siłowni, w domu, bieganie;
+sport — piłka nożna i inne gry z piłką: technika, sztuczki, ćwiczenia z piłką, analiza meczu; poradnik — instrukcja krok po kroku;
+wyklad — wykład, rozmowa, wyjaśnianie, recenzja, wiadomości; dokument — film dokumentalny, reportaż, historia prawdziwych
+wydarzeń (osoby, daty, liczby); inne.
+Odpowiedz WYŁĄCZNIE JSON-em z jednym słowem: {{"typ": "przepis|trening|sport|poradnik|wyklad|dokument|inne"}}
 
 TRANSKRYPCJA:
 {text}
@@ -1354,7 +1374,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         raw = _try(engine, pr, log)
         record("typ", pr, raw)
         # model potrafi przepisać etykietę z opisem („przepis (gotowanie)”) — bierzemy rozpoznaną nazwę typu
-        m = re.search(r"przepis|trening|poradnik|wyk[łl]ad|inne", _str(_loads(raw).get("typ")).lower())
+        m = re.search(r"przepis|trening|sport|poradnik|wyk[łl]ad|dokument|inne", _str(_loads(raw).get("typ")).lower())
         typ = m.group(0).replace("ł", "l") if m else ""
     grounded = typ in ("przepis", "poradnik")
     notes: list[dict] = []
@@ -1402,7 +1422,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         typ = typ or (max(set(types), key=types.count) if types else "inne")
 
         # 2) kontrola kompletności (instrukcje: przepis, poradnik, trening)
-        if typ in ("przepis", "poradnik", "trening"):
+        if typ in ("przepis", "poradnik", "trening", "sport"):
             miss = missing_lines(timeline, ext)
             if miss:
                 log(f"        kontrola kompletności: {len(miss)} fragment(y) bez kroku albo z pominiętą liczbą — dopisuję")
@@ -1499,7 +1519,9 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     merged = {**p, "typ": typ, "co_masz_zrobic": {
         "skladniki": ext["skladniki"], "kroki": ext["kroki"], "sprzet": ext["sprzet"], "czas": _str(p.get("czas")),
         "cwiczenia": ext["cwiczenia"], "wskazowki": texts(ext["wskazowki"]), "bledy": texts(ext["bledy"]),
-        "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7]}}
+        "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7],
+        "fakty": [x if isinstance(x, dict) else {"t": 0, "tekst": _str(x), "rodzaj": "fakt", "zrodlo": "mowa"}
+                  for x in ext["fakty"] if x]}}
     merged["co_masz_zrobic"]["sprzet"] = texts(ext["sprzet"])
     has_facts = any(ext[k] for k in ("kroki", "skladniki", "cwiczenia", "wskazowki", "fakty"))
     out = parse_summary(json.dumps(merged, ensure_ascii=False), duration, allow_partial=has_facts)

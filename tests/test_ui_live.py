@@ -284,3 +284,42 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
         assert not page.evaluate("document.querySelector('#res').classList.contains('cinema')")
         b.close()
     assert not errors, errors
+
+
+@pytest.mark.parametrize("typ", ["dokument", "sport"])
+def test_type_panels_document_and_sport(live, typ):
+    """0.11.5: panel zależny od typu — dokument: „Fakty, liczby, osoby, daty”; sport: „Ćwiczenia i elementy techniki”."""
+    base, app, job, out, segs = live
+    _final(out, segs)
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    c = r["streszczenie"]["dane"]["co_masz_zrobic"]
+    r["streszczenie"]["dane"]["typ"] = typ
+    c.update({"skladniki": [], "kroki": []})
+    if typ == "dokument":
+        c["fakty"] = [{"t": 12.0, "tekst": "Most otwarto w 1937 roku.", "rodzaj": "data", "zrodlo": "mowa"},
+                      {"t": 30.0, "tekst": "Długość: 2737 m.", "rodzaj": "liczba", "zrodlo": "mowa+obraz"}]
+    else:
+        c["cwiczenia"] = [{"nazwa": "Elastico", "serie": "", "powtorzenia": "10", "t": 20.0,
+                           "technika": "Zewnętrzną częścią stopy, potem wewnętrzną.", "zrodlo": "mowa"}]
+    (out / "analiza.json").write_text(json.dumps(r, ensure_ascii=False), encoding="utf-8")
+    job.status, job.finished = "gotowe", time.time()
+    with pw.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as e:
+            pytest.skip(f"brak Chromium: {e}")
+        page = b.new_page(viewport={"width": 1280, "height": 900})
+        errors: list[str] = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(f"{base}/?t={TOKEN}#/wynik/{job.id}")
+        page.wait_for_selector('#tabs button[data-tab="todo"]')
+        page.click('#tabs button[data-tab="todo"]')
+        txt = page.inner_text("#tabc")
+        if typ == "dokument":
+            assert "Fakty" in page.inner_text("#tabs") and "Fakty, liczby, osoby, daty" in txt
+            assert "data" in txt and "1937" in txt and "liczba" in txt
+        else:
+            assert "Ćwiczenia i technika" in page.inner_text("#tabs") and "Ćwiczenia i elementy techniki" in txt
+            assert "Elastico" in txt
+        assert not errors, errors
+        b.close()
