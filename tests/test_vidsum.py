@@ -1739,3 +1739,20 @@ def test_verify_quotes_sorted_by_time():
     verify_quotes(s, segs)
     ts = [q["t"] for q in s["cytaty"]]
     assert ts == sorted(ts) and len(ts) == 3
+
+
+def test_chat_moment_block_and_marker_rules():
+    """Pomiar 0.11.6 (czat): „co robi w 0:47?” → „wyjmuje frytki i układa na tacy (00:47–00:49)”, a w 0:47 miesza
+    (46,9–48,3 s „Stirring constantly…”), wyjmuje dopiero od 48,5 s. „Wniosek” przed zdaniem, które jest z filmu."""
+    from vidsum.summary import build_chat_prompt, moment_block
+    a = json.loads((DATA / "frytki_0114" / "analiza.json").read_text(encoding="utf-8"))
+    segs = a["transkrypcja"]["segmenty"]
+    mb = moment_block("co robi w 0:47?", segs, a["kadry"])
+    assert "EXACTLY AT 00:47: 46.9–48.3 s: Stirring constantly for ruffled edges." in mb
+    assert "right after: 48.5–49.0 s: Remove them." in mb
+    assert "EXACTLY AT 00:33: 32.2–33.9 s" in moment_block("a w 33 sekundzie?", segs, [])
+    assert moment_block("czym zastąpić tłuszcz z kaczki?", segs, a["kadry"]) == ""
+    p = build_chat_prompt(a, "co robi w 0:47?", [])
+    assert p.index("MOMENT 00:47") < p.index("TRANSCRIPT:")
+    p2 = build_chat_prompt(a, "czym zastąpić tłuszcz z kaczki?", [])
+    assert "MOMENT 00:" not in p2 and "only an\n   addition" in p2 and "{" not in p2.split("VIDEO:")[0]
