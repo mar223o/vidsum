@@ -448,3 +448,144 @@ def test_resummarize_from_saved_analysis_without_touching_it(tmp_path, doc):
     new = json.loads((f / "streszczenie_ponowne.json").read_text(encoding="utf-8"))
     uncle = next(x for x in new["streszczenie"]["co_masz_zrobic"]["fakty"] if "uncle and aunt" in x["oryginal"])
     assert "wuja i ciocię" in uncle["tekst"], "tłumaczenie było gotowe — fakty od razu po polsku"
+
+
+# ---------------- tryby analizy i kadry wskazane mową ----------------
+def test_speech_cues_on_documentary_and_limits():
+    from vidsum.modes import extra_cue_picks, light_picks, speech_cues, thumbnail_times
+    from vidsum.story import ad_spans
+    from vidsum.summary import speech_lines
+    d = film("dokument_ambasada")
+    dur = d["zrodlo"]["dlugosc_s"]
+    ads = [(a["start"], a["end"]) for a in ad_spans(speech_lines(d["segmenty"]), set())]
+    cues = speech_cues(d["segmenty"], dur, ads)
+    at = {round(c["t"]): c["zwrot"].lower() for c in cues}
+    # miejsca, które pełna analiza 0.11.9 przegapiła: mapa 06:47, kable 07:58, list 19:30
+    assert any(406 <= t <= 412 and z == "located here" for t, z in at.items())
+    assert any(478 <= t <= 484 and z == "right here" for t, z in at.items())
+    assert any(1170 <= t <= 1174 and z == "this one" for t, z in at.items())
+    assert not any(372 <= t <= 376 for t in at), "„Scan this QR code” jest w reklamie"
+    assert all(b["t"] - a["t"] >= 4 for a, b in zip(cues, cues[1:]))
+    extra = extra_cue_picks([k["t"] for k in d["kadry"]], cues)
+    assert {round(e["t"]) // 60 for e in extra} >= {6, 8, 19} and len(extra) <= 12
+    picks = light_picks(dur, cues, [0, 263, 506, 745, 991, 1263], max_frames=100)
+    assert len(picks) <= 30 and [p["t"] for p in picks] == sorted(p["t"] for p in picks)
+    assert sum("wskazany_w_mowie" in p["reasons"] for p in picks) == len(cues)
+    assert all(b["t"] - a["t"] >= 3 for a, b in zip(picks, picks[1:]))
+    assert len(light_picks(dur, cues, [], max_frames=10)) == 10                   # nigdy więcej niż limit pełnej analizy
+    chatty = [{"start": i * 6.0, "end": i * 6.0 + 5, "text": "Look at this, it is great."} for i in range(100)]
+    assert len(speech_cues(chatty, 600.0)) == 18                                  # gadatliwy narrator — limit
+    assert speech_cues(film("wisdm_moda")["segmenty"], 88.5) == [] and speech_cues(film("tortilla")["segmenty"], 14) == []
+    pl = speech_cues([{"start": 10, "end": 14, "text": "No i zobaczcie, jak widać ciasto jest gotowe."}], 60)
+    assert [c["zwrot"].lower() for c in pl] == ["zobaczcie"]
+    assert len(thumbnail_times(1490.0)) == 12 and thumbnail_times(14.0) == [7.0] and len(thumbnail_times(62.0)) == 4
+
+
+def test_suggest_mode_for_hardware():
+    from vidsum.modes import normalize_mode, suggest_mode
+    assert suggest_mode(60, 8192)[0] == "pelna" and suggest_mode(1500, 8192)[0] == "pelna"
+    assert suggest_mode(60, None)[0] == "mowa" and "NVIDIA" in suggest_mode(60, None)[1]
+    assert suggest_mode(60, 4096)[0] == "mowa"
+    assert normalize_mode("SZYBKI") == "szybki" and normalize_mode("cokolwiek") == "pelna" and normalize_mode(None) == "pelna"
+
+
+@pytest.fixture()
+def cue_subs(tmp_path):
+    f = tmp_path / "napisy_cue.json"
+    f.write_text(json.dumps({"language": "pl", "segments": [
+        {"start": 0.5, "end": 6.0, "text": "Najpierw kroimy jedną cebulę w drobną kostkę."},
+        {"start": 8.5, "end": 14.0, "text": "Teraz wlewamy dwieście mililitrów mleka, zobaczcie jak to wygląda."},
+        {"start": 16.5, "end": 25.0, "text": "Mieszamy przez pięć minut na małym ogniu."},
+        {"start": 26.5, "end": 31.0, "text": "Gotowe, smacznego."}]}), encoding="utf-8")
+    return f
+
+
+def _images(calls):
+    return [c for c in calls if c.get("messages") and c["messages"][0].get("images")]
+
+
+def test_mode_speech_only_never_touches_vision(tmp_path, cue_subs, monkeypatch):
+    from test_vidsum import FILM, FakeOllama
+    import http.server
+    import threading as th
+    from vidsum import pipeline
+    from vidsum.pipeline import Options, analyze
+    FakeOllama.calls, FakeOllama.fail_images = [], set()
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeOllama)
+    th.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setattr(pipeline, "scene_scores", lambda *a, **k: (_ for _ in ()).throw(AssertionError("analiza scen w trybie mowa")))
+        got = {}
+        opt = Options(out_root=tmp_path / "w", transcript_file=cue_subs, ollama_host=f"http://127.0.0.1:{srv.server_address[1]}",
+                      vision_model="fake-vl", text_model="fake-txt", mode="mowa", on_partial=lambda k, d: got.__setitem__(k, d))
+        out = analyze(str(FILM), opt, log=lambda m: None)
+    finally:
+        srv.shutdown()
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    assert _images(FakeOllama.calls) == [], "tryb „mowa” nie wysyła żadnego kadru do modelu"
+    assert r["ustawienia"]["tryb"] == "mowa" and r["ustawienia"]["obraz"] == "brak" and r["napisy_ekranowe"] == []
+    assert 1 <= len(r["kadry"]) <= 4 and all(k["vision"] is None for k in r["kadry"])
+    assert all((out / k["file"]).is_file() for k in r["kadry"])
+    assert any("Tylko mowa" in g for g in r["luki"]) and not any("Kadry co najwyżej" in g for g in r["luki"])
+    assert r["streszczenie"]["dane"]["streszczenie"] and "kontrola" in r and "pokazane" in r["streszczenie"]["dane"]
+    assert r["streszczenie"]["dane"]["pokazane"] == []
+
+
+def test_mode_fast_speech_report_first_then_selected_frames(tmp_path, cue_subs):
+    from test_vidsum import FILM, FakeOllama
+    import http.server
+    import threading as th
+    from vidsum.pipeline import Options, analyze
+    FakeOllama.calls, FakeOllama.fail_images = [], set()
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeOllama)
+    th.Thread(target=srv.serve_forever, daemon=True).start()
+    order = []
+    try:
+        opt = Options(out_root=tmp_path / "w", transcript_file=cue_subs, ocr=False, ollama_host=f"http://127.0.0.1:{srv.server_address[1]}",
+                      vision_model="fake-vl", text_model="fake-txt", mode="szybki",
+                      on_partial=lambda k, d: order.append((k, len(_images(FakeOllama.calls)))))
+        log = []
+        out = analyze(str(FILM), opt, log=log.append)
+    finally:
+        srv.shutdown()
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    first = next(i for i, (k, _) in enumerate(order) if k == "streszczenie_mowa")
+    assert order[first][1] == 0, "raport z mowy trafia do interfejsu, zanim model obrazu dostanie pierwszy kadr"
+    imgs = _images(FakeOllama.calls)
+    assert 2 <= len(imgs) == len(r["kadry"]) <= 30
+    assert all(k["vision"] and (out / k["file"]).is_file() for k in r["kadry"])
+    cue = [k for k in r["kadry"] if "wskazany_w_mowie" in k["reasons"]]
+    assert len(cue) == 1 and 11 <= cue[0]["t"] <= 16, r["kadry"]
+    assert sorted(p.name for p in (out / "kadry").iterdir()) == sorted(Path(k["file"]).name for k in r["kadry"]), "bez osieroconych miniatur"
+    assert r["ustawienia"]["tryb"] == "szybki" and r["ustawienia"]["obraz"] == "ollama:fake-vl"
+    assert {b["widac"]["zrodlo"] for b in r["os_czasu"]} == {"obraz"}
+    shown = r["streszczenie"]["dane"]["pokazane"]
+    assert len(shown) == 1 and "zobaczcie" in shown[0]["mowa"] and shown[0]["obraz"].startswith("deska i nóż")
+    assert "## Pokazane na ekranie" in r["streszczenie"]["markdown"] and "zobaczcie jak to wygląda" in r["streszczenie"]["markdown"]
+    assert any("Mowa + szybki obraz" in g for g in r["luki"])
+    assert "raport_z_mowy_po_s" in r["czasy"] and r["czasy"]["obraz_s"] > 0
+    assert "OBRAZ: deska i nóż" in (out / "prompt_dla_claude.md").read_text(encoding="utf-8")
+    assert any("szybki obraz gotowy" in x for x in log)
+
+
+def test_mode_full_adds_frames_pointed_by_speech(tmp_path, cue_subs):
+    from test_vidsum import FILM, FakeOllama
+    import http.server
+    import threading as th
+    from vidsum.pipeline import Options, analyze
+    FakeOllama.calls, FakeOllama.fail_images = [], set()
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeOllama)
+    th.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        opt = Options(out_root=tmp_path / "w", transcript_file=cue_subs, ocr=False, ollama_host=f"http://127.0.0.1:{srv.server_address[1]}",
+                      vision_model="fake-vl", text_model="fake-txt")
+        out = analyze(str(FILM), opt, log=lambda m: None)
+    finally:
+        srv.shutdown()
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    assert r["ustawienia"]["tryb"] == "pelna" and len(_images(FakeOllama.calls)) == len(r["kadry"])
+    ts_ = [k["t"] for k in r["kadry"]]
+    assert ts_ == sorted(ts_) and any(11 <= t <= 16 for t in ts_)
+    shown = r["streszczenie"]["dane"]["pokazane"]
+    assert len(shown) == 1 and "zobaczcie" in shown[0]["mowa"]
+    assert any("Kadry co najwyżej" in g for g in r["luki"])

@@ -195,6 +195,7 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
         c["czas"] = ""
     out["reklamy"] = [{"start": clamp(x.get("start")), "end": clamp(x.get("end")), "marka": _str(x.get("marka"))}
                       for x in _lst(d.get("reklamy")) if isinstance(x, dict)]
+    out["pokazane"] = [x for x in _lst(d.get("pokazane")) if isinstance(x, dict)]
     c["fakty"].sort(key=lambda x: x["t"])
     for k in ("najwazniejsze", "momenty", "cytaty"):
         out[k].sort(key=lambda x: x["t"])
@@ -250,6 +251,13 @@ def to_markdown(s: dict) -> str:
         L += ["## Momenty"] + [f"- `{ts(x['t'])}` {x['tekst']}" for x in s["momenty"]] + [""]
     L += ["## Cytaty"] + ([f"- `{ts(x['t'])}` „{x['tekst']}”" + (f" ({x['tlumaczenie']})" if x["tlumaczenie"] else "")
                            for x in s["cytaty"]] or ["brak danych"]) + [""]
+    if s.get("pokazane"):
+        L += ["## Pokazane na ekranie (gdy mowa wskazuje na obraz)"]
+        for x in s["pokazane"]:
+            said = x.get("mowa_pl") or x.get("mowa") or ""
+            L.append(f"- `{ts(x['t'])}` „{said}”" + (f" → widać: {x['obraz']}" if x.get("obraz") else "")
+                     + (" · napisy: " + " | ".join(f"„{n}”" for n in x["napisy"]) if x.get("napisy") else "") + " [obraz]")
+        L.append("")
     if s.get("reklamy"):
         L += ["## Reklamy (pominięte w faktach)"] + [f"- `{ts(x['start'])}–{ts(x['end'])}`" + (f" {x['marka']}" if x["marka"] else "")
                                                     for x in s["reklamy"]] + [""]

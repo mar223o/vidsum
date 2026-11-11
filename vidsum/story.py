@@ -302,4 +302,10 @@ def localize(summary: dict, segments: list[dict], pl_segments: list[dict] | None
             if new:
                 q["tlumaczenie"] = new
                 n += 1
+    for x in summary.get("pokazane", []):                # „Pokazane na ekranie”: słowa narratora po polsku
+        if not x.get("mowa_pl"):
+            new = pl_for(x.get("czasy"))
+            if new:
+                x["mowa_pl"] = new
+                n += 1
     return n

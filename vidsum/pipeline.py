@@ -53,6 +53,9 @@ class Options:
     # kosztuje: ten sam model do obrazu i tekstu (nic się nie przeładowuje) albo obraz wyłączony. True = zawsze
     # (model tekstowy przed modelem obrazu, +kilkanaście s na karcie 8 GB). False = nigdy.
     preview: bool | None = None
+    # tryb analizy (0.12.0, vidsum/modes.py): "pelna" — jak dotąd; "mowa" — tylko mowa (bez modelu obrazu i OCR);
+    # "szybki" — raport z mowy, potem opis wybranych kadrów (wskazane mową, początki rozdziałów, pokrycie)
+    mode: str = "pelna"
     extra: dict = field(default_factory=dict)
 
 
@@ -119,6 +122,18 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         outer_log(msg)
 
     opt.language = normalize(opt.language)          # nieznany kod → czytelny błąd od razu
+    from .modes import MODE_LABEL, normalize_mode
+    mode = normalize_mode(opt.mode)
+    if opt.vision != "ollama" and mode == "szybki":
+        mode = "mowa"                               # „szybki obraz” bez modelu obrazu to po prostu sama mowa
+    full_opt = opt                                  # ustawienia użytkownika (model obrazu) — dla drugiej fazy „szybkiego”
+    light = mode == "szybki"
+    if mode != "pelna":
+        # faza 1 w trybach „mowa” i „szybki”: wszystko z mowy — bez modelu obrazu i bez OCR całego filmu
+        from dataclasses import replace as _replace
+        opt = _replace(opt, vision="brak", ocr=False)
+        log(f"  tryb: {MODE_LABEL[mode]}")
+    cues: list[dict] = []                           # momenty, w których mowa wskazuje na obraz („look at this”)
     # zasoby karty: stan przed startem (co jeszcze z niej korzysta) + pomiar co 2 s w czasie analizy → raport
     from .cuda import GpuWatch, gpu_snapshot, ollama_models
     zasoby: dict = {"przed": gpu_snapshot(), "modele": {}}
@@ -161,6 +176,19 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             early["s"] = round(time.time() - t_l, 1)
         early_thread = threading.Thread(target=early_preload, daemon=True)
         early_thread.start()
+    if mode != "pelna" and opt.summary in ("auto", "ollama"):
+        # sama mowa: model tekstowy idzie na kartę od razu (w czasie pobierania i transkrypcji) — nic z nim nie konkuruje
+        def early_text() -> None:
+            try:
+                from .llm import TEXT_CTX
+                tm0 = Ollama(opt.summary_model or opt.text_model, opt.ollama_host)
+                if tm0.has_model():
+                    t_l = time.time()
+                    tm0.preload(TEXT_CTX)
+                    early["tekst_s"] = round(time.time() - t_l, 1)
+            except LLMError:
+                pass
+        threading.Thread(target=early_text, daemon=True).start()
     src = resolve(inp, tmp, opt.cookies_from_browser)
     t_fetch = round(time.time() - t0, 1)
     name = _safe_name(src.title or src.path.stem)
@@ -414,7 +442,12 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     log("  [2/4] wykrywanie zmian scen i wybór kadrów…")
     plan = plan_for(info.duration, opt.max_frames)
     sample_fps = 2.0 if info.duration <= 600 else 1.0
-    picks = choose_frames(scene_scores(src.path, sample_fps), info.duration, plan)
+    if mode == "pelna":
+        picks = choose_frames(scene_scores(src.path, sample_fps), info.duration, plan)
+    else:                                           # bez analizy scen (na dokumencie 24:50 trwała 34 s) — same miniatury
+        from .media import FramePick
+        from .modes import thumbnail_times
+        picks = [FramePick(t_, ["pokrycie"], 0.0) for t_ in thumbnail_times(info.duration)]
     frames: list[FrameInfo] = []
     prev_sig = None
     dropped = 0
@@ -430,9 +463,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         prev_sig = sig
         frames.append(FrameInfo(round(p.t, 2), f"kadry/{fn}", p.reasons, round(p.score, 3), None))
     max_gap = max([b.t - a.t for a, b in zip(frames, frames[1:])] + [info.duration - frames[-1].t if frames else info.duration])
-    gaps.append(f"Kadry co najwyżej co {max_gap:.0f} s — krótkie czynności między kadrami mogły zostać pominięte.")
+    if mode == "pelna":
+        gaps.append(f"Kadry co najwyżej co {max_gap:.0f} s — krótkie czynności między kadrami mogły zostać pominięte.")
     timings["kadry_s"] = round(time.time() - t, 1)
-    log(f"        {len(frames)} kadrów (pominięto {dropped} powtarzających się; limit {plan.max_frames})")
+    log(f"        {len(frames)} kadrów (pominięto {dropped} powtarzających się; limit {plan.max_frames})"
+        if mode == "pelna" else f"        {len(frames)} miniatur (bez analizy scen)")
     if ocr_deferred:
         start_ocr()
     if speech_job:
@@ -442,6 +477,27 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if speech_thread and not speech_job and opt.vision == "ollama":     # GPU: zwolnij kartę przed modelem obrazu
         log("        czekam na transkrypcję (GPU)…")
         speech_thread.join()
+
+    def find_cues(segs: list[dict], ads: list[dict] | None = None) -> list[dict]:
+        from .modes import speech_cues
+        if ads is None:                              # streszczenia jeszcze nie ma — reklamy po pewnych sygnałach
+            from .story import ad_spans
+            from .summary import speech_lines
+            ads = ad_spans(speech_lines(segs), set())
+        return speech_cues(segs, info.duration, [(a["start"], a["end"]) for a in ads])
+
+    # 0.12.0: kadry WSKAZANE MOWĄ („look at this”, „right here”, „spójrzcie”) — dokładane do wybranych po zmianach sceny
+    if mode == "pelna" and opt.vision == "ollama" and tr_box.get("tr") is not None and tr_box["tr"].segments:
+        from .modes import extra_cue_picks
+        cues = find_cues([asdict(x) for x in tr_box["tr"].segments])
+        extra = extra_cue_picks([f.t for f in frames], cues)
+        for c in extra:
+            fn = f"kadr_{len(frames) + 1:03d}_{ts(c['t']).replace(':', '-')}.jpg"
+            extract_frame(src.path, c["t"], out / "kadry" / fn, width=512)
+            frames.append(FrameInfo(c["t"], f"kadry/{fn}", ["wskazany_w_mowie"], 0.0, None))
+        if extra:
+            frames.sort(key=lambda f: f.t)
+            log(f"        + {len(extra)} kadr(y) wskazane mową: " + ", ".join(f"{ts(c['t'])} „{c['zwrot']}”" for c in extra))
 
     # POPRAWKA MOWY (Whisper GPU z podpowiedziami z napisów na ekranie) — od 0.7.6 w czasie opisu kadrów,
     # jeśli na karcie jest miejsce obok modelu obrazu; inaczej po opisie kadrów (jak wcześniej)
@@ -570,7 +626,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         if failed:
             gaps.append(f"Nie udało się opisać kadrów: {', '.join(failed)} — w tych miejscach obraz = brak danych.")
     else:
-        gaps.append("Analiza obrazu wyłączona — kadry zapisane, ale bez opisów.")
+        if mode == "pelna":
+            gaps.append("Analiza obrazu wyłączona — kadry zapisane, ale bez opisów.")
+        elif mode == "mowa":
+            gaps.append("Tryb „Tylko mowa”: obraz i napisy na ekranie nie były analizowane — wynik pochodzi z samej mowy "
+                        "(kadry to tylko miniatury).")
         start_preview()
     timings["obraz_s"] = round(time.time() - t, 1)
     if opt.vision == "ollama":
@@ -764,6 +824,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                      max_chapters=max(6, min(12, round(info.duration / 300))))
             summary_md = to_markdown(summary_data) if summary_data else (raw or None)
             summary_engine = text_name
+            if light and summary_data:               # raport z mowy od razu w interfejsie; obraz dojdzie za chwilę
+                _emit(opt, "streszczenie_mowa", summary_data)
+                timings["raport_z_mowy_po_s"] = round(time.time() - t0, 1)
+                log(f"        raport z mowy gotowy ({timings['raport_z_mowy_po_s']:.0f} s od startu) — teraz szybki obraz")
             if not summary_data:
                 log("        ! model nie zwrócił poprawnych danych")
                 gaps.append("Model tekstowy nie zwrócił poprawnego streszczenia — zostaje oś czasu i transkrypcja.")
@@ -787,6 +851,114 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             summary_md = to_markdown(summary_data)
     if text_engine and isinstance(text_engine, Ollama):
         text_engine.unload()
+
+    # ---- TRYB „MOWA + SZYBKI OBRAZ”, faza 2 (0.12.0): opis tylko wybranych kadrów + napisy z tych kadrów ----
+    if light:
+        try:
+            from concurrent.futures import ThreadPoolExecutor
+            from .media import FramePick  # noqa: F401
+            from .modes import light_picks
+            t_v = time.time()
+            segs_d = [asdict(x) for x in tr.segments]
+            ads = (summary_data or {}).get("reklamy") if summary_data else None
+            cues = find_cues(segs_d, ads) if segs_d else []
+            starts = [float(c["start"]) for c in (summary_data or {}).get("rozdzialy", [])]
+            picks2 = light_picks(info.duration, cues, starts, plan.max_frames)
+            vision_engine = _vision_ollama(full_opt)
+            vision_engine.check()
+            log(f"  [3/4] szybki obraz: {len(picks2)} kadrów ({sum(1 for x in picks2 if 'wskazany_w_mowie' in x['reasons'])} wskazanych mową, "
+                f"{sum(1 for x in picks2 if 'poczatek_rozdzialu' in x['reasons'])} na początki rozdziałów, reszta równo) — {full_opt.vision_model}…")
+            pre = threading.Thread(target=lambda: vision_engine.preload(), daemon=True)
+            pre.start()
+            old = {round(f.t, 2): f for f in frames}                    # miniatury z fazy 1 — te same chwile zostają
+            new_frames: list[FrameInfo] = []
+            for i, pk in enumerate(picks2, 1):
+                f0 = old.pop(round(pk["t"], 2), None)
+                if f0 is not None:
+                    f0.reasons = pk["reasons"]
+                    new_frames.append(f0)
+                    continue
+                fn = f"kadr_s{i:03d}_{ts(pk['t']).replace(':', '-')}.jpg"
+                extract_frame(src.path, pk["t"], out / "kadry" / fn, width=512)
+                new_frames.append(FrameInfo(pk["t"], f"kadry/{fn}", pk["reasons"], 0.0, None))
+            for f0 in old.values():                                      # miniatury, które nie weszły do wyboru
+                (out / f0.file).unlink(missing_ok=True)
+            frames = new_frames
+            _emit(opt, "kadry", [{"t": f.t, "file": f.file, "scena": ""} for f in frames])
+
+            ocr_fast: list = []
+
+            def ocr_frames() -> None:                # napisy tylko z wybranych kadrów (CPU, równolegle z opisem na karcie)
+                if not full_opt.ocr:
+                    return
+                t_o = time.time()
+                try:
+                    import tempfile
+                    from .ocr import CaptionOCR, OcrLine, ensure_models, is_overlay_junk
+                    mdir = ensure_models(Path(opt.whisper_root) if opt.whisper_root else out.parent / "_modele", log)
+                    reader = CaptionOCR(mdir)
+                    with tempfile.TemporaryDirectory(prefix="vidsum_ocr_") as td:
+                        for i, f in enumerate(list(frames)):
+                            img = extract_frame(src.path, f.t, Path(td) / f"o_{i:03d}.jpg", width=720)
+                            for text, score in reader.read(img):
+                                if not is_overlay_junk(text):
+                                    ocr_fast.append(OcrLine(round(f.t, 2), round(f.t + 1.0, 2), text, round(score, 3)))
+                except Exception as e:                # OCR to dodatek
+                    tech_notes.append(f"OCR napisów niedostępny ({type(e).__name__}: {str(e)[:100]}).")
+                    log(f"        ! OCR: {e}")
+                timings["ocr_s"] = round(time.time() - t_o, 1)
+            ocr_t = threading.Thread(target=ocr_frames, daemon=True)
+            ocr_t.start()
+            pre.join()
+            timings["obraz_wczytanie_s"] = round(time.time() - t_v, 1)
+            check_on_gpu(vision_engine, "model obrazu", log, tech_notes)
+            failed2: list[str] = []
+            done2 = [0]
+            lock2 = threading.Lock()
+
+            def describe2(f: FrameInfo) -> None:
+                for _ in (1, 2):
+                    try:
+                        f.vision = vision_engine.describe_frame(out / f.file, ts(f.t), light=full_opt.ocr)
+                        break
+                    except LLMError:
+                        continue
+                with lock2:
+                    done2[0] += 1
+                    if f.vision is None:
+                        failed2.append(ts(f.t))
+                    log(f"        {done2[0]}/{len(frames)} kadr {ts(f.t)}: {(f.vision or {}).get('scena', '! błąd')[:90]}")
+                    _emit(opt, "kadry", [{"t": x.t, "file": x.file, "scena": (x.vision or {}).get("scena", "")} for x in frames])
+            with ThreadPoolExecutor(max_workers=min(VISION_WORKERS, vision_engine.parallel)) as pool:
+                list(pool.map(describe2, frames))
+            ocr_t.join()
+            ocr_lines = sorted(ocr_fast, key=lambda l: l.start)
+            if ocr_lines:
+                _emit(opt, "napisy", [asdict(l) for l in ocr_lines])
+            timings["obraz_s"] = round(time.time() - t_v, 1)
+            zasoby["modele"]["opis_kadrow"] = ollama_models(opt.ollama_host)
+            if failed2:
+                gaps.append(f"Nie udało się opisać kadrów: {', '.join(sorted(failed2))} — w tych miejscach obraz = brak danych.")
+            gaps.append(f"Tryb „Mowa + szybki obraz”: streszczenie powstało z mowy; opisano {len(frames)} wybranych kadrów, "
+                        "a napisy z ekranu odczytano tylko z nich — to, co było na ekranie między nimi, mogło zostać pominięte.")
+            beats = build_beats(frames, tr.segments, info.duration, ocr_lines)
+            (out / "prompt_dla_claude.md").write_text(build_summary_prompt(beats, meta, gaps), encoding="utf-8")
+            log(f"        szybki obraz gotowy ({timings['obraz_s']:.1f} s: {len(frames)} kadrów, {len(ocr_lines)} napisów z ekranu)")
+        except LLMError as e:                         # brak modelu obrazu itp. — raport z mowy zostaje
+            gaps.append(f"Szybki obraz nie powstał ({e}) — wynik pochodzi z samej mowy.")
+            log(f"        ! szybki obraz: {e}")
+    # „Pokazane na ekranie”: co widać, gdy mowa wskazuje na obraz (oba tryby z obrazem)
+    if summary_data and not cues and tr.segments and any(f.vision for f in frames):
+        cues = find_cues([asdict(x) for x in tr.segments], summary_data.get("reklamy"))   # transkrypcja była po kadrach
+    if summary_data and cues and any(f.vision for f in frames):
+        from .modes import shown_items
+        shown = shown_items(cues, [f for f in frames if f.vision], ocr_lines, [asdict(x) for x in tr.segments])
+        if shown:
+            summary_data["pokazane"] = shown
+            if pl_segs:
+                from .story import localize
+                localize(summary_data, [asdict(x) for x in tr.segments], pl_segs)
+            summary_md = to_markdown(summary_data)
     if vision_engine:
         vision_engine.unload()
     if gpu_watch:
@@ -819,7 +991,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                    "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio,
                    "film": film_ref, "opis": src.description, "rozdzialy_autora": src.chapters,
                    "obraz_bez_pasow": (bars_thread.join(timeout=30) or bars.get("r"))},
-        "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets,
+        "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets, "tryb": mode,
                        "obraz": f"ollama:{opt.vision_model}" if vision_engine else "brak",
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,
                        "pokrycie_co_s": plan.base_interval, "uwagi_techniczne": tech_notes},

@@ -533,7 +533,7 @@ const I18N = {
    part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
    quit:"Zamknij program",quit_q:"Zamknąć Vidsumly? Trwająca analiza zostanie zapisana w kolejce i zacznie się od nowa po wznowieniu.",quit_done:"Vidsumly wyłączone. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
-   t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_sport:"Ćwiczenia i technika",t_todo_poradnik:"Kroki",t_todo_dokument:"Fakty",t_todo_wyklad:"Fakty i wnioski",t_todo_inne:"Wnioski",facts:"Fakty, liczby, osoby, daty",ads:"Reklamy (pominięte w faktach)",qc:"Kontrola jakości",qc_ok:"bez uwag",qc_n:n=>n===1?"1 uwaga":`uwag: ${n}`,qc_what:"Program sam sprawdza wynik: czy układ pasuje do typu filmu, czy rozdziały obejmują cały film, czy liczby są w mowie albo w napisach, czy w treści nie ma reklam ani obcego języka, czy cytaty padają w filmie i czy tłumaczenie nie zgubiło liczb.",ex_sport:"Ćwiczenia i elementy techniki",fk_liczba:"liczba",fk_osoba:"osoba",fk_data:"data",fk_miejsce:"miejsce",fk_fakt:"fakt",
+   t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_sport:"Ćwiczenia i technika",t_todo_poradnik:"Kroki",t_todo_dokument:"Fakty",t_todo_wyklad:"Fakty i wnioski",t_todo_inne:"Wnioski",facts:"Fakty, liczby, osoby, daty",ads:"Reklamy (pominięte w faktach)",shown:"Pokazane na ekranie (gdy mowa wskazuje na obraz)",shown_see:"widać",shown_text:"napisy na ekranie",zmowy_badge:"z mowy — obraz w toku",mode_label:"Tryb analizy",mode_full:"Pełna",mode_fast:"Mowa + szybki obraz",mode_speech:"Tylko mowa",mode_hint_pelna:"Opis wybranych kadrów, napisy z całego filmu i mowa. Najdokładniejsza — dla przepisów, ćwiczeń i krótkich filmów.",mode_hint_szybki:"Najpierw cały raport z mowy, potem opis tylko wybranych kadrów: tych, na które wskazuje mowa („spójrzcie”, „look at this”), i początków rozdziałów. Dla długich filmów, w których treść niesie mowa.",mode_hint_mowa:"Sam raport z mowy, bez analizy obrazu. Najszybciej — dla podcastów, wykładów i słabszych komputerów.",mode_hw:w=>`${w} Na tym komputerze polecany jest tryb „Tylko mowa”.`,qc:"Kontrola jakości",qc_ok:"bez uwag",qc_n:n=>n===1?"1 uwaga":`uwag: ${n}`,qc_what:"Program sam sprawdza wynik: czy układ pasuje do typu filmu, czy rozdziały obejmują cały film, czy liczby są w mowie albo w napisach, czy w treści nie ma reklam ani obcego języka, czy cytaty padają w filmie i czy tłumaczenie nie zgubiło liczb.",ex_sport:"Ćwiczenia i elementy techniki",fk_liczba:"liczba",fk_osoba:"osoba",fk_data:"data",fk_miejsce:"miejsce",fk_fakt:"fakt",
    t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
    map_hint:"Kliknij gałąź: szczegóły i przewinięcie filmu. Powiększanie: przyciski albo Ctrl + kółko myszy (na pełnym ekranie samo kółko), przeciąganie — przesuwanie.",
    map_full:"Pełny ekran",map_reset:"Dopasuj",t_tr:"Transkrypcja",t_fr:"Kadry",t_desc:"Opis",t_com:"Komentarze",desc_h:"Opis od autora",desc_note:"Tekst autora z serwisu, nie wynik analizy.",au_ch:"Rozdziały od autora",model_ch:"Rozdziały z analizy",of_film:p=>`${p}% filmu`,com_h:"Komentarze widzów",com_note:"Opinie widzów z serwisu, nie fakty z filmu.",com_get:"Pobierz komentarze",com_wait:"Pobieram komentarze…",com_none:"Pod filmem nie ma komentarzy albo serwis ich nie udostępnił.",com_from:(n,d)=>`Najpopularniejsze: ${n}, pobrane ${d}`,com_reply:"odpowiedź",likes:"polubień",open_src:s=>`Otwórz film na ${s}`,cinema:"Tryb kinowy",bars_show:"Pokaż cały kadr",bars_hide:"Ukryj czarne pasy",bars_hint:"Program wykrył czarne pasy wpalone w obraz i je ukrywa. Plik filmu się nie zmienia.",cinema_off:"Zamknij tryb kinowy",expand_all:"Rozwiń wszystkie",collapse_all:"Zwiń wszystkie",
@@ -595,7 +595,7 @@ const I18N = {
    part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
    quit:"Quit app",quit_q:"Quit Vidsumly? The running analysis is saved in the queue and starts again when you resume it.",quit_done:"Vidsumly stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
-   t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_sport:"Drills and technique",t_todo_poradnik:"Steps",t_todo_dokument:"Facts",t_todo_wyklad:"Facts and takeaways",t_todo_inne:"Takeaways",facts:"Facts, numbers, people, dates",ads:"Ads (left out of the facts)",qc:"Quality check",qc_ok:"no issues",qc_n:n=>n===1?"1 issue":`${n} issues`,qc_what:"The app checks its own result: does the layout fit the video type, do chapters cover the whole video, are the numbers in the speech or on-screen text, are there ads or foreign-language leftovers in the content, are the quotes really said, and did the translation keep the numbers.",ex_sport:"Drills and technique",fk_liczba:"number",fk_osoba:"person",fk_data:"date",fk_miejsce:"place",fk_fakt:"fact",
+   t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_sport:"Drills and technique",t_todo_poradnik:"Steps",t_todo_dokument:"Facts",t_todo_wyklad:"Facts and takeaways",t_todo_inne:"Takeaways",facts:"Facts, numbers, people, dates",ads:"Ads (left out of the facts)",shown:"Shown on screen (when the speech points at the picture)",shown_see:"on screen",shown_text:"on-screen text",zmowy_badge:"from speech — picture in progress",mode_label:"Analysis mode",mode_full:"Full",mode_fast:"Speech + quick picture",mode_speech:"Speech only",mode_hint_pelna:"Describes selected frames, reads on-screen text from the whole video, and uses the speech. Most accurate — for recipes, workouts and short videos.",mode_hint_szybki:"The whole report from speech first, then only selected frames: the ones the speech points at (“look at this”) and chapter starts. For long videos where the speech carries the content.",mode_hint_mowa:"Report from speech only, no picture analysis. Fastest — for podcasts, lectures and slower computers.",mode_hw:w=>`${w} On this computer “Speech only” is recommended.`,qc:"Quality check",qc_ok:"no issues",qc_n:n=>n===1?"1 issue":`${n} issues`,qc_what:"The app checks its own result: does the layout fit the video type, do chapters cover the whole video, are the numbers in the speech or on-screen text, are there ads or foreign-language leftovers in the content, are the quotes really said, and did the translation keep the numbers.",ex_sport:"Drills and technique",fk_liczba:"number",fk_osoba:"person",fk_data:"date",fk_miejsce:"place",fk_fakt:"fact",
    t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
    map_hint:"Click a branch: details and jump in the video. Zoom: buttons or Ctrl + mouse wheel (wheel alone in full screen), drag to pan.",
    map_full:"Full screen",map_reset:"Fit",t_tr:"Transcript",t_fr:"Frames",t_desc:"Description",t_com:"Comments",desc_h:"Description from the author",desc_note:"The author's text from the site, not an analysis result.",au_ch:"Chapters from the author",model_ch:"Chapters from the analysis",of_film:p=>`${p}% of the video`,com_h:"Viewer comments",com_note:"Viewers' opinions from the site, not facts from the video.",com_get:"Load comments",com_wait:"Loading comments…",com_none:"The video has no comments, or the site did not provide them.",com_from:(n,d)=>`Top comments: ${n}, loaded ${d}`,com_reply:"reply",likes:"likes",open_src:s=>`Open the video on ${s}`,cinema:"Cinema mode",bars_show:"Show full frame",bars_hide:"Hide black bars",bars_hint:"Black bars burned into the picture were detected and are hidden. The video file is unchanged.",cinema_off:"Exit cinema mode",expand_all:"Expand all",collapse_all:"Collapse all",
@@ -701,7 +701,7 @@ document.querySelectorAll(".lang button").forEach(b => b.onclick = () => {
 let lastStatus = {};
 function updInfo(){ return lastStatus.wersja ? t("upd_current", esc(lastStatus.wersja)) + (lastStatus.klucz_github ? " · " + t("upd_key_have") : "") : ""; }
 async function loadStatus(){
-  try{ lastStatus = await api("/api/status"); renderChips(); }
+  try{ lastStatus = await api("/api/status"); renderChips(); if ($("#amode")) renderPv(); }
   catch(e){ $("#chips").innerHTML = `<span class="chip bad">${esc(e.message)}</span>`; }
 }
 function renderChips(){
@@ -959,7 +959,10 @@ function renderHome(){
         <div id="drop" tabindex="0" role="button"><svg class="ic big" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
           <input type="file" id="pick" accept="video/*,.mp4,.mov,.mkv,.webm" multiple hidden></div>
         <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}" aria-label="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
-        <div class="pvrow"><span class="seg small" id="pvmode" role="group" aria-label="${esc(t("s_preview"))}">
+        <div class="pvrow"><span class="seg small" id="amode" role="group" aria-label="${esc(t("mode_label"))}">
+          <button data-mode="pelna">${t("mode_full")}</button><button data-mode="szybki">${t("mode_fast")}</button><button data-mode="mowa">${t("mode_speech")}</button></span>
+          <span class="muted pvhint" id="amodehint"></span></div>
+        <div class="pvrow" id="pvrow"><span class="seg small" id="pvmode" role="group" aria-label="${esc(t("s_preview"))}">
           <button data-pv="najszybciej">${t("pv_fast")}</button><button data-pv="zawsze">${t("pv_always")}</button></span>
           <span class="muted pvhint" id="pvhint"></span></div>
         <div class="startfoot"><span class="muted">${t("start_hint")}</span><a href="#/ustawienia">${t("start_settings")}</a></div>
@@ -970,10 +973,18 @@ function renderHome(){
   renderQueue();
 }
 function pvMode(){ return settings?.tryb_podgladu === "zawsze" ? "zawsze" : "najszybciej"; }
+/* 0.12.0: tryb analizy — pełna / mowa + szybki obraz / tylko mowa (zapamiętywany; propozycja zależy od karty) */
+function aMode(){ return ["pelna","szybki","mowa"].includes(settings?.tryb) ? settings.tryb : "pelna"; }
 function renderPv(){
-  const m = pvMode();
+  const m = pvMode(), a = aMode();
   document.querySelectorAll("#pvmode button").forEach(b => b.classList.toggle("on", b.dataset.pv === m));
   if ($("#pvhint")) $("#pvhint").textContent = t(m === "zawsze" ? "pv_hint_always" : "pv_hint_fast");
+  document.querySelectorAll("#amode button").forEach(b => b.classList.toggle("on", b.dataset.mode === a));
+  if ($("#amodehint")) {
+    const hw = lastStatus.tryb_proponowany === "mowa" && a !== "mowa" ? " " + t("mode_hw", lastStatus.tryb_powod || "") : "";
+    $("#amodehint").textContent = t("mode_hint_" + a) + hw;
+  }
+  if ($("#pvrow")) $("#pvrow").hidden = a !== "pelna";      // wstępne streszczenie ma znaczenie tylko w pełnej analizie
 }
 function bindHome(){
   const drop = $("#drop");
@@ -981,6 +992,9 @@ function bindHome(){
   $("#pvmode").onclick = e => { const b = e.target.closest("button"); if (!b) return;
     settings = {...(settings || {}), tryb_podgladu: b.dataset.pv}; renderPv();
     api("/api/ustawienia", {method:"POST", body:JSON.stringify({tryb_podgladu: b.dataset.pv})}).catch(() => {}); };
+  $("#amode").onclick = e => { const b = e.target.closest("button"); if (!b) return;
+    settings = {...(settings || {}), tryb: b.dataset.mode}; renderPv();
+    api("/api/ustawienia", {method:"POST", body:JSON.stringify({tryb: b.dataset.mode})}).catch(() => {}); };
   drop.onclick = () => $("#pick").click();
   drop.onkeydown = e => { if (e.key==="Enter"||e.key===" ") $("#pick").click(); };
   $("#pick").onchange = e => { [...e.target.files].forEach(upload); e.target.value = ""; };
@@ -991,7 +1005,7 @@ function bindHome(){
     const lines = $("#links").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
     const busy = jobs.some(j => j.status === "trwa" || j.status === "w_kolejce");
     let first = null;
-    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, tryb_podgladu: pvMode()})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
+    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, tryb_podgladu: pvMode(), tryb: aMode()})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
     $("#links").value = "";
     // pusta kolejka → od razu wynik na żywo; coś już trwa → film czeka w kolejce, zostajesz tutaj
     if (first && !busy && lines.length === 1) { try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + first.id; }
@@ -1004,7 +1018,7 @@ async function waitAndReload(){          // po aktualizacji: czekaj, aż nowa we
 function upload(file){
   const key = Math.random().toString(36).slice(2); uploads[key] = {name:file.name, pct:0}; renderHome();
   const x = new XMLHttpRequest(); x.open("POST", "/api/wyslij");
-  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name)); x.setRequestHeader("X-Preview", pvMode());
+  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name)); x.setRequestHeader("X-Preview", pvMode()); x.setRequestHeader("X-Mode", aMode());
   x.upload.onprogress = e => { if (e.lengthComputable){ uploads[key].pct = Math.round(100*e.loaded/e.total); renderHome(); } };
   x.onloadend = async () => {
     delete uploads[key];
@@ -1081,6 +1095,8 @@ function liveR(j, p){                    // te same pola co analiza.json, z tego
       co_masz_zrobic:dane ? dane.co_masz_zrobic : {skladniki:[], kroki:[], sprzet:[], czas:"", cwiczenia:[], wskazowki:[], bledy:[], wnioski:[]},
       szczera_ocena:"", czego_nie_wiadomo:[], pytania:[], momenty:[], cytaty:[], rozdzialy:[]};
   }
+  if (p.streszczenie_mowa)                // tryb „mowa + szybki obraz”: cały raport z mowy już jest, obraz dojdzie
+    dane = {...p.streszczenie_mowa, partial:true, zmowy:true};
   return {live:true, zrodlo:{tytul:m.tytul || j?.label || "…", autor:m.autor, dlugosc_s:m.dlugosc_s || 0, szerokosc:m.szerokosc, wysokosc:m.wysokosc},
     transkrypcja:{jezyk:tr.jezyk, segmenty:tr.segmenty || [], tlumaczenia:tls}, napisy_ekranowe:p.napisy || [],
     kadry:kadry.map(x => ({t:x.t, file:x.file})),
@@ -1125,7 +1141,7 @@ async function switchLang(l){
 function tabsFor(d){
   const tl = [];
   if (d) {
-    const c = d.co_masz_zrobic, has = c && (c.skladniki.length||c.kroki.length||c.cwiczenia.length||c.wnioski.length||c.wskazowki.length||(c.fakty||[]).length);
+    const c = d.co_masz_zrobic, has = c && (c.skladniki.length||c.kroki.length||c.cwiczenia.length||c.wnioski.length||c.wskazowki.length||(c.fakty||[]).length||(d.pokazane||[]).length||(d.reklamy||[]).length);
     if (has) tl.push(["todo", t("t_todo_"+(TODO_TYPES.includes(d.typ) ? d.typ : "inne"))]);
     if (d.najwazniejsze.length) tl.push(["key", t("t_key")]);
     if (d.momenty.length) tl.push(["mom", t("t_mom")]);
@@ -1190,6 +1206,7 @@ function renderTab(d){
     if (c.skladniki.length) h += `<div class="sub">${t("ingredients")}</div><ul class="ingr">${c.skladniki.map(x => `<li><b>${esc(x.nazwa)}${src(x.zrodlo)}</b><span>${esc(x.ilosc)}</span></li>`).join("")}</ul>`;
     if (c.kroki.length) h += `<div class="sub">${t("steps")}</div><div class="items">${c.kroki.map((x,i) => `<div class="it" data-t="${x.t}"><span class="n">${i+1}</span><div><label class="chk"><input type="checkbox"><p>${tsb(x.t)} ${esc(x.tekst)}${src(x.zrodlo)}</p></label></div></div>`).join("")}</div>`;
     if ((c.fakty||[]).length) h += `<div class="sub">${t("facts")}</div><div class="items">${c.fakty.map(x => `<div class="it simple" data-t="${x.t}"><div><div class="top">${tsb(x.t)}<span class="tag">${esc(t("fk_"+x.rodzaj))}</span></div><p>${esc(x.tekst)}${src(x.zrodlo)}</p></div></div>`).join("")}</div>`;
+    if ((d.pokazane||[]).length) h += `<div class="sub">${t("shown")}</div><div class="items">${d.pokazane.map(x => `<div class="it simple" data-t="${x.t}"><div><div class="top">${tsb(x.t)}<span class="tag">${esc(x.zwrot || "")}</span></div><p>„${esc(x.mowa_pl || x.mowa)}”</p>${x.obraz ? `<p class="muted">${t("shown_see")}: ${esc(x.obraz)}${src("obraz")}</p>` : ""}${(x.napisy||[]).length ? `<p class="muted">${t("shown_text")}: ${x.napisy.map(n => "„" + esc(n) + "”").join(" · ")}</p>` : ""}</div></div>`).join("")}</div>`;
     if (c.cwiczenia.length) h += `<div class="sub">${t(d.typ === "sport" ? "ex_sport" : "exercises")}</div><div class="items">${c.cwiczenia.map((x,i) => `<div class="it" data-t="${x.t}"><span class="n">${i+1}</span><div><div class="top">${tsb(x.t)}<span class="tag">${esc([x.serie,x.powtorzenia].filter(Boolean).join(" × ") || "—")}</span></div><h4>${esc(x.nazwa)}${src(x.zrodlo)}</h4>${x.technika ? `<p>${esc(x.technika)}</p>` : ""}</div></div>`).join("")}</div>`;
     for (const [k, lab] of [["sprzet","equipment"],["wskazowki","tips"],["bledy","mistakes"],["wnioski","takeaways"]])
       if (c[k].length) h += `<div class="sub">${t(lab)}</div><ul>${c[k].map(x => `<li>${inline(x)}</li>`).join("")}</ul>`;
@@ -1285,6 +1302,7 @@ function readTime(d){
 }
 function sumHtml(r, d){
   const pvTag = d?.wstepne ? `<span class="pvtag">${t("pv_badge")}</span>`
+    : d?.zmowy ? `<span class="pvtag">${t("zmowy_badge")}</span>`
     : (r.podglad?.po_s && r.czasy?.razem_s ? `<span class="pvtag done">${t("pv_done", fmt(r.podglad.po_s), fmt(r.czasy.razem_s))}</span>` : "");
   const top = `<div class="hand">~ ${t("summary")} ~</div><div class="label">${t("summary")} ${d && d.streszczenie.length ? readTime(d) : ""}${pvTag}</div><hr class="rule">`;
   if (!d || !d.streszczenie.length) {

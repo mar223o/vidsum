@@ -354,7 +354,7 @@ class App:
         d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
              "streszczenie": "auto", "model_tekstowy": DEFAULT_TEXT_MODEL, "tlumaczenia": "pl,en", "gpu_pobieranie": True,
              "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results),
-             "podglad": False, "tlumacz_wynik": True, "tryb_podgladu": "zawsze"}
+             "podglad": False, "tlumacz_wynik": True, "tryb_podgladu": "zawsze", "tryb": "pelna"}
         try:
             saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
             if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":
@@ -371,11 +371,18 @@ class App:
         self.settings_file.write_text(json.dumps(self.settings, ensure_ascii=False, indent=2), encoding="utf-8")
         return self.settings
 
-    def job_settings(self, preview: str | None) -> dict:
+    def job_settings(self, preview: str | None, mode: str | None = None) -> dict:
         """Ustawienia dla nowego filmu. 0.11.5: tryb wstępnego streszczenia wybiera się przy dodawaniu filmu
-        („najszybciej” / „ze wstępnym”); wybór zapisuje się jako domyślny dla następnych."""
+        („najszybciej” / „ze wstępnym”); 0.12.0: tak samo tryb analizy (pełna / tylko mowa / mowa + szybki obraz).
+        Wybór zapisuje się jako domyślny dla następnych."""
+        from .modes import MODES
+        new = {}
         if preview in ("zawsze", "najszybciej") and preview != self.settings.get("tryb_podgladu"):
-            self.save_settings({"tryb_podgladu": preview})
+            new["tryb_podgladu"] = preview
+        if mode in MODES and mode != self.settings.get("tryb"):
+            new["tryb"] = mode
+        if new:
+            self.save_settings(new)
         return dict(self.settings)
 
     def options(self, s: dict) -> Options:
@@ -396,7 +403,8 @@ class App:
                        cookies_from_browser=s.get("ciasteczka_z") or None,
                        # 0.11.4: „zawsze” = wstępne streszczenie po ~20 s (całość ~1:28 na Twojej karcie, bo modele mowy/obrazu
                        # i tekstu nie mieszczą się naraz w 8 GB); „najszybciej” = tylko gdy nic nie kosztuje (całość ~1:15)
-                       preview=None if s.get("tryb_podgladu") == "najszybciej" else True)
+                       preview=None if s.get("tryb_podgladu") == "najszybciej" else True,
+                       mode=s.get("tryb") or "pelna")
 
     def translate_result(self, p: Path, lang: str, st: dict | None = None) -> dict:
         """Tłumaczy wynik (analiza.json) na `lang`: tylko teksty nowe albo zmienione od poprzedniego tłumaczenia
@@ -499,6 +507,14 @@ class App:
             st["model_tekstowy"], st["model_tekstowy_pobrany"] = tm, False
         from . import cuda
         st["gpu_nvidia"], st["cuda_pobrana"] = cuda.gpu_count() > 0, cuda.installed()
+        # 0.12.0: profil sprzętu — jaka karta i jaki tryb analizy ma na niej sens (propozycja; wybór należy do użytkownika)
+        try:
+            from .modes import suggest_mode
+            snap = cuda.gpu_snapshot_name() if st["gpu_nvidia"] else None
+            st["karta"], st["karta_pamiec_mb"] = (snap or (None, None))
+            st["tryb_proponowany"], st["tryb_powod"] = suggest_mode(0, st["karta_pamiec_mb"])
+        except Exception:
+            st["karta"], st["karta_pamiec_mb"], st["tryb_proponowany"], st["tryb_powod"] = None, None, "pelna", ""
         try:
             ClaudeCode().check()
             st["claude"], st["claude_info"] = True, "Claude Code"
@@ -847,7 +863,7 @@ def make_handler(app: App):
                             break
                         f.write(chunk)
                         left -= len(chunk)
-                sett = app.job_settings(self.headers.get("X-Preview"))
+                sett = app.job_settings(self.headers.get("X-Preview"), self.headers.get("X-Mode"))
                 opt = app.options(sett)
                 opt.move_source = True          # film zostaje w folderze wyników — do odtwarzacza
                 job = Job(secrets.token_hex(4), str(dst), name, opt, dst)
@@ -862,7 +878,7 @@ def make_handler(app: App):
                 src = (b.get("zrodlo") or "").strip().strip('"')
                 if not src:
                     return self._json({"error": "pusty link"}, 400)
-                sett = app.job_settings(b.get("tryb_podgladu"))
+                sett = app.job_settings(b.get("tryb_podgladu"), b.get("tryb"))
                 job = Job(secrets.token_hex(4), src, src, app.options(sett), None)
                 job.settings = sett
                 try:

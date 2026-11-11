@@ -53,6 +53,12 @@ def main() -> None:
     a = ap.parse_args()
     from vidsum.summary import compact_timeline
     d = json.loads((DATA / f"{a.film}.json").read_text(encoding="utf-8"))
+    # jak w programie: długie zdania z przecinkami dzielone przed streszczeniem (tłumaczenie z 0.11.9 wtedy nie pasuje)
+    from vidsum.transcribe import Segment, split_long_segments
+    split = [{"start": x.start, "end": x.end, "text": x.text} for x in split_long_segments([Segment(**x) for x in d["segmenty"]])]
+    if len(split) != len(d["segmenty"]):
+        print(f"długie zdania podzielone: {len(d['segmenty'])} → {len(split)} linii", flush=True)
+        d["segmenty"], d["pl"] = split, None
     out = Path(a.wyniki)
     out.mkdir(parents=True, exist_ok=True)
     eng = Ollama(a.model, timeout=3600)
@@ -99,6 +105,13 @@ def main() -> None:
         {"film": a.film, "model": a.model, "czas_streszczenia_s": t_sum, "czas_tlumaczenia_s": t_tr, "zapytan": len(trace),
          "bez_tlumaczenia": failed, "kontrola": issues, "wynik": quality.score(issues), "streszczenie": s, "slad": trace,
          "dziennik": log, "pl": pl_segs}, ensure_ascii=False, indent=1), encoding="utf-8")
+    # artefaktów nie da się pobrać z każdego miejsca — cały raport i ślad zapytań także do dziennika zadania
+    print("=====RAPORT=====")
+    print(md)
+    print("=====SLAD=====")
+    for x in trace:
+        print(f"--- {x['etap']} (prompt {x['prompt_znakow']} zn.)\n{x['odpowiedz'][:2500]}")
+    print("=====KONIEC=====")
     print(quality.to_markdown(a.film, issues))
 
 

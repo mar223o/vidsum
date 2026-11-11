@@ -246,6 +246,22 @@ class GpuWatch:
         self._stop.set()
 
 
+def gpu_snapshot_name() -> tuple[str, int] | None:
+    """(nazwa karty, pamięć całkowita w MB) — bez listy programów; do profilu sprzętu w interfejsie."""
+    import shutil
+    import subprocess
+    exe = shutil.which("nvidia-smi")
+    if not exe:
+        return None
+    try:
+        r = subprocess.run([exe, "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"], capture_output=True,
+                           text=True, timeout=10, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        name, total = [x.strip() for x in r.stdout.splitlines()[0].split(",")][:2]
+        return name, int(total)
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return None
+
+
 def gpu_snapshot_light() -> tuple[int, int] | None:
     import shutil
     import subprocess
