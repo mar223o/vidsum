@@ -23,7 +23,8 @@ _STR_LISTS = ("streszczenie", "czego_nie_wiadomo", "pytania")
 _DICT_LISTS = (("najwazniejsze", ("tytul", "opis")), ("momenty", ("tekst",)), ("rozdzialy", ("tytul", "opis")),
                ("cytaty", ("tlumaczenie",)))
 _TODO_STR = ("sprzet", "wskazowki", "bledy", "wnioski")
-_TODO_DICT = (("skladniki", ("nazwa", "ilosc")), ("kroki", ("tekst",)), ("cwiczenia", ("nazwa", "tekst", "opis")))
+_TODO_DICT = (("skladniki", ("nazwa", "ilosc")), ("kroki", ("tekst",)), ("cwiczenia", ("nazwa", "technika")),
+              ("fakty", ("tekst",)))
 _KEEP = {"brak danych"}                       # znaczniki programu, nie treść — tłumaczone niżej słownikiem
 _MARK = {"en": {"brak danych": "no data"}, "pl": {"no data": "brak danych"}}
 

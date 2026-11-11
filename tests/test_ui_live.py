@@ -234,6 +234,10 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
         if width >= 1000:
             assert "Otwórz film na YouTube" in page.inner_text("#rhead")
             assert page.get_attribute("#rhead a.srclink", "href") == "https://www.youtube.com/watch?v=x"
+            # 0.11.5: „Kopiuj notatkę” + pobranie, „Kopiuj prompt” (bez „dla Claude”), bez „Podsumuj przez Claude” i JSON
+            acts = page.inner_text("#rhead .actions")
+            assert "Kopiuj notatkę" in acts and "Kopiuj prompt" in acts and "Claude" not in acts and "JSON" not in acts
+            assert "/notatka?pobierz=1" in page.get_attribute('#rhead .actions a.btn.icon', "href")
             for m in ("bal", "read", "video"):
                 page.click(f'#modes button[data-m="{m}"]')
                 page.wait_for_timeout(150)
@@ -241,6 +245,9 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
                     "[document.documentElement.scrollHeight, innerHeight, ...[...document.querySelectorAll('#res, .layout, .layout>section, main')].map(e => e.className + ':' + Math.round(e.getBoundingClientRect().bottom))]"))
                 assert page.evaluate("[...document.querySelectorAll('.layout>section')].every(s => s.getBoundingClientRect().bottom <= innerHeight + 1)"), m
                 page.screenshot(path=str(shots / f"tryb_{m}_{width}.png"))
+        # transkrypcja: przycisk „Kopiuj transkrypcję”
+        page.click('#tabs button[data-tab="tr"]')
+        assert page.locator('#tabc [data-a="copytr"]').count() == 1
         # rozdziały: pasek całego filmu i udział każdego rozdziału (od autora + z analizy)
         page.click('#tabs button[data-tab="cha"]')
         assert page.locator(".chstrip").count() == 2 and page.locator(".chstrip.au button").count() == 2
@@ -277,3 +284,61 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
         assert not page.evaluate("document.querySelector('#res').classList.contains('cinema')")
         b.close()
     assert not errors, errors
+
+
+@pytest.mark.parametrize("typ", ["dokument", "sport"])
+def test_type_panels_document_and_sport(live, typ):
+    """0.11.5: panel zależny od typu — dokument: „Fakty, liczby, osoby, daty”; sport: „Ćwiczenia i elementy techniki”."""
+    base, app, job, out, segs = live
+    _final(out, segs)
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    c = r["streszczenie"]["dane"]["co_masz_zrobic"]
+    r["streszczenie"]["dane"]["typ"] = typ
+    c.update({"skladniki": [], "kroki": []})
+    if typ == "dokument":
+        c["fakty"] = [{"t": 12.0, "tekst": "Most otwarto w 1937 roku.", "rodzaj": "data", "zrodlo": "mowa"},
+                      {"t": 30.0, "tekst": "Długość: 2737 m.", "rodzaj": "liczba", "zrodlo": "mowa+obraz"}]
+    else:
+        c["cwiczenia"] = [{"nazwa": "Elastico", "serie": "", "powtorzenia": "10", "t": 20.0,
+                           "technika": "Zewnętrzną częścią stopy, potem wewnętrzną.", "zrodlo": "mowa"}]
+    (out / "analiza.json").write_text(json.dumps(r, ensure_ascii=False), encoding="utf-8")
+    job.status, job.finished = "gotowe", time.time()
+    with pw.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as e:
+            pytest.skip(f"brak Chromium: {e}")
+        page = b.new_page(viewport={"width": 1280, "height": 900})
+        errors: list[str] = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(f"{base}/?t={TOKEN}#/wynik/{job.id}")
+        page.wait_for_selector('#tabs button[data-tab="todo"]')
+        page.click('#tabs button[data-tab="todo"]')
+        txt = page.inner_text("#tabc")
+        if typ == "dokument":
+            assert "Fakty" in page.inner_text("#tabs") and "Fakty, liczby, osoby, daty" in txt
+            assert "data" in txt and "1937" in txt and "liczba" in txt
+        else:
+            assert "Ćwiczenia i technika" in page.inner_text("#tabs") and "Ćwiczenia i elementy techniki" in txt
+            assert "Elastico" in txt
+        assert not errors, errors
+        b.close()
+
+
+def test_chat_suggestions_by_type(live):
+    """0.11.5: propozycje pytań w czacie — 2–3 typowe dla przepisu (składniki, porcje, skład) + pytania od modelu."""
+    base, app, job, out, segs = live
+    _final(out, segs)
+    job.status, job.finished = "gotowe", time.time()
+    with pw.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as e:
+            pytest.skip(f"brak Chromium: {e}")
+        page = b.new_page(viewport={"width": 1280, "height": 900})
+        page.goto(f"{base}/?t={TOKEN}#/wynik/{job.id}")
+        page.wait_for_selector("#sugg button")
+        qs = page.eval_on_selector_all("#sugg button", "bs => bs.map(b => b.dataset.q)")
+        assert qs[:3] == ["Jakie składniki są potrzebne?", "Przelicz składniki na 4 porcje", "Jaki jest skład i ile to ma kalorii?"]
+        assert "Dlaczego soda?" in qs and len(qs) <= 6
+        b.close()

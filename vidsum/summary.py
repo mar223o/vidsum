@@ -11,7 +11,7 @@ import re
 from .analysis import beats_as_text, ts
 
 SUMMARY_SCHEMA = "vidsum.summary/1"
-TYPES = ("przepis", "trening", "poradnik", "wyklad", "inne")
+TYPES = ("przepis", "trening", "sport", "poradnik", "wyklad", "dokument", "inne")
 
 SUMMARY_JSON_PROMPT = """Jesteś asystentem, który ogląda film za użytkownika i mówi mu konkretnie, co z niego wynika.
 Dostajesz oś czasu filmu z niezależnych źródeł:
@@ -21,7 +21,7 @@ Dostajesz oś czasu filmu z niezależnych źródeł:
 
 Odpowiedz WYŁĄCZNIE poprawnym JSON-em (bez komentarzy i bez ```), po polsku, według schematu:
 {{
- "typ": "przepis" | "trening" | "poradnik" | "wyklad" | "inne",
+ "typ": "przepis" | "trening" | "sport" | "poradnik" | "wyklad" | "dokument" | "inne",
  "tytul": "krótki tytuł po polsku (3–6 słów)",
  "tytul_akcent": "druga, krótka część tytułu (2–4 słowa) — puenta",
  "teza": "jedno zdanie: o co chodzi w filmie i co z niego wynika",
@@ -34,7 +34,8 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em (bez komentarzy i bez ```), po polsku, w
    "cwiczenia": [{{"nazwa": "...", "serie": "...", "powtorzenia": "... albo czas", "t": sekundy, "technika": "...", "zrodlo": "..."}}],
    "wskazowki": ["..."],
    "bledy": ["błędy, których unikać"],
-   "wnioski": ["dla wykładu/poradnika/innych: 3–7 najważniejszych wniosków lub działań"]
+   "wnioski": ["dla wykładu/poradnika/innych: 3–7 najważniejszych wniosków lub działań"],
+   "fakty": [{{"t": sekundy, "tekst": "jeden konkretny fakt", "rodzaj": "liczba|osoba|data|miejsce|fakt", "zrodlo": "..."}}]
  }},
  "najwazniejsze": [{{"t": sekundy, "tytul": "krótki tytuł", "opis": "1–2 zdania", "zrodlo": "..."}}],
  "momenty": [{{"t": sekundy, "tekst": "co się dzieje — jedno zdanie"}}],
@@ -47,7 +48,8 @@ Odpowiedz WYŁĄCZNIE poprawnym JSON-em (bez komentarzy i bez ```), po polsku, w
 
 Zasady (obowiązkowe):
 1. Wypełnij tylko pola pasujące do typu (przepis → skladniki/kroki/sprzet/czas; trening → cwiczenia/wskazowki/bledy;
-   poradnik → kroki; inne → wnioski). Pozostałe zostaw jako puste listy / pusty tekst.
+   sport (np. piłka: technika, sztuczki, ćwiczenia z piłką, analiza gry) → cwiczenia (ćwiczenia i elementy techniki)/wskazowki/bledy;
+   poradnik → kroki; dokument → fakty (liczby, osoby, daty, miejsca); inne → wnioski). Pozostałe zostaw jako puste listy / pusty tekst.
 2. Czasy "t", "start", "end" to liczby sekund z osi czasu. Kolejność chronologiczna.
 3. Niczego nie zmyślaj. Brak informacji → „brak danych”. Wnioski spoza danych oznacz źródłem "szacunek".
 4. Mowa jest pewniejsza niż opisy kadrów; NAPISY są pewniejsze w nazwach i liczbach niż MOWA.
@@ -145,6 +147,10 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
             "wskazowki": [_str(x) for x in _lst(cmz.get("wskazowki")) if _str(x)],
             "bledy": [_str(x) for x in _lst(cmz.get("bledy")) if _str(x)],
             "wnioski": [_str(x) for x in _lst(cmz.get("wnioski")) if _str(x)],
+            "fakty": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")),
+                       "rodzaj": _str(x.get("rodzaj")).lower() if _str(x.get("rodzaj")).lower() in _FACT_KINDS else "fakt",
+                       "zrodlo": _zr(x.get("zrodlo"))}
+                      for x in _lst(cmz.get("fakty")) if isinstance(x, dict) and _str(x.get("tekst"))],
         },
         "najwazniejsze": [{"t": clamp(x.get("t")), "tytul": _str(x.get("tytul")), "opis": _str(x.get("opis")),
                            "zrodlo": _zr(x.get("zrodlo"))}
@@ -167,8 +173,13 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
     c = out["co_masz_zrobic"]
     if out["typ"] == "przepis":
         c["cwiczenia"] = []
-    elif out["typ"] == "trening":
+    elif out["typ"] in ("trening", "sport"):
         c["skladniki"] = []
+    elif out["typ"] == "dokument":
+        c["skladniki"], c["cwiczenia"] = [], []
+    if out["typ"] != "dokument":
+        c["fakty"] = []
+    c["fakty"].sort(key=lambda x: x["t"])
     for k in ("najwazniejsze", "momenty", "cytaty"):
         out[k].sort(key=lambda x: x["t"])
     out["co_masz_zrobic"]["kroki"].sort(key=lambda x: x["t"])
@@ -176,6 +187,9 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
     if not (out["streszczenie"] or out["najwazniejsze"] or out["teza"]) and not allow_partial:
         return None
     return out
+
+
+_FACT_KINDS = ("liczba", "osoba", "data", "miejsce", "fakt")
 
 
 def _src(z: str) -> str:
@@ -192,14 +206,17 @@ def to_markdown(s: dict) -> str:
     if s.get("do_zapamietania"):
         L += [f"> **Do zapamiętania:** {s['do_zapamietania']}", ""]
     c = s["co_masz_zrobic"]
-    if any(c[k] for k in ("skladniki", "kroki", "sprzet", "cwiczenia", "wskazowki", "bledy", "wnioski")) or c["czas"]:
+    if any(c.get(k) for k in ("skladniki", "kroki", "sprzet", "cwiczenia", "wskazowki", "bledy", "wnioski", "fakty")) or c["czas"]:
         L.append("## Co masz zrobić")
         if c["skladniki"]:
             L += ["### Składniki"] + [f"- {x['nazwa']} — {x['ilosc']}{_src(x['zrodlo'])}" for x in c["skladniki"]] + [""]
         if c["kroki"]:
             L += ["### Kroki"] + [f"{i}. `{ts(x['t'])}` {x['tekst']}{_src(x['zrodlo'])}" for i, x in enumerate(c["kroki"], 1)] + [""]
+        if c.get("fakty"):
+            L += ["### Fakty, liczby, osoby, daty"] + [f"- `{ts(x['t'])}` ({x['rodzaj']}) {x['tekst']}{_src(x['zrodlo'])}"
+                                                      for x in c["fakty"]] + [""]
         if c["cwiczenia"]:
-            L += ["### Ćwiczenia"] + [
+            L += ["### Ćwiczenia i elementy techniki" if s["typ"] == "sport" else "### Ćwiczenia"] + [
                 f"- `{ts(x['t'])}` **{x['nazwa']}** — {x['serie'] or '?'} × {x['powtorzenia'] or '?'}"
                 f"{(' — ' + x['technika']) if x['technika'] else ''}{_src(x['zrodlo'])}" for x in c["cwiczenia"]] + [""]
         for k, lab in (("sprzet", "Sprzęt"), ("wskazowki", "Wskazówki"), ("bledy", "Błędy, których unikać"),
@@ -226,8 +243,8 @@ def to_markdown(s: dict) -> str:
 
 # ---------------- czat z filmem ----------------
 CHAT_PROMPT = """You answer questions about ONE specific video. You have its transcript with times, the on-screen text,
-the steps that were extracted from it and its short summary. Answer in the language of the QUESTION ({lang}), briefly
-(1–4 sentences or a short list). Never repeat or paste the summary. Talk about the video in the third person
+what was extracted from it (ingredients, steps, exercises, facts, tips) and its short summary. Answer in the language of
+the QUESTION ({lang}), briefly and concretely (1–4 sentences, or a short list with "- " when listing several things). Never repeat or paste the summary. Talk about the video in the third person
 ("the author says…", "w filmie autor…"), never as "we".
 
 Rules:
@@ -242,6 +259,15 @@ Rules:
 7. A question that has nothing to do with the video (news, other topics): say "{off_topic}" and offer to answer
    questions about the video. Do not summarise the video.
 8. Small talk or a trivial question (e.g. arithmetic): answer it in one short sentence.
+9. "What do I need / ingredients / equipment / exercises": list them from the lists below, each with its amount
+   (or "the video does not give the amount"), with mm:ss when known. Do not add anything that is not on the lists.
+10. Scaling or converting (portions, people, grams ↔ spoons): only from amounts the video gives; show the result and
+   start with "{inference}". If the video gives no amounts, say so and do not invent them.
+11. Composition or nutrition (calories, protein, fat, what something contains) and substitutions ("can I use X instead"):
+   the video almost never says it — start with "{general}", give a rough typical value or option and say it depends on
+   the portion and the method; then one sentence on what the video actually uses.
+12. A question about a moment ("what happens at 0:45", "what does he do with the fries"): use the transcript and the
+   frames around that time and give mm:ss.
 
 Examples (answer in the language of the question):
 Q: ile minut gotować według filmu?
@@ -250,6 +276,8 @@ Q: wypadek na autostradzie
 A: To nie wynika z analizowanego nagrania — znam tylko ten film (przepis na chrupiące frytki). Zapytaj o przepis, kroki albo temperatury.
 Q: jakiej marki jest garnek?
 A: Nie mam wystarczających informacji, aby odpowiedzieć na to pytanie — w filmie nie pada nazwa marki, a z kadrów jej nie widać.
+Q: jaki jest skład tych frytek, ile mają kalorii?
+A: Wiedza ogólna (nie z filmu): frytki smażone w głębokim oleju mają zwykle ok. 300 kcal na 100 g — zależy od oleju i porcji. W filmie autor używa ziemniaków agria, sody, soli, mąki ziemniaczanej, oleju i tłuszczu z kaczki, bez ilości.
 Q: how long does the video say to boil them?
 A: The video does not give a boiling time. The author says to boil them until just tender — they should break without snapping (00:29–00:31).
 
@@ -257,6 +285,7 @@ VIDEO: {meta}
 SUMMARY (for context only): {thesis}
 STEPS:
 {steps}
+{extra}
 TRANSCRIPT:
 {transcript}
 FRAMES (what an image model saw; less reliable than the transcript, use them only when the transcript says nothing):
@@ -309,10 +338,30 @@ def build_chat_prompt(analysis: dict, question: str, history: list[dict]) -> str
         if txt:
             fr.append(f"[{_mmss(f.get('t', 0))}] {txt}")
     hist = "\n".join(f"{'User' if h['rola'] == 'user' else 'Assistant'}: {h['tekst']}" for h in history[-6:]) or "—"
+    c = d.get("co_masz_zrobic") or {}
+    ex: list[str] = []
+    if c.get("skladniki"):
+        ex.append("INGREDIENTS:\n" + "\n".join(f"- {x.get('nazwa', '')} — {x.get('ilosc') or 'brak danych'}"
+                                                for x in c["skladniki"][:40]))
+    if c.get("sprzet"):
+        ex.append("EQUIPMENT: " + ", ".join(str(x) for x in c["sprzet"][:20]))
+    if c.get("cwiczenia"):
+        ex.append("EXERCISES:\n" + "\n".join(
+            f"- {_mmss(x.get('t', 0))} {x.get('nazwa', '')} — {' × '.join(v for v in (x.get('serie'), x.get('powtorzenia')) if v) or '?'}"
+            + (f"; {x['technika']}" if x.get("technika") else "") for x in c["cwiczenia"][:30]))
+    if c.get("fakty"):
+        ex.append("FACTS:\n" + "\n".join(f"- {_mmss(x.get('t', 0))} ({x.get('rodzaj', '')}) {x.get('tekst', '')}"
+                                          for x in c["fakty"][:40]))
+    tips = [str(x) for x in (c.get("wskazowki") or []) + (c.get("bledy") or []) + (c.get("wnioski") or [])][:20]
+    if tips:
+        ex.append("TIPS / TAKEAWAYS:\n" + "\n".join(f"- {x}" for x in tips))
+    if d.get("rozdzialy"):
+        ex.append("CHAPTERS: " + "; ".join(f"{_mmss(x.get('start', 0))} {x.get('tytul', '')}" for x in d["rozdzialy"][:12]))
+    extra = "\n".join(ex)[:5000]
     return CHAT_PROMPT.format(lang="Polish" if lang == "pl" else "English", general=_GENERAL[lang],
                               no_info=_NO_INFO[lang], inference=_INFER[lang], off_topic=_OFF[lang],
                               meta=f"{z.get('tytul', '')} — {z.get('autor', '')}".strip(" —"),
-                              thesis=d.get("teza") or "—", steps=steps, transcript=tr or "—",
+                              thesis=d.get("teza") or "—", steps=steps, extra=extra, transcript=tr or "—",
                               frames="\n".join(fr)[:4000] or "—",
                               history=hist, question=question.strip()[:2000])
 
@@ -381,12 +430,13 @@ jasno wskazują poprawne słowo; w razie wątpliwości pomiń. Źródło: "mowa"
 {glossary}
 
 Odpowiedz WYŁĄCZNIE JSON-em:
-{{"typ": "przepis|trening|poradnik|wyklad|inne",
+{{"typ": "przepis|trening|sport|poradnik|wyklad|dokument|inne",
  "kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "..."}}],
  "skladniki": [{{"nazwa": "...", "ilosc": "ilość TYLKO jeśli padła w filmie, inaczej brak danych", "zrodlo": "..."}}],
  "cwiczenia": [{{"nazwa": "...", "serie": "...", "powtorzenia": "...", "t": sekundy, "technika": "...", "zrodlo": "..."}}],
  "sprzet": ["..."], "wskazowki": ["porada / wyjaśnienie dlaczego"], "bledy": ["czego unikać"],
- "fakty": ["inne ważne informacje z filmu (dla wykładów, rozmów, recenzji)"]}}
+ "fakty": [{{"t": sekundy, "tekst": "inny ważny konkret z filmu: liczba, osoba, data, miejsce, fakt", "rodzaj": "liczba|osoba|data|miejsce|fakt", "zrodlo": "..."}}]}}
+Przy sporcie (np. piłka) w "cwiczenia" wpisz ćwiczenia i elementy techniki (nazwa, opis techniki, powtórzenia jeśli padły).
 Puste listy dla tego, czego w filmie nie ma.
 
 ZAPIS:
@@ -647,9 +697,11 @@ GLOSSARY = ("Uwaga na tłumaczenie: baking soda = soda oczyszczona (NIE proszek 
             "drain = odsącz / odcedź, dust = oprósz, tray = taca, pot = garnek, sprinkle = posyp.")
 
 TYPE_PROMPT = """Fragment transkrypcji filmu. {meta}
-Jaki to typ filmu? Do wyboru: przepis — gotowanie; trening — ćwiczenia; poradnik — instrukcja krok po kroku;
-wyklad — wykład, rozmowa, wyjaśnianie, recenzja, wiadomości; inne.
-Odpowiedz WYŁĄCZNIE JSON-em z jednym słowem: {{"typ": "przepis|trening|poradnik|wyklad|inne"}}
+Jaki to typ filmu? Do wyboru: przepis — gotowanie; trening — ćwiczenia na siłowni, w domu, bieganie;
+sport — piłka nożna i inne gry z piłką: technika, sztuczki, ćwiczenia z piłką, analiza meczu; poradnik — instrukcja krok po kroku;
+wyklad — wykład, rozmowa, wyjaśnianie, recenzja, wiadomości; dokument — film dokumentalny, reportaż, historia prawdziwych
+wydarzeń (osoby, daty, liczby); inne.
+Odpowiedz WYŁĄCZNIE JSON-em z jednym słowem: {{"typ": "przepis|trening|sport|poradnik|wyklad|dokument|inne"}}
 
 TRANSKRYPCJA:
 {text}
@@ -737,14 +789,33 @@ _TERM_FIXES = [  # (warunek w oryginale, zły termin → dobry) — fałszywi pr
                              (r"\bpięknego chrupiącego warstwa\b", "pięknej, chrupiącej warstwy")]),
     (r"in a tray|on a tray", None, [(r"\b(połóż|rozłóż|ułóż) (?:je )?na tacę\b", r"\1 na tacy")]),
     # „for the final fry” → model: „na ostateczny smaż”; „fry until golden and crispy” → „Smaż, aż złoty i chrupiący”
-    (r"final fry", None, [(r"\bna ostateczny smaż\b", "przed ostatecznym smażeniem"),
-                          (r"\bna ostateczne smażenie\b", "przed ostatecznym smażeniem")]),
+    (r"final fry", None, [(r"\bna ostateczn\w* (?:smaż|frit|fryt|podsmaż)\w*", "przed ostatecznym smażeniem"),
+                          (r"\bna ostatnie smażenie\b", "przed ostatecznym smażeniem")]),
     (r"golden and crispy", None, [(r"\baż złoty i chrupiący\b", "aż będą złote i chrupiące"),
                                   (r"\baż złote i chrupiące\b", "aż będą złote i chrupiące")]),
     (r"extra crunch", None, [(r"\bdodatkowy chrupkość\b", "dodatkowa chrupkość"), (r"\bdodatkowy chrupkości\b", "dodatkowej chrupkości")]),
     # temperatura smażenia → model: „w wyższym tempie (190°C)”
     (r"\d{3} ?(?:degrees|°)|\b1[4-9]0\b", None, [(r"\bw wyższym tempie(?= \(?\d)", "w wyższej temperaturze")]),
+    # pomiar 0.11.4 (tłumaczenie transkrypcji i cytatów): „idealny fryk z ziemniaków”, „To idealna frytki francuskie”,
+    # „idealny frytek”, „idealny fry francuski”, „idealny fryz” — w oryginale „the perfect French fry” (jedna frytka)
+    (r"perfect (?:french )?fry\b", None,
+     [(r"\bidealn\w* (?:(?:fryk\w*|fryz\w*|frytek\b|fry\b)(?: francusk\w*| z ziemniaków)?|frytki francusk\w*)", "idealna frytka")]),
+    # „Heat oil in a pot” → „Rozgrzej olej na patelni”; „Bring a pot of water to the boil” → „Zagotuj garnek wody”
+    (r"\bpot\b", r"\bpan\b|skillet|\bwok\b", [(r"\bna patelni\b", "w garnku"), (r"\bna patelnię\b", "do garnka"),
+                                               (r"\bpatelni[aęi]\b", "garnek")]),
+    (r"\bpot of water\b", None, [(r"\b(zagotuj|zagotować) garnek wody\b", r"\1 wodę w garnku")]),
+    # „Dust lightly with potato starch” → „Odcedź lekko z mąki ziemniaczanej” (drain ≠ dust)
+    (r"\bdust\w* (?:\w+ )?lightly\b|\blightly dust", None,
+     [(r"\bodcedź (?:je )?lekko (?:z |ze )?(mąk|skrobi)\w* ziemniaczan\w*", r"oprósz lekko \1ą ziemniaczaną"),
+      (r"\bmąk\w* ziemniaczan\w* do (?:odsączania|odcedzania)(?: frytek)?", "mąki ziemniaczanej do oprószenia frytek")]),
 ]
+
+# po poprawkach terminów: dubel z zamiany („technik parzenia oraz wstępnego smażenia” → „… wstępnego smażenia oraz
+# wstępnego smażenia”, pomiar 0.11.4) i „(wstępne smażenie)” w nawiasie tuż po tym samym („Podsmaż wstępnie (parowanie)”)
+_DUP = re.compile(r"\b((?:[\wąćęłńóśźż]+ ){1,2}[\wąćęłńóśźż]+)(?:,)? (?:oraz|i|a także) \1\b", re.I)
+_PAREN_SAME = re.compile(r"((?:wstępn\w+ \w*smaż\w*|\w*smaż\w* wstępn\w+))(\w*) \((?:wstępne smażenie|wstępnego smażenia|"
+                         r"wstępnie usmażone)\)", re.I)
+_DOUBLE_WORD = re.compile(r"\b(i|a|w|z|na|do|że|to)\s+\1\b", re.I)          # „I i sól” (tłumaczenie transkrypcji)
 
 
 _HOMO = str.maketrans("аеорсухыіАЕОРСХ", "aeorcuxyiAEOPCX")   # cyrylica w polskim tekście (pomiar: „sodы”)
@@ -756,6 +827,7 @@ def fix_terms(text: str, source: str) -> str:
     if re.search(r"[a-ząćęłńóśźż][\u0400-\u04ff]|[\u0400-\u04ff][a-ząćęłńóśźż]", text, re.I):
         text = text.translate(_HOMO)
     src = source.lower()
+    before = text
     for need, unless, subs in _TERM_FIXES:
         if re.search(need, src) and not (unless and re.search(unless, src)):
             for a, b in subs:
@@ -763,6 +835,10 @@ def fix_terms(text: str, source: str) -> str:
                     out = m.expand(b)
                     return out[:1].upper() + out[1:] if m.group(0)[:1].isupper() else out
                 text = re.sub(a, rep, text, flags=re.I)
+    if text != before:                       # dubel tylko tam, gdzie go mogła zrobić nasza zamiana
+        text = _DUP.sub(r"\1", text)
+        text = _PAREN_SAME.sub(r"\1\2", text)
+    text = _DOUBLE_WORD.sub(lambda m: m.group(0).split()[0], text)
     return text
 
 
@@ -877,6 +953,10 @@ _ADVERBS = {"ponownie", "następnie", "potem", "teraz", "lekko", "dokładnie", "
             "dalej", "jeszcze", "zawsze", "stale", "ostrożnie", "dobrze", "mocno", "krótko", "na", "w", "do", "po"}
 
 
+_ALT = re.compile(r"^(?:or|either)\b", re.I)
+_COND_FWD = re.compile(r"^(?:and |then |so )?(?:once|as soon as|when)\b", re.I)
+
+
 def _continues(orig: str) -> bool:
     """Linia tylko kończy zdanie poprzedniej („To completely cool.”, „Or blanch them.”, „Roughly one centimetre.”)."""
     return bool(_CONT.match(orig.strip()))
@@ -984,14 +1064,20 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         extra, lost = check_step(body, [n], by_n)
         return not extra and not lost and not looks_foreign(body)
 
+    # krótkie polecenia ze słownika („Peel.”) — stałe tłumaczenie zamiast tego, co dał model
+    for n in out:
+        fixed = _SHORT_IMP.get(_short_cmd(by_n[n]["tekst"]))
+        if fixed:
+            out[n] = fixed
     bad = [n for n, txt in out.items() if not ok(n, txt)]
     # linia z liczbą w mowie, a pusta odpowiedź — liczba by zginęła (pomiar 0.7.7: 140 °C)
     bad += [n for n, txt in out.items() if not txt and _speech_nums([n], by_n) and n not in bad]
     bad += [n for n, txt in out.items() if not txt and _EN_IMP.match(by_n[n]["tekst"].strip()) and n not in bad]
     if bad:
         log(f"        kontrola kroków: {len(bad)} linii do poprawy (liczby albo język) — pytam o nie jeszcze raz")
-        again = run([[by_n[n] for n in sorted(bad)]][:1] if len(bad) <= chunk_lines else
-                    [[by_n[n] for n in sorted(bad)[i:i + chunk_lines]] for i in range(0, len(bad), chunk_lines)])
+        # 0.11.5: każda linia osobno (pomiar 0.11.4: przy dwóch liniach naraz model zamienił odpowiedzi miejscami —
+        # „Obierz.” trafiło do „This is the perfect French fry.”, a „Peel.” dostało „Wyjaśnienie: idealny fryz.”)
+        again = run([[by_n[n]] for n in sorted(bad)])
         for n in bad:
             txt = again.get(n, "")
             if txt and ok(n, txt) and (txt or not _speech_nums([n], by_n)):
@@ -1001,18 +1087,50 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
                 out[n] = pl if pl and ok(n, pl) else _SHORT_IMP.get(_short_cmd(by_n[n]["tekst"]), "")
 
     steps, notes = [], []
+    pending = None          # warunek „And once it reaches 140 degrees.” czeka na następne polecenie („Wrzuć frytki.”)
+
+    def attach_back(p) -> None:
+        """Warunek bez następnego polecenia — jak dawniej, na koniec poprzedniego kroku."""
+        pn, ptxt, pzr = p
+        if steps and pn - steps[-1]["z"][-1] <= 3:
+            steps[-1]["tekst"] = steps[-1]["tekst"].rstrip(".!") + ", " + ptxt[:1].lower() + ptxt[1:]
+            steps[-1]["z"].append(pn)
+        else:
+            notes.append({"z": [pn], "t": by_n[pn]["t"], "tekst": ptxt[:1].upper() + ptxt[1:], "zrodlo": pzr})
+
     for n in sorted(out):
         txt = out[n].strip()
         if not txt or _FILLER.match(by_n[n]["tekst"].strip()):
             continue
         ln = by_n[n]
         zr = "mowa+obraz" if ln["ekran"] else "mowa"
+        if pending and n - pending[0] > 3:
+            attach_back(pending)
+            pending = None
         m = re.match(r"^wyja\w*:\s*(.+)", txt, flags=re.I)
         if m:
             notes.append({"z": [n], "t": ln["t"], "tekst": m.group(1).strip(), "zrodlo": zr})
             continue
+        # „Or blanch them.” — alternatywa; „albo” zostaje (pomiar 0.11.4: „Podsmaż wstępnie, blanszuj w oleju”)
+        alt = bool(_ALT.match(ln["tekst"].strip())) or bool(re.match(r"^(albo|lub)\b", txt, re.I))
         txt = re.sub(r"^(I|A|Oraz|Albo|Lub)\s+(?=\w)", lambda m: "" if len(txt) > 12 else m.group(0), txt)
         txt = txt[:1].upper() + txt[1:] if not _continues(ln["tekst"]) else txt
+        # „And once it reaches around about 140 degrees.” — warunek do NASTĘPNEGO polecenia (pomiar 0.11.4:
+        # trafiał do „Rozgrzej olej w garnku, gdy osiągnie 140 stopni”, a w filmie: gdy osiągnie 140 → wrzuć frytki)
+        if _COND_FWD.match(ln["tekst"].strip()) and "," not in ln["tekst"]:
+            if pending:
+                attach_back(pending)
+            pending = (n, re.sub(r"^(i|a|oraz)\s+", "", txt, flags=re.I).rstrip("."), zr)
+            continue
+        if pending and _imperative(txt) and not _explains(ln["tekst"]):
+            pn, ptxt, pzr = pending
+            pending = None
+            body = re.sub(r"^(I|A|Oraz)\s+", "", txt)
+            sub = re.match(r"^(gdy|kiedy|jak|jeśli|po|gdy tylko|jak tylko)\b", ptxt, re.I)   # „Gdy osiągnie…, wrzuć”
+            steps.append({"z": [pn, n], "t": by_n[pn]["t"], "tekst": ptxt[:1].upper() + ptxt[1:]
+                          + (", " if sub else ", potem ") + body[:1].lower() + body[1:], "zrodlo": "mowa+obraz" if "obraz" in pzr + zr else "mowa",
+                          "etap": ""})
+            continue
         prev = steps[-1] if steps else None
         # między poprzednim krokiem a tą linią są tylko wyjaśnienia / puste linie — to nadal ciąg dalszy
         between = range(prev["z"][-1] + 1, n) if prev else range(0)
@@ -1022,7 +1140,8 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         if adjacent and n - prev["z"][-1] <= 3 and (txt[:1].islower() or _same_step(txt, prev["tekst"])
                                                      or _continues(ln["tekst"])):
             if not _same_step(txt, prev["tekst"]):
-                prev["tekst"] = prev["tekst"].rstrip(".!") + ", " + txt[:1].lower() + txt[1:]
+                join = " albo " if alt and not re.match(r"^(albo|lub)\b", txt, re.I) else ", "
+                prev["tekst"] = prev["tekst"].rstrip(".!") + join + txt[:1].lower() + txt[1:]
             prev["z"].append(n)
             prev["zrodlo"] = "mowa+obraz" if prev["zrodlo"] == "mowa+obraz" or ln["ekran"] else "mowa"
             continue
@@ -1032,6 +1151,8 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
             notes.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr})
             continue
         steps.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr, "etap": ""})
+    if pending:
+        attach_back(pending)
 
     # składniki: nazwa musi pojawić się w mowie (po polsku w tłumaczeniu albo w oryginale); ilość tylko z liczbą z mowy
     spoken = " ".join(ln["tekst"] + " " + ln.get("pl", "") + " " + " ".join(ln["ekran"]) for ln in lines)
@@ -1049,6 +1170,15 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         seen.append(name)
         out_ingr.append({"nazwa": name, "ilosc": q, "zrodlo": "mowa"})
     out_ingr = _merge_variety(out_ingr)
+    # tłuszcz do smażenia, o którym mowa w krokach, a którego model nie wpisał (pomiar 0.11.4: „Heat oil in a pot”,
+    # „Heat the oil up to 190” — w składnikach brak oleju); tylko gdy pada w mowie, ilość: brak danych
+    en = " ".join(ln["tekst"] for ln in lines).lower()
+    for pat, name, has in ((r"\bolive oil\b|\boliw\w*", "oliwa", r"oliw"),
+                           (r"\b(?:heat|hot|the|some|frying|vegetable|sunflower|neutral|in|of) oil\b|\bolej\w*", "olej", r"olej|oil")):
+        if re.search(pat, en) and not any(re.search(has, x["nazwa"], re.I) for x in out_ingr):
+            if name == "olej" and any(re.search(r"oliw", x["nazwa"], re.I) for x in out_ingr):
+                continue
+            out_ingr.append({"nazwa": name, "ilosc": "brak danych", "zrodlo": "mowa"})
     out_equip = []
     for x in _lst(ingr_raw.get("sprzet") or ingr_raw.get("sprzęt") or ingr_raw.get("equipment")):
         name = _str(x.get("nazwa")) if isinstance(x, dict) else _str(x)
@@ -1276,7 +1406,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         raw = _try(engine, pr, log)
         record("typ", pr, raw)
         # model potrafi przepisać etykietę z opisem („przepis (gotowanie)”) — bierzemy rozpoznaną nazwę typu
-        m = re.search(r"przepis|trening|poradnik|wyk[łl]ad|inne", _str(_loads(raw).get("typ")).lower())
+        m = re.search(r"przepis|trening|sport|poradnik|wyk[łl]ad|dokument|inne", _str(_loads(raw).get("typ")).lower())
         typ = m.group(0).replace("ł", "l") if m else ""
     grounded = typ in ("przepis", "poradnik")
     notes: list[dict] = []
@@ -1324,7 +1454,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         typ = typ or (max(set(types), key=types.count) if types else "inne")
 
         # 2) kontrola kompletności (instrukcje: przepis, poradnik, trening)
-        if typ in ("przepis", "poradnik", "trening"):
+        if typ in ("przepis", "poradnik", "trening", "sport"):
             miss = missing_lines(timeline, ext)
             if miss:
                 log(f"        kontrola kompletności: {len(miss)} fragment(y) bez kroku albo z pominiętą liczbą — dopisuję")
@@ -1421,7 +1551,9 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     merged = {**p, "typ": typ, "co_masz_zrobic": {
         "skladniki": ext["skladniki"], "kroki": ext["kroki"], "sprzet": ext["sprzet"], "czas": _str(p.get("czas")),
         "cwiczenia": ext["cwiczenia"], "wskazowki": texts(ext["wskazowki"]), "bledy": texts(ext["bledy"]),
-        "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7]}}
+        "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7],
+        "fakty": [x if isinstance(x, dict) else {"t": 0, "tekst": _str(x), "rodzaj": "fakt", "zrodlo": "mowa"}
+                  for x in ext["fakty"] if x]}}
     merged["co_masz_zrobic"]["sprzet"] = texts(ext["sprzet"])
     has_facts = any(ext[k] for k in ("kroki", "skladniki", "cwiczenia", "wskazowki", "fakty"))
     out = parse_summary(json.dumps(merged, ensure_ascii=False), duration, allow_partial=has_facts)

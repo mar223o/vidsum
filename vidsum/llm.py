@@ -71,6 +71,13 @@ class LLMError(RuntimeError):
     pass
 
 
+# zniekształcone słowa (nie zmyślenia) z qwen3-vl, pomiar na kadrach frytek 0.11.x: „na indukcyjnej plastry”, „plastr”,
+# „wycierka”, „kroje”, „zimniaki”, „garnka” jako obiekt — poprawiamy tylko formę słowa, treści nie ruszamy
+_VISION_WORDS = [(r"\bna indukcyjnej plastry\b", "na płycie indukcyjnej"), (r"^plastr$", "płyta indukcyjna"),
+                 (r"\bwycierka\b", "wyciera"), (r"\bkroje go\b", "kroi go"), (r"\bzimniak", "ziemniak"),
+                 (r"^garnka$", "garnek")]
+
+
 def _clean_vision(d: dict) -> dict:
     out: dict = {}
     foreign = False
@@ -80,7 +87,10 @@ def _clean_vision(d: dict) -> dict:
         y = _FOREIGN.sub(" [?] ", x)
         if y != x:
             foreign = True
-        return re.sub(r"\s{2,}", " ", y).strip()
+        y = re.sub(r"\s{2,}", " ", y).strip()
+        for a, b in _VISION_WORDS:
+            y = re.sub(a, b, y, flags=re.I)
+        return y
 
     for k, default in VISION_KEYS.items():
         v = d.get(k, default)
