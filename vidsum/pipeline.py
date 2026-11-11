@@ -836,6 +836,15 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         "podglad": {"po_s": pv["po_s"], "s": pv.get("s")} if pv.get("po_s") else None,
         "zasoby": zasoby if zasoby.get("przed") else None,
     }
+    # 0.12.0: program sam sprawdza swój wynik (szablon, pokrycie filmu, liczby, obcy język, reklamy, cytaty, tłumaczenie)
+    try:
+        from . import quality
+        issues = quality.check(result)
+        result["kontrola"] = {"wynik": quality.score(issues), "uwagi": issues}
+        if issues:
+            log(f"        kontrola jakości: {quality.score(issues)}/100 — " + "; ".join(i["kod"] for i in issues))
+    except Exception as e:                       # kontrola to dodatek — jej błąd nie może zepsuć zapisu analizy
+        log(f"        ! kontrola jakości: {type(e).__name__}: {str(e)[:100]}")
     (out / "analiza.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "transkrypcja.srt").write_text(_srt(tr.segments), encoding="utf-8")
     for lang, tdata in translations.items():           # napisy w innych językach (pusta linia = brak tłumaczenia)
@@ -956,6 +965,11 @@ def _report_md(r: dict) -> str:
     else:
         L += ["## Streszczenie", "", "_Brak — wklej `prompt_dla_claude.md` do Claude albo uruchom z `--streszczenie`._", ""]
     L += ["## Ograniczenia analizy", ""] + [f"- {g}" for g in r["luki"]] + [""]
+    k = r.get("kontrola")
+    if k is not None:
+        L += ["## Kontrola jakości (automatyczna)", ""]
+        L += [f"Wynik: **{k['wynik']}/100**" + (" — bez uwag." if not k["uwagi"] else "")]
+        L += [f"- {'❌' if i['poziom'] == 'blad' else '⚠'} {i['opis']}" for i in k["uwagi"]] + [""]
     L += _resources_md(r.get("zasoby"))
     L += ["## Oś czasu (mowa + obraz)", ""]
     for b in r["os_czasu"]:

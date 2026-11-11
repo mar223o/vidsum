@@ -82,6 +82,31 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(f"✔ wynik: {out}")
         return 0
+    if args[:1] == ["--kontrola"]:              # 0.12.0: automatyczna kontrola jakości gotowych analiz → jeden plik
+        if len(args) < 2:
+            print('Użycie: VidSum.exe --kontrola "folder analizy albo folder z wieloma analizami"', file=sys.stderr)
+            return 2
+        from .control import check_path
+        try:
+            out = check_path(Path(args[1]))
+        except (OSError, ValueError) as e:
+            print(f"✖ {e}", file=sys.stderr)
+            return 1
+        print(f"✔ wynik: {out}")
+        return 0
+    if args[:1] == ["--streszcz-ponownie"]:     # 0.12.0: samo streszczenie z zapisanej analizy (bez pobierania i kadrów)
+        if len(args) < 2:
+            print('Użycie: VidSum.exe --streszcz-ponownie "folder analizy" [model]', file=sys.stderr)
+            return 2
+        from .control import resummarize
+        from .llm import LLMError
+        try:
+            out = resummarize(Path(args[1]), args[2] if len(args) > 2 else None)
+        except (OSError, ValueError, LLMError) as e:
+            print(f"✖ {e}", file=sys.stderr)
+            return 1
+        print(f"✔ wynik: {out}")
+        return 0
     if args[:1] == ["--zapytaj"]:               # 0.11.5: pytanie do czatu o gotową analizę (pomiar modelu czatu)
         if len(args) < 3:
             print('Użycie: VidSum.exe --zapytaj "folder analizy" "pytanie" [model]', file=sys.stderr)
@@ -132,7 +157,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     argv = args
     ap = argparse.ArgumentParser(prog="vidsum", description="Analiza filmu: mowa + obraz -> streszczenie ze źródłami.")
-    ap.add_argument("wejscie", nargs="+", help="plik(i) MP4 albo link(i) (YouTube/Instagram/TikTok)")
+    ap.add_argument("wejscie", nargs="*", help="plik(i) MP4 albo link(i) (YouTube/Instagram/TikTok)")
+    ap.add_argument("--zestaw", default=None, metavar="LISTA.txt",
+                    help="plik z listą filmów (link albo ścieżka w każdej linii); po analizie powstaje zestaw_wynik.md "
+                         "z czasami i kontrolą jakości wszystkich filmów")
     ap.add_argument("-o", "--wyniki", default="vidsum_wyniki", help="folder na wyniki")
     ap.add_argument("--jezyk", default="auto", help="język mowy: auto (wykryj) albo kod, np. pl, en, de, es, uk (99 języków)")
     ap.add_argument("--tlumacz", default="pl,en", help="tłumaczenia transkrypcji (oryginał zostaje zawsze): "
@@ -173,15 +201,30 @@ def main(argv: list[str] | None = None) -> int:
                   vision_model=a.model_obrazu, summary=a.streszczenie, summary_model=a.model_streszczenia,
                   ollama_host=a.ollama, max_frames=a.max_kadrow, cookies_from_browser=a.ciasteczka_z,
                   allow_api_key=a.allow_api_key, ocr=not a.bez_ocr)
-    failed = 0
-    for inp in a.wejscie:
+    inputs = list(a.wejscie)
+    if a.zestaw:
+        from .control import read_list
         try:
-            analyze(inp, opt)
+            inputs += read_list(Path(a.zestaw))
+        except OSError as e:
+            ap.error(f"nie da się odczytać listy „{a.zestaw}”: {e}")
+    if not inputs:
+        ap.error("podaj plik, link albo --zestaw LISTA.txt")
+    failed = 0
+    done: list[Path] = []
+    errors: list[tuple[str, str]] = []
+    for inp in inputs:
+        try:
+            done.append(analyze(inp, opt))
         except Exception as e:  # jeden zły plik nie zatrzymuje całej paczki
             failed += 1
+            errors.append((inp, str(e)[:200]))
             print(f"✖ {inp}: {e}", file=sys.stderr)
-    if len(a.wejscie) > 1:
-        print(f"Zakończono: {len(a.wejscie) - failed}/{len(a.wejscie)} OK")
+    if len(inputs) > 1:
+        print(f"Zakończono: {len(inputs) - failed}/{len(inputs)} OK")
+    if a.zestaw:
+        from .control import set_report
+        print(f"✔ raport z zestawu: {set_report(done, Path(a.wyniki), errors)}")
     return 1 if failed else 0
 
 

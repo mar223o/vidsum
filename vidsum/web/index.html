@@ -533,7 +533,7 @@ const I18N = {
    part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
    quit:"Zamknij program",quit_q:"Zamknąć Vidsumly? Trwająca analiza zostanie zapisana w kolejce i zacznie się od nowa po wznowieniu.",quit_done:"Vidsumly wyłączone. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
-   t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_sport:"Ćwiczenia i technika",t_todo_poradnik:"Kroki",t_todo_dokument:"Fakty",t_todo_wyklad:"Fakty i wnioski",t_todo_inne:"Wnioski",facts:"Fakty, liczby, osoby, daty",ads:"Reklamy (pominięte w faktach)",ex_sport:"Ćwiczenia i elementy techniki",fk_liczba:"liczba",fk_osoba:"osoba",fk_data:"data",fk_miejsce:"miejsce",fk_fakt:"fakt",
+   t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_sport:"Ćwiczenia i technika",t_todo_poradnik:"Kroki",t_todo_dokument:"Fakty",t_todo_wyklad:"Fakty i wnioski",t_todo_inne:"Wnioski",facts:"Fakty, liczby, osoby, daty",ads:"Reklamy (pominięte w faktach)",qc:"Kontrola jakości",qc_ok:"bez uwag",qc_n:n=>n===1?"1 uwaga":`uwag: ${n}`,qc_what:"Program sam sprawdza wynik: czy układ pasuje do typu filmu, czy rozdziały obejmują cały film, czy liczby są w mowie albo w napisach, czy w treści nie ma reklam ani obcego języka, czy cytaty padają w filmie i czy tłumaczenie nie zgubiło liczb.",ex_sport:"Ćwiczenia i elementy techniki",fk_liczba:"liczba",fk_osoba:"osoba",fk_data:"data",fk_miejsce:"miejsce",fk_fakt:"fakt",
    t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
    map_hint:"Kliknij gałąź: szczegóły i przewinięcie filmu. Powiększanie: przyciski albo Ctrl + kółko myszy (na pełnym ekranie samo kółko), przeciąganie — przesuwanie.",
    map_full:"Pełny ekran",map_reset:"Dopasuj",t_tr:"Transkrypcja",t_fr:"Kadry",t_desc:"Opis",t_com:"Komentarze",desc_h:"Opis od autora",desc_note:"Tekst autora z serwisu, nie wynik analizy.",au_ch:"Rozdziały od autora",model_ch:"Rozdziały z analizy",of_film:p=>`${p}% filmu`,com_h:"Komentarze widzów",com_note:"Opinie widzów z serwisu, nie fakty z filmu.",com_get:"Pobierz komentarze",com_wait:"Pobieram komentarze…",com_none:"Pod filmem nie ma komentarzy albo serwis ich nie udostępnił.",com_from:(n,d)=>`Najpopularniejsze: ${n}, pobrane ${d}`,com_reply:"odpowiedź",likes:"polubień",open_src:s=>`Otwórz film na ${s}`,cinema:"Tryb kinowy",bars_show:"Pokaż cały kadr",bars_hide:"Ukryj czarne pasy",bars_hint:"Program wykrył czarne pasy wpalone w obraz i je ukrywa. Plik filmu się nie zmienia.",cinema_off:"Zamknij tryb kinowy",expand_all:"Rozwiń wszystkie",collapse_all:"Zwiń wszystkie",
@@ -595,7 +595,7 @@ const I18N = {
    part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
    quit:"Quit app",quit_q:"Quit Vidsumly? The running analysis is saved in the queue and starts again when you resume it.",quit_done:"Vidsumly stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
-   t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_sport:"Drills and technique",t_todo_poradnik:"Steps",t_todo_dokument:"Facts",t_todo_wyklad:"Facts and takeaways",t_todo_inne:"Takeaways",facts:"Facts, numbers, people, dates",ads:"Ads (left out of the facts)",ex_sport:"Drills and technique",fk_liczba:"number",fk_osoba:"person",fk_data:"date",fk_miejsce:"place",fk_fakt:"fact",
+   t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_sport:"Drills and technique",t_todo_poradnik:"Steps",t_todo_dokument:"Facts",t_todo_wyklad:"Facts and takeaways",t_todo_inne:"Takeaways",facts:"Facts, numbers, people, dates",ads:"Ads (left out of the facts)",qc:"Quality check",qc_ok:"no issues",qc_n:n=>n===1?"1 issue":`${n} issues`,qc_what:"The app checks its own result: does the layout fit the video type, do chapters cover the whole video, are the numbers in the speech or on-screen text, are there ads or foreign-language leftovers in the content, are the quotes really said, and did the translation keep the numbers.",ex_sport:"Drills and technique",fk_liczba:"number",fk_osoba:"person",fk_data:"date",fk_miejsce:"place",fk_fakt:"fact",
    t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
    map_hint:"Click a branch: details and jump in the video. Zoom: buttons or Ctrl + mouse wheel (wheel alone in full screen), drag to pan.",
    map_full:"Full screen",map_reset:"Fit",t_tr:"Transcript",t_fr:"Frames",t_desc:"Description",t_com:"Comments",desc_h:"Description from the author",desc_note:"The author's text from the site, not an analysis result.",au_ch:"Chapters from the author",model_ch:"Chapters from the analysis",of_film:p=>`${p}% of the video`,com_h:"Viewer comments",com_note:"Viewers' opinions from the site, not facts from the video.",com_get:"Load comments",com_wait:"Loading comments…",com_none:"The video has no comments, or the site did not provide them.",com_from:(n,d)=>`Top comments: ${n}, loaded ${d}`,com_reply:"reply",likes:"likes",open_src:s=>`Open the video on ${s}`,cinema:"Cinema mode",bars_show:"Show full frame",bars_hide:"Hide black bars",bars_hint:"Black bars burned into the picture were detected and are hidden. The video file is unchanged.",cinema_off:"Exit cinema mode",expand_all:"Expand all",collapse_all:"Collapse all",
@@ -1299,10 +1299,19 @@ function sumHtml(r, d){
     ${d.do_zapamietania ? `<blockquote class="pull"><div class="label" style="margin-bottom:4px">${t("remember")}</div>${esc(d.do_zapamietania)}</blockquote>` : ""}
     ${d.szczera_ocena ? `<div class="note"><h4>${t("honest")}</h4>${inline(d.szczera_ocena)} ${src("szacunek")}</div>` : ""}
     ${d.czego_nie_wiadomo.length ? `<div class="note"><h4>${t("unknown")}</h4><ul>${d.czego_nie_wiadomo.map(x => `<li>${inline(x)}</li>`).join("")}</ul></div>` : ""}
+    ${qcHtml(r.kontrola)}
     <details class="note"><summary>${t("how")}</summary>${timingHtml(r.czasy)}
       <p style="font-size:13px" class="muted">${t("engines")}: ${esc(r.ustawienia.whisper)} · ${esc(r.ustawienia.obraz)} · ${esc(r.ustawienia.streszczenie)}${d.metoda ? " · " + esc(d.metoda) : ""}</p>
       ${resHtml(r.zasoby)}
       ${r.luki.length ? `<p style="font-size:13px"><b>${t("gaps")}:</b><br>${r.luki.map(esc).join("<br>")}</p>` : ""}</details>`;
+}
+/* 0.12.0: program sam sprawdza swój wynik (vidsum/quality.py) — pokazujemy to wprost, razem z tym, co znalazł */
+function qcHtml(k){
+  if (!k) return "";
+  const n = (k.uwagi || []).length;
+  return `<details class="note qc"><summary>${t("qc")}: <b>${k.wynik}/100</b> — ${n ? t("qc_n", n) : t("qc_ok")}</summary>
+    <p style="font-size:13px" class="muted">${t("qc_what")}</p>
+    ${n ? `<ul>${k.uwagi.map(i => `<li>${i.poziom === "blad" ? "❌" : "⚠"} ${esc(i.opis)}</li>`).join("")}</ul>` : ""}</details>`;
 }
 function playerHtml(r){
   const z = r.zrodlo, ar = z.szerokosc && z.wysokosc ? `aspect-ratio:${z.szerokosc}/${z.wysokosc};` : "";

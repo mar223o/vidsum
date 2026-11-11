@@ -399,3 +399,52 @@ def test_quality_check_clean_result_has_no_issues(doc):
          "napisy_ekranowe": d["napisy_ekranowe"], "os_czasu": [], "streszczenie": {"dane": s}}
     issues = quality.check(a)
     assert [i for i in issues if i["poziom"] == "blad"] == [], issues
+
+
+# ---------------- narzędzia kontroli ----------------
+def _analysis(d: dict, s: dict | None, pl: bool = True) -> dict:
+    return {"narzedzie": {"wersja": "0.12.0"}, "zrodlo": d["zrodlo"], "ustawienia": {"streszczenie": "ollama:gemma3:4b"},
+            "transkrypcja": {"jezyk": "en", "segmenty": d["segmenty"],
+                             "tlumaczenia": {"pl": {"segmenty": d["pl"]}} if pl else {}},
+            "napisy_ekranowe": d["napisy_ekranowe"], "os_czasu": [], "kadry": [], "luki": [],
+            "czasy": {"razem_s": 568.0, "ocr_s": 309.0, "streszczenie_s": 161.0},
+            "streszczenie": {"dane": s} if s else None}
+
+
+def test_control_report_for_a_folder_of_analyses(tmp_path, doc):
+    from vidsum.cli import main
+    from vidsum.control import check_path, read_list
+    d, s, eng, log = doc
+    (tmp_path / "dobry").mkdir()
+    (tmp_path / "dobry" / "analiza.json").write_text(json.dumps(_analysis(d, s)), encoding="utf-8")
+    (tmp_path / "bez streszczenia ąę").mkdir()
+    (tmp_path / "bez streszczenia ąę" / "analiza.json").write_text(json.dumps(_analysis(d, None)), encoding="utf-8")
+    out = check_path(tmp_path)
+    md = out.read_text(encoding="utf-8")
+    assert out.name == "zestaw_wynik.md" and "| The Scariest Building in Europe | wyklad | pelna | 24:50 | 9 min 28 s | 0.38× |" in md
+    assert "`brak_streszczenia`" in md and "napisy (OCR) 5 min 9 s" in md
+    data = json.loads((tmp_path / "zestaw_wynik.json").read_text(encoding="utf-8"))
+    assert len(data) == 2 and {x["folder"] for x in data} == {"dobry", "bez streszczenia ąę"}
+    assert main(["--kontrola", str(tmp_path / "dobry")]) == 0 and (tmp_path / "dobry" / "zestaw_wynik.md").exists()
+    assert main(["--kontrola", str(tmp_path / "nie ma")]) == 1
+    lst = tmp_path / "lista.txt"
+    lst.write_text('\ufeff# komentarz\nhttps://youtu.be/abc\n\n"C:\\Filmy\\film ąę.mp4"\n', encoding="utf-8")
+    assert read_list(lst) == ["https://youtu.be/abc", "C:\\Filmy\\film ąę.mp4"]
+
+
+def test_resummarize_from_saved_analysis_without_touching_it(tmp_path, doc):
+    from vidsum.control import resummarize
+    d, s, eng, log = doc
+    old = dict(s, rozdzialy=[], cytaty=[])                          # „stare” streszczenie bez rozdziałów (jak 0.11.9)
+    f = tmp_path / "film"
+    f.mkdir()
+    (f / "analiza.json").write_text(json.dumps(_analysis(d, old)), encoding="utf-8")
+    before = (f / "analiza.json").read_bytes()
+    out = resummarize(f, engine=StoryEngine(), log=lambda m: None)
+    md = out.read_text(encoding="utf-8")
+    assert (f / "analiza.json").read_bytes() == before, "zapisana analiza zostaje nietknięta"
+    assert "Kontrola — nowe streszczenie" in md and "`brak_rozdzialow`" in md.split("Kontrola — streszczenie zapisane")[1]
+    assert "`brak_rozdzialow`" not in md.split("Kontrola — streszczenie zapisane")[0]
+    new = json.loads((f / "streszczenie_ponowne.json").read_text(encoding="utf-8"))
+    uncle = next(x for x in new["streszczenie"]["co_masz_zrobic"]["fakty"] if "uncle and aunt" in x["oryginal"])
+    assert "wuja i ciocię" in uncle["tekst"], "tłumaczenie było gotowe — fakty od razu po polsku"
