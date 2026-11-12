@@ -203,6 +203,7 @@ blockquote.pull::before{content:"";position:absolute;left:0;top:14px;bottom:14px
 .player{border-radius:var(--r-lg);overflow:hidden;background:#000;position:relative;
   box-shadow:0 0 0 1px var(--line2),0 40px 100px -30px rgba(0,0,0,.85),0 0 120px -40px rgba(61,123,255,.4)}
 .player video{display:block;width:100%;max-height:72vh;background:#000}
+.player.audio video{height:64px;max-height:64px;background:var(--panel)}
 .player .nofilm{aspect-ratio:16/9;width:100%;max-height:72vh;display:grid;place-items:center;color:#ddd;background:#111 center/cover no-repeat;font-size:13px}
 .m-read .player video{max-height:42vh}
 .ph{background:rgba(7,8,12,.7);backdrop-filter:blur(8px);color:#fff;padding:7px 13px;border-radius:10px;font-size:13px;text-align:center;margin:12px}
@@ -386,6 +387,9 @@ a.chip{text-decoration:none}a.chip:hover{color:var(--ink);border-color:var(--lin
 .iconbtn:hover{background:var(--hl);border-color:var(--line);color:var(--ink)}
 .iconbtn:focus-visible,.btn:focus-visible,nav a:focus-visible,.qtoggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .panel.start{display:grid;gap:12px}
+.setup{display:grid;gap:10px;margin-bottom:14px;border-color:var(--accent)}.setup h2{font-size:16px;margin:0}.setup ol{margin:0;padding-left:20px;display:grid;gap:8px}
+.setup li.done{color:var(--muted)}.setup li.done b::after{content:" ✓";color:var(--ok)}.setup .act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.setup .err{color:var(--bad);font-size:13px}.setup .bar{height:6px;margin-top:6px}
 #drop{display:grid;justify-items:center;gap:6px}
 .pvrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
 .pvhint{flex:1;min-width:200px}
@@ -521,7 +525,7 @@ const I18N = {
    gpu_none:"brak karty NVIDIA — mowa liczona na procesorze (wolniej)",version:"wersja",tech_name:"Nazwa techniczna",data_dir:"Dane programu",upd_current:v=>`Masz wersję ${v}`,
    hero1:"Wrzuć film —",hero2:"powiem Ci, co z niego wynika.",
    hero_sub:"Przepis, trening, poradnik: mowa, napisy i obraz zamienione w konkretną listę do zrobienia.",
-   drop:"Przeciągnij tu pliki wideo",drop_sub:"albo kliknij, aby wybrać (MP4, MOV, MKV, WEBM) — kilka naraz też",
+   drop:"Przeciągnij tu filmy albo nagrania",drop_sub:"albo kliknij, aby wybrać — wideo (MP4, MOV, MKV, WEBM) lub dźwięk (MP3, M4A, WAV); kilka naraz też",
    links_ph:"…albo wklej link(i) YouTube / Instagram / TikTok albo ścieżkę C:\\…\\film.mp4 (jeden w linii)",
    analyze:"Analizuj",settings:"Ustawienia",s_lang:"Język mowy",s_whisper:"Model mowy (Whisper)",s_ocr:"Napisy na ekranie (OCR)",
    s_vis_on:"Analiza obrazu",s_vision:"Model obrazu (Ollama)",s_summary:"Streszczenie",s_frames:"Maks. kadrów",
@@ -550,6 +554,12 @@ const I18N = {
    t_pobieranie_s:"pobieranie",t_ocr_s:"napisy (OCR)",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
    typ_przepis:"przepis",typ_trening:"trening",typ_sport:"sport",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_dokument:"dokument",typ_inne:"inne",
+   setup_h:"Pierwsze uruchomienie — zostały 2–3 kliknięcia",setup_sub:"Vidsumly liczy wszystko na Twoim komputerze. Potrzebuje do tego darmowego programu Ollama i dwóch modeli (pobierane raz).",
+   setup_s1:"Program Ollama",setup_s1_missing:"Nie ma go na tym komputerze.",setup_s1_stopped:"Jest zainstalowany, ale nie działa.",setup_s1_ok:"Działa.",
+   setup_install:"Zainstaluj Ollamę",setup_install_hint:"Pobiorę oficjalny instalator z ollama.com i otworzę go. W jego oknie kliknij „Install”.",setup_start:"Uruchom Ollamę",
+   setup_s2:"Modele",setup_s2_need:n=>`Do pobrania: ${n}. To kilka GB — jednorazowo.`,setup_s2_ok:"Pobrane.",setup_pull:"Pobierz modele",
+   setup_s3:"Szybszy opis kadrów (opcjonalnie)",setup_s3_txt:"Ollama może liczyć 2 kadry naraz. Zapiszę to ustawienie i uruchomię ją ponownie.",setup_s3_ok:"Włączone: 2 zapytania naraz.",setup_par:"Włącz 2 zapytania naraz",
+   setup_recheck:"Sprawdź ponownie",setup_manual:"Gdyby przycisk nie zadziałał: pobierz Ollamę ze strony",setup_busy:"Poprzedni krok jeszcze trwa.",setup_nowin:"Instalacja jednym kliknięciem działa w Windows. Na tym systemie zainstaluj Ollamę ze strony",
    chip_ff:"Silnik wideo",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu",
    open_browser:"Otwórz w przeglądarce",copy_sum:"Kopiuj",tr_sum:"Wersja angielska",tr_sum_q:"Przetłumacz streszczenie na angielski.",tr_back:"Wersja polska",
    res_lang:"Język wyniku",tr_all_wait:"Tłumaczę całą analizę na angielski (streszczenie, kroki, kadry, transkrypcja)…",
@@ -583,7 +593,7 @@ const I18N = {
    gpu_none:"no NVIDIA card — speech runs on the CPU (slower)",version:"version",tech_name:"Technical name",data_dir:"App data",upd_current:v=>`You have version ${v}`,
    hero1:"Drop a video —",hero2:"I'll tell you what it means for you.",
    hero_sub:"Recipe, workout, tutorial: speech, captions and picture turned into a concrete to-do list.",
-   drop:"Drop video files here",drop_sub:"or click to choose (MP4, MOV, MKV, WEBM) — several at once is fine",
+   drop:"Drop videos or recordings here",drop_sub:"or click to choose — video (MP4, MOV, MKV, WEBM) or audio (MP3, M4A, WAV); several at once is fine",
    links_ph:"…or paste YouTube / Instagram / TikTok link(s) or a path C:\\…\\video.mp4 (one per line)",
    analyze:"Analyze",settings:"Settings",s_lang:"Speech language",s_whisper:"Speech model (Whisper)",s_ocr:"On-screen text (OCR)",
    s_vis_on:"Image analysis",s_vision:"Vision model (Ollama)",s_summary:"Summary",s_frames:"Max frames",
@@ -612,6 +622,12 @@ const I18N = {
    t_pobieranie_s:"download",t_ocr_s:"on-screen text",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
    typ_przepis:"recipe",typ_trening:"workout",typ_sport:"sport",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_dokument:"documentary",typ_inne:"other",
+   setup_h:"First run — 2–3 clicks left",setup_sub:"Vidsumly computes everything on your computer. For that it needs the free Ollama app and two models (downloaded once).",
+   setup_s1:"The Ollama app",setup_s1_missing:"It is not on this computer.",setup_s1_stopped:"It is installed but not running.",setup_s1_ok:"Running.",
+   setup_install:"Install Ollama",setup_install_hint:"I will download the official installer from ollama.com and open it. Click “Install” in its window.",setup_start:"Start Ollama",
+   setup_s2:"Models",setup_s2_need:n=>`To download: ${n}. A few GB — once.`,setup_s2_ok:"Downloaded.",setup_pull:"Download models",
+   setup_s3:"Faster frame notes (optional)",setup_s3_txt:"Ollama can process 2 frames at once. I will save this setting and restart it.",setup_s3_ok:"On: 2 requests at once.",setup_par:"Turn on 2 requests at once",
+   setup_recheck:"Check again",setup_manual:"If the button fails: download Ollama from",setup_busy:"The previous step is still running.",setup_nowin:"One-click install works on Windows. On this system install Ollama from",
    chip_ff:"Video engine",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text",
    open_browser:"Open in browser",copy_sum:"Copy",tr_sum:"English version",tr_sum_q:"Translate the summary into English.",tr_back:"Polish version",
    res_lang:"Result language",tr_all_wait:"Translating the whole analysis into English (summary, steps, frames, transcript)…",
@@ -655,7 +671,7 @@ const api = (p, o = {}) => fetch(p, {...o, headers:{"X-Token":T, ...(o.headers||
 const ERR_EN = {"Najpierw sprawdź aktualizacje.":"Check for updates first.","Trwa analiza — zaktualizuj po jej zakończeniu.":"An analysis is running — update after it finishes.",
   "brak filmu":"no video","brak folderu":"no folder","brak tokenu":"missing token","brak wyników":"no results","brak":"none",
   "film przeniesiony lub usunięty":"the video was moved or deleted","komentarze są tylko dla filmów z linku":"comments are only available for videos from a link",
-  "nie znaleziono":"not found","nieznana akcja":"unknown action","obsługiwane języki: pl, en":"supported languages: pl, en","puste pytanie":"empty question",
+  "nie znaleziono":"not found","nieznana akcja":"unknown action","Poprzedni krok jeszcze trwa.":"The previous step is still running.","obsługiwane języki: pl, en":"supported languages: pl, en","puste pytanie":"empty question",
   "pusty link":"empty link","tego filmu nie ma w oczekujących":"this video is not waiting in the queue","nie można ponowić":"cannot retry",
   "Program się zamyka — nie przyjmuję nowych filmów.":"The app is closing — no new videos accepted.",
   "Plik źródłowy już nie istnieje — dodaj film jeszcze raz.":"The source file no longer exists — add the video again.",
@@ -965,9 +981,10 @@ function card(j){
 function renderHome(){
   if (!$("#drop")) {
     $("#app").innerHTML = `<section class="hero"><h1>${t("hero1")} ${t("hero2")}</h1><p>${t("hero_sub")}</p></section>
+      <div id="setup"></div>
       <section class="panel start">
         <div id="drop" tabindex="0" role="button"><svg class="ic big" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
-          <input type="file" id="pick" accept="video/*,.mp4,.mov,.mkv,.webm" multiple hidden></div>
+          <input type="file" id="pick" accept="video/*,audio/*,.mp4,.mov,.mkv,.webm,.mp3,.m4a,.wav,.ogg,.opus,.flac,.aac" multiple hidden></div>
         <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}" aria-label="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
         <div class="pvrow"><span class="seg small" id="amode" role="group" aria-label="${esc(t("mode_label"))}">
           <button data-mode="pelna">${t("mode_full")}</button><button data-mode="szybki">${t("mode_fast")}</button><button data-mode="mowa">${t("mode_speech")}</button></span>
@@ -981,6 +998,46 @@ function renderHome(){
     bindHome();
   }
   renderQueue();
+  loadSetup();
+}
+/* 0.12.0: pierwsze uruchomienie bez PowerShella — Ollama i modele przyciskami (vidsum/ollama_setup.py) */
+let setupState = null, setupTimer = null, setupHidden = false;
+async function loadSetup(){
+  if (!$("#setup") || setupHidden) return;
+  try { setupState = await api("/api/ollama"); } catch { return; }
+  renderSetup();
+  clearTimeout(setupTimer);
+  if (setupState.zadanie?.trwa) setupTimer = setTimeout(loadSetup, 1500);
+}
+function renderSetup(){
+  const el = $("#setup"), s = setupState; if (!el || !s) return;
+  const z = s.zadanie || {}, busy = !!z.trwa;
+  const parDone = s.rownolegle >= 2;
+  if (s.krok === "gotowe" && !busy && !z.blad && (parDone || !s.windows || setupHidden)) { el.innerHTML = ""; if (lastStatus && !lastStatus.ollama) loadStatus(); return; }
+  if (s.krok === "gotowe" && !busy && !z.blad && !el.innerHTML) return;      /* wszystko jest — nie pokazujemy karty tylko dla opcji */
+  const btn = (act, label, primary) => `<button class="btn ${primary ? "primary" : ""}" data-setup="${act}" ${busy ? "disabled" : ""}>${esc(label)}</button>`;
+  const missing = s.modele.filter(m => !m.pobrany).map(m => m.nazwa);
+  const s1 = s.dziala ? `<li class="done"><b>${t("setup_s1")}</b> — ${t("setup_s1_ok")}</li>`
+    : `<li><b>${t("setup_s1")}</b> — ${t(s.zainstalowana ? "setup_s1_stopped" : "setup_s1_missing")}
+        <div class="act">${s.zainstalowana ? btn("uruchom", t("setup_start"), true) : (s.windows ? btn("zainstaluj", t("setup_install"), true) : "")}
+        <span class="muted">${s.zainstalowana ? "" : (s.windows ? t("setup_install_hint") : `${t("setup_nowin")} <a href="${s.strona}" target="_blank" rel="noopener">ollama.com/download</a>.`)}</span></div></li>`;
+  const s2 = !missing.length && s.dziala ? `<li class="done"><b>${t("setup_s2")}</b> — ${t("setup_s2_ok")}</li>`
+    : `<li><b>${t("setup_s2")}</b> — ${s.dziala ? t("setup_s2_need", missing.map(esc).join(", ")) : s.modele.map(m => esc(m.nazwa)).join(", ")}
+        ${s.dziala ? `<div class="act">${btn("modele", t("setup_pull"), true)}</div>` : ""}</li>`;
+  const s3 = !s.windows ? "" : parDone ? `<li class="done"><b>${t("setup_s3")}</b> — ${t("setup_s3_ok")}</li>`
+    : `<li><b>${t("setup_s3")}</b> — ${t("setup_s3_txt")}${s.dziala ? `<div class="act">${btn("rownolegle", t("setup_par"), false)}</div>` : ""}</li>`;
+  const prog = busy || z.etap ? `<div><span class="${busy ? "" : "muted"}">${esc(z.etap || "")}</span>${busy && z.procent != null ? `<div class="bar"><i style="width:${z.procent}%"></i></div>` : ""}</div>` : "";
+  const err = z.blad ? `<div class="err" role="alert">${esc(z.blad)}</div>` : "";
+  el.innerHTML = `<section class="panel setup" aria-live="polite"><h2>${t("setup_h")}</h2><span class="muted">${t("setup_sub")}</span>
+    <ol>${s1}${s2}${s3}</ol>${prog}${err}
+    <div class="act"><button class="linkbtn" data-setup="sprawdz">${t("setup_recheck")}</button>
+    <span class="muted">${t("setup_manual")} <a href="${s.strona}" target="_blank" rel="noopener">ollama.com/download</a></span></div></section>`;
+  el.querySelectorAll("[data-setup]").forEach(b => b.onclick = async () => {
+    if (b.dataset.setup === "sprawdz") { loadSetup(); loadStatus(); return; }
+    try { setupState = await api("/api/ollama", {method:"POST", body: JSON.stringify({akcja: b.dataset.setup})}); }
+    catch(e){ setupState = {...setupState, zadanie: {...(setupState.zadanie||{}), blad: e.message}}; }
+    renderSetup(); clearTimeout(setupTimer); setupTimer = setTimeout(loadSetup, 1200);
+  });
 }
 function pvMode(){ return settings?.tryb_podgladu === "zawsze" ? "zawsze" : "najszybciej"; }
 /* 0.12.0: tryb analizy — pełna / mowa + szybki obraz / tylko mowa (zapamiętywany; propozycja zależy od karty) */
@@ -1159,7 +1216,8 @@ function tabsFor(d){
     if (d.rozdzialy.length) tl.push(["cha", t("t_cha")]);
     if (!d.wstepne && (d.rozdzialy.length || d.najwazniejsze.length)) tl.push(["map", t("t_map")]);
   }
-  tl.push(["tr", t("t_tr")], ["fr", t("t_fr")]);
+  tl.push(["tr", t("t_tr")]);
+  if (cur?.r?.zrodlo?.wideo !== false) tl.push(["fr", t("t_fr")]);
   const z = cur.r?.zrodlo || {};
   if (z.opis) tl.push(["desc", t("t_desc")]);
   if (z.rodzaj === "link" && !cur.live) tl.push(["com", t("t_com")]);
@@ -1343,6 +1401,8 @@ function qcHtml(k){
 }
 function playerHtml(r){
   const z = r.zrodlo, ar = z.szerokosc && z.wysokosc ? `aspect-ratio:${z.szerokosc}/${z.wysokosc};` : "";
+  /* 0.12.0: plik dźwiękowy (mp3, m4a, wav…) — bez obrazu: sam pasek odtwarzania; reszta (przeskoki do chwili) działa tak samo */
+  if (z.wideo === false && !cur.live) return `<div class="player audio"><video id="vid" src="/api/zadania/${cur.id}/film?t=${T}" controls preload="metadata" playsinline></video></div>`;
   const poster = r.kadry?.[0]?.file ? fileUrl(cur.id, r.kadry[0].file) : "";
   if (cur.live) return `<div class="player"><div class="nofilm" style="${ar}background-image:url('${poster}')"><span class="ph">${t("live_video")}</span></div></div>`;
   // stała wysokość od początku (proporcje z analizy): wczytanie filmu nie przesuwa tego, co czytasz niżej

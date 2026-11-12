@@ -385,6 +385,16 @@ class App:
         self.settings_file.write_text(json.dumps(self.settings, ensure_ascii=False, indent=2), encoding="utf-8")
         return self.settings
 
+    def models_needed(self) -> list[str]:
+        """Modele Ollamy potrzebne przy obecnych ustawieniach (obraz + tekst; bez wyłączonych)."""
+        s = self.settings
+        out = []
+        if s.get("obraz", "ollama") == "ollama":
+            out.append(s.get("model_obrazu") or "qwen3-vl:4b-instruct")
+        if s.get("streszczenie", "auto") in ("auto", "ollama"):
+            out.append(s.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
+        return list(dict.fromkeys(out))
+
     def job_settings(self, preview: str | None, mode: str | None = None) -> dict:
         """Ustawienia dla nowego filmu. 0.11.5: tryb wstępnego streszczenia wybiera się przy dodawaniu filmu
         („najszybciej” / „ze wstępnym”); 0.12.0: tak samo tryb analizy (pełna / tylko mowa / mowa + szybki obraz).
@@ -757,6 +767,9 @@ def make_handler(app: App):
                 return self._json({k: v for k, v in app.update_info.items() if not k.startswith("_")})
             if u.path == "/api/ustawienia":
                 return self._json(app.settings)
+            if u.path == "/api/ollama":                  # 0.12.0: pierwsze uruchomienie bez PowerShella
+                from . import ollama_setup
+                return self._json(ollama_setup.state(app.models_needed()))
             if u.path == "/api/kolejka":
                 return self._json(app.worker.state())
             if u.path == "/api/zadania":
@@ -811,6 +824,18 @@ def make_handler(app: App):
                 return
             if u.path == "/api/ustawienia":
                 return self._json(app.save_settings(self._body()))
+            if u.path == "/api/ollama":
+                from . import ollama_setup as osu
+                act = str(self._body().get("akcja") or "")
+                jobs = {"zainstaluj": ("instalacja", osu.install), "modele": ("modele", osu.pull, app.models_needed()),
+                        "rownolegle": ("rownolegle", osu.enable_parallel),
+                        "uruchom": ("uruchomienie", lambda task: (task.set(etap="Uruchamiam Ollamę…"), osu.start(),
+                                                                  task.set(etap="Ollama działa.", procent=100)))}
+                if act not in jobs:
+                    return self._json({"error": "nieznana akcja"}, 400)
+                if not osu.TASK.run(*jobs[act]):
+                    return self._json({"error": "Poprzedni krok jeszcze trwa."}, 409)
+                return self._json(osu.state(app.models_needed()))
             if u.path == "/api/przegladarka":            # z okna programu: to samo w zwykłej przeglądarce
                 h = str(self._body().get("hash") or "")
                 h = h if re.fullmatch(r"#/[\w/.-]*", h) else ""

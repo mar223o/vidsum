@@ -124,6 +124,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     opt.language = normalize(opt.language)          # nieznany kod → czytelny błąd od razu
     from .modes import MODE_LABEL, normalize_mode
     mode = normalize_mode(opt.mode)
+    from .media import AUDIO_EXT
+    if Path(str(inp).split("?")[0]).suffix.lower() in AUDIO_EXT:
+        mode = "mowa"                               # plik dźwiękowy (mp3, m4a, wav…) — obrazu nie ma, liczy się mowa
     if opt.vision != "ollama" and mode == "szybki":
         mode = "mowa"                               # „szybki obraz” bez modelu obrazu to po prostu sama mowa
     full_opt = opt                                  # ustawienia użytkownika (model obrazu) — dla drugiej fazy „szybkiego”
@@ -197,7 +200,16 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     log(f"▶ {src.original}\n  wyniki: {out}")
 
     info = probe(src.path)
-    log(f"  długość {ts(info.duration)}, {info.width}x{info.height}, audio: {'tak' if info.has_audio else 'nie'}")
+    audio_only = not info.has_video
+    if audio_only:
+        # 0.12.0: nagranie bez obrazu (podcast, wykład, notatka głosowa) — pełny wynik z samej mowy
+        if mode != "mowa":
+            from dataclasses import replace as _replace
+            mode, light = "mowa", False
+            opt = _replace(opt, vision="brak", ocr=False)
+        log(f"  długość {ts(info.duration)}, plik dźwiękowy (bez obrazu) — analiza mowy")
+    else:
+        log(f"  długość {ts(info.duration)}, {info.width}x{info.height}, audio: {'tak' if info.has_audio else 'nie'}")
     _emit(opt, "meta", {"tytul": src.title or src.path.stem, "autor": src.uploader, "dlugosc_s": round(info.duration, 2),
                         "url": src.webpage_url, "szerokosc": info.width, "wysokosc": info.height})
     gaps: list[str] = []
@@ -206,6 +218,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     bars: dict = {}
 
     def find_bars() -> None:
+        if audio_only:
+            bars["r"] = None
+            return
         try:
             from .media import detect_bars
             bars["r"] = detect_bars(src.path, info.duration, info.width, info.height)
@@ -442,7 +457,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     log("  [2/4] wykrywanie zmian scen i wybór kadrów…")
     plan = plan_for(info.duration, opt.max_frames)
     sample_fps = 2.0 if info.duration <= 600 else 1.0
-    if mode == "pelna":
+    if audio_only:
+        picks = []                                  # plik dźwiękowy — nie ma z czego robić kadrów
+    elif mode == "pelna":
         picks = choose_frames(scene_scores(src.path, sample_fps), info.duration, plan)
     else:                                           # bez analizy scen (na dokumencie 24:50 trwała 34 s) — same miniatury
         from .media import FramePick
@@ -467,7 +484,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         gaps.append(f"Kadry co najwyżej co {max_gap:.0f} s — krótkie czynności między kadrami mogły zostać pominięte.")
     timings["kadry_s"] = round(time.time() - t, 1)
     log(f"        {len(frames)} kadrów (pominięto {dropped} powtarzających się; limit {plan.max_frames})"
-        if mode == "pelna" else f"        {len(frames)} miniatur (bez analizy scen)")
+        if mode == "pelna" else "        plik dźwiękowy — bez kadrów" if audio_only
+        else f"        {len(frames)} miniatur (bez analizy scen)")
     if ocr_deferred:
         start_ocr()
     if speech_job:
@@ -632,6 +650,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     else:
         if mode == "pelna":
             gaps.append("Analiza obrazu wyłączona — kadry zapisane, ale bez opisów.")
+        elif audio_only:
+            gaps.append("Plik dźwiękowy: nie ma obrazu — wynik pochodzi z samej mowy.")
         elif mode == "mowa":
             gaps.append("Tryb „Tylko mowa”: obraz i napisy na ekranie nie były analizowane — wynik pochodzi z samej mowy "
                         "(kadry to tylko miniatury).")
@@ -720,7 +740,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     tech_notes = pre_notes + ([tr.note] if tr.note else [])   # sprawy techniczne (np. Whisper na CPU) — nie luki w analizie
     log(f"        mowa: {len(tr.segments)} segmentów, język: {tr.language} ({tr.engine})")
 
-    beats = build_beats(frames, tr.segments, info.duration, ocr_lines)
+    if audio_only:
+        from .analysis import audio_beats
+        beats = audio_beats(tr.segments, info.duration)
+    else:
+        beats = build_beats(frames, tr.segments, info.duration, ocr_lines)
     meta = {"tytuł": src.title, "autor": src.uploader, "długość": ts(info.duration),
             "język mowy": f"{name_pl(tr.language)} ({tr.language})" if tr.language else None}
     prompt = build_summary_prompt(beats, meta, gaps)             # wersja do wklejenia na claude.ai
@@ -996,7 +1020,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         "zrodlo": {"rodzaj": src.kind, "wejscie": src.original, "url": src.webpage_url,
                    "tytul": src.title, "autor": src.uploader, "plik": src.path.name,
                    "sha256": src_sha, "dlugosc_s": round(info.duration, 2),
-                   "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio,
+                   "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio, "wideo": info.has_video,
                    "film": film_ref, "opis": src.description, "rozdzialy_autora": src.chapters,
                    "obraz_bez_pasow": (bars_thread.join(timeout=30) or bars.get("r"))},
         "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets, "tryb": mode,
@@ -1137,7 +1161,8 @@ def _report_md(r: dict) -> str:
     z = r["zrodlo"]
     L = [f"# {z['tytul'] or z['plik']}", "",
          f"- Źródło: {z['url'] or z['wejscie']}",
-         f"- Długość: {ts(z['dlugosc_s'])} · obraz {z['szerokosc']}×{z['wysokosc']} · audio: {'tak' if z['audio'] else 'nie'}",
+         f"- Długość: {ts(z['dlugosc_s'])} · " + ("plik dźwiękowy (bez obrazu)" if z.get("wideo") is False else
+                                                  f"obraz {z['szerokosc']}×{z['wysokosc']} · audio: {'tak' if z['audio'] else 'nie'}"),
          f"- Silniki: mowa `{r['ustawienia']['whisper']}`, obraz `{r['ustawienia']['obraz']}`, "
          f"streszczenie `{r['ustawienia']['streszczenie']}`",
          f"- ⏱ Czas analizy: **{_dur(r['czasy'].get('razem_s', 0))}** — {_timing_line(r['czasy'])}"]
@@ -1168,8 +1193,9 @@ def _report_md(r: dict) -> str:
         if w.get("cialo"):
             extra.append(f"ciało: {w['cialo']}")
         L.append(f"### {ts(b['start'])}–{ts(b['end'])}")
-        L.append(f"![kadr]({b['kadr']})  ")
-        L.append(f"**Obraz** _(z obrazu, pewność: {w.get('pewnosc', '—')})_: {seen}" + (f" — {'; '.join(extra)}" if extra else ""))
+        if b.get("kadr"):                             # plik dźwiękowy nie ma kadrów ani opisu obrazu
+            L.append(f"![kadr]({b['kadr']})  ")
+            L.append(f"**Obraz** _(z obrazu, pewność: {w.get('pewnosc', '—')})_: {seen}" + (f" — {'; '.join(extra)}" if extra else ""))
         if b.get("napisy"):
             L.append(f"**Napisy na ekranie** _(OCR)_: {b['napisy']}  ")
         L.append(f"**Mowa** _(z mowy)_: {b['slychac']['tekst'] or 'brak danych'}")

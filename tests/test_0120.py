@@ -794,3 +794,213 @@ def test_polish_spoken_instructions_and_not_instructions():
         assert not _pl_instruction(t) and not (_imperative(t) and t.startswith(("Możesz", "Mamy"))), t
     assert _short_title("Wbijesz do miski 3 jajka.") == "Wbijesz do miski 3 jajka"
     assert _short_title("Po chwili zdejmiesz z patelni i dodasz szynkę.") == "Po chwili zdejmiesz z patelni"
+
+
+# ---------------- pierwsze uruchomienie bez PowerShella ----------------
+def test_ollama_setup_state_steps(monkeypatch, tmp_path):
+    from vidsum import ollama_setup as osu
+    models = ["qwen3-vl:4b-instruct", "gemma3:4b"]
+    monkeypatch.setattr(osu, "installed_models", lambda host=None, timeout=3: None)
+    monkeypatch.setattr(osu, "find_exe", lambda: None)
+    st = osu.state(models)
+    assert st["krok"] == "zainstaluj" and not st["dziala"] and not st["zainstalowana"] and st["strona"].startswith("https://ollama.com")
+    monkeypatch.setattr(osu, "find_exe", lambda: tmp_path / "ollama.exe")
+    assert osu.state(models)["krok"] == "uruchom" and osu.state(models)["zainstalowana"]
+    monkeypatch.setattr(osu, "installed_models", lambda host=None, timeout=3: ["gemma3:4b"])
+    st = osu.state(models)
+    assert st["krok"] == "pobierz" and [m["pobrany"] for m in st["modele"]] == [False, True]
+    monkeypatch.setattr(osu, "installed_models", lambda host=None, timeout=3: models + ["inny:latest"])
+    assert osu.state(models)["krok"] == "gotowe"
+    monkeypatch.setenv("OLLAMA_NUM_PARALLEL", "2")
+    assert osu.state(models)["rownolegle"] == 2
+    assert osu.state(["gemma3"])["modele"] == [{"nazwa": "gemma3", "pobrany": False}]        # bez „:latest” w Ollamie
+
+
+def test_ollama_setup_task_reports_progress_and_errors():
+    import time
+    from vidsum.ollama_setup import Task
+    task = Task()
+    gate = __import__("threading").Event()
+
+    def slow(t, x):
+        t.set(etap=f"krok {x}", procent=40)
+        gate.wait(5)
+
+    assert task.run("modele", slow, 7) is True
+    time.sleep(0.05)
+    snap = task.snapshot()
+    assert snap["trwa"] and snap["etap"] == "krok 7" and snap["procent"] == 40 and snap["co"] == "modele"
+    assert task.run("instalacja", slow, 1) is False, "drugi krok nie startuje, gdy pierwszy trwa"
+    gate.set()
+    task.thread.join(5)
+    assert not task.snapshot()["trwa"]
+
+    def boom(t):
+        raise RuntimeError("Nie udało się pobrać instalatora")
+
+    task.run("instalacja", boom)
+    task.thread.join(5)
+    assert task.snapshot()["blad"] == "Nie udało się pobrać instalatora" and not task.snapshot()["trwa"]
+
+
+def test_ollama_setup_pull_streams_progress(monkeypatch):
+    """Pobieranie modeli przez API Ollamy: postęp z pól completed/total, pobrane modele pomijane, błąd po polsku."""
+    import http.server
+    import threading
+    from vidsum import ollama_setup as osu
+    pulled: list[str] = []
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            b = json.dumps({"models": [{"name": "gemma3:4b"}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+
+        def do_POST(self):
+            model = json.loads(self.rfile.read(int(self.headers["Content-Length"])))["model"]
+            pulled.append(model)
+            rows = ([{"error": "pull model manifest: file does not exist"}] if model == "zly:model" else
+                    [{"status": "pulling", "total": 4_000_000_000, "completed": 1_000_000_000},
+                     {"status": "pulling", "total": 4_000_000_000, "completed": 4_000_000_000}, {"status": "success"}])
+            b = "".join(json.dumps(r) + "\n" for r in rows).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    host = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        seen: list[dict] = []
+        task = osu.Task()
+        orig = task.set
+        task.set = lambda **kw: (seen.append(kw), orig(**kw))[1]
+        osu.pull(task, ["qwen3-vl:4b-instruct", "gemma3:4b"], host)
+        assert pulled == ["qwen3-vl:4b-instruct"], "gemma3:4b już jest — nie pobieramy drugi raz"
+        assert any(x.get("procent") == 25 and "1.0 z 4.0 GB" in x.get("etap", "") for x in seen)
+        assert task.snapshot()["procent"] == 100 and task.snapshot()["etap"] == "Modele pobrane."
+        with pytest.raises(RuntimeError, match="zly:model"):
+            osu.pull(osu.Task(), ["zly:model"], host)
+        with pytest.raises(RuntimeError, match="nie odpowiada"):
+            osu.pull(osu.Task(), ["x"], "http://127.0.0.1:9")
+    finally:
+        srv.shutdown()
+
+
+def test_ollama_setup_install_only_on_windows_and_start_needs_exe(monkeypatch):
+    from vidsum import ollama_setup as osu
+    monkeypatch.setattr(osu.sys, "platform", "linux")
+    with pytest.raises(RuntimeError, match="tylko w Windows"):
+        osu.install(osu.Task())
+    with pytest.raises(RuntimeError, match="tylko w Windows"):
+        osu.enable_parallel(osu.Task())
+    monkeypatch.setattr(osu, "installed_models", lambda host=None, timeout=3: None)
+    monkeypatch.setattr(osu, "find_exe", lambda: None)
+    with pytest.raises(RuntimeError, match="najpierw go zainstaluj"):
+        osu.start()
+    # jest plik programu: startujemy `ollama serve` z dwoma zapytaniami naraz i czekamy na API
+    started = {}
+
+    def fake_popen(cmd, **kw):
+        started["cmd"], started["env"] = cmd, kw.get("env", {})
+        monkeypatch.setattr(osu, "installed_models", lambda host=None, timeout=3: [])
+
+    monkeypatch.setattr(osu, "find_exe", lambda: Path("C:/Users/x/AppData/Local/Programs/Ollama/ollama.exe"))
+    monkeypatch.setattr(osu.subprocess, "Popen", fake_popen)
+    monkeypatch.delenv("OLLAMA_NUM_PARALLEL", raising=False)
+    assert osu.start(wait=3) is True
+    assert started["cmd"][1] == "serve" and started["env"]["OLLAMA_NUM_PARALLEL"] == "2" \
+        and started["env"]["OLLAMA_MAX_LOADED_MODELS"] == "1"
+    from vidsum.llm import ollama_parallel
+    assert ollama_parallel() == 2, "program wysyła wtedy 2 zapytania naraz"
+
+
+def test_gui_ollama_setup_endpoint_and_card(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
+    from vidsum.gui import App
+    app = App(tmp_path / "wyniki", "tok")
+    assert app.models_needed() == ["qwen3-vl:4b-instruct", "gemma3:4b"]
+    app.settings["obraz"] = "brak"
+    assert app.models_needed() == ["gemma3:4b"], "opis kadrów wyłączony — modelu obrazu nie pobieramy"
+    html = (Path(__file__).parents[1] / "vidsum" / "web" / "index.html").read_text(encoding="utf-8")
+    for key in ("setup_h", "setup_install", "setup_pull", "setup_par", "setup_recheck", 'id="setup"', '"/api/ollama"'):
+        assert key in html, key
+    assert html.count("setup_s1_missing:") == 2 and html.count("setup_pull:") == 2, "teksty po polsku i po angielsku"
+    readme = (Path(__file__).parents[1] / "packaging" / "CZYTAJ_MNIE.txt").read_text(encoding="utf-8")
+    first = readme.split("PIERWSZE URUCHOMIENIE")[1].split("CO MOŻNA WRZUCIĆ")[0]
+    assert "bez PowerShella" in first and "winget" not in readme and "setx" not in readme and "Zainstaluj Ollamę" in first
+
+
+# ---------------- pliki dźwiękowe (mp3, m4a, wav…) ----------------
+def _make_mp3(path: Path, seconds: int = 32, cover: bool = False) -> Path:
+    from vidsum.tools import find_tool, run
+    ff = find_tool("ffmpeg")
+    plain = path if not cover else path.with_name(path.stem + "_bez.mp3")
+    run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}",
+         "-c:a", "libmp3lame", "-q:a", "9", str(plain)])
+    if cover:                                               # okładka albumu = „strumień wideo” attached_pic
+        jpg = path.with_suffix(".jpg")
+        run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=64x64:d=1", "-frames:v", "1", str(jpg)])
+        run([ff, "-v", "error", "-y", "-i", str(plain), "-i", str(jpg), "-map", "0:a", "-map", "1:v", "-c", "copy",
+             "-disposition:v", "attached_pic", "-id3v2_version", "3", str(path)])
+    return path
+
+
+def test_probe_audio_file_with_and_without_cover(tmp_path):
+    from vidsum.media import AUDIO_EXT, probe
+    info = probe(_make_mp3(tmp_path / "nagranie.mp3"))
+    assert not info.has_video and info.has_audio and 31 <= info.duration <= 33 and info.width is None
+    cov = probe(_make_mp3(tmp_path / "z_okladka.mp3", cover=True))
+    assert not cov.has_video and cov.has_audio and 31 <= cov.duration <= 33, "okładka w mp3 to nie film"
+    assert ".mp3" in AUDIO_EXT and ".m4a" in AUDIO_EXT and ".wav" in AUDIO_EXT
+
+
+def test_audio_beats_cover_whole_recording():
+    from vidsum.analysis import audio_beats
+    from vidsum.transcribe import Segment
+    segs = [Segment(i * 7.0, i * 7.0 + 6.0, f"Zdanie numer {i}.") for i in range(14)]          # 0…97 s
+    beats = audio_beats(segs, 100.0)
+    assert beats[0]["start"] == 0.0 and beats[-1]["end"] == 100.0 and 3 <= len(beats) <= 4
+    assert all(a["end"] == b["start"] for a, b in zip(beats, beats[1:])) and all(b["kadr"] is None for b in beats)
+    said = " ".join(b["slychac"]["tekst"] for b in beats)
+    assert all(f"Zdanie numer {i}." in said for i in range(14)) and said.count("Zdanie numer 5.") == 1
+    empty = audio_beats([], 12.0)
+    assert len(empty) == 1 and empty[0]["slychac"]["zrodlo"] == "brak_danych"
+
+
+def test_mp3_is_summarized_from_speech_without_frames(tmp_path, cue_subs, monkeypatch):
+    """Plik mp3: pełny wynik z samej mowy — bez kadrów, bez modelu obrazu i OCR, niezależnie od wybranego trybu."""
+    from test_vidsum import FakeOllama
+    import http.server
+    import threading as th
+    from vidsum import pipeline
+    from vidsum.pipeline import Options, analyze
+    mp3 = _make_mp3(tmp_path / "podcast.mp3", cover=True)
+    FakeOllama.calls, FakeOllama.fail_images = [], set()
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeOllama)
+    th.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setattr(pipeline, "scene_scores", lambda *a, **k: (_ for _ in ()).throw(AssertionError("analiza scen pliku dźwiękowego")))
+        log: list[str] = []
+        opt = Options(out_root=tmp_path / "w", transcript_file=cue_subs, ollama_host=f"http://127.0.0.1:{srv.server_address[1]}",
+                      vision_model="fake-vl", text_model="fake-txt", mode="pelna")          # użytkownik miał „Pełną”
+        out = analyze(str(mp3), opt, log=log.append)
+    finally:
+        srv.shutdown()
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    assert _images(FakeOllama.calls) == [] and r["kadry"] == [] and r["napisy_ekranowe"] == []
+    assert r["zrodlo"]["wideo"] is False and r["zrodlo"]["audio"] is True and r["ustawienia"]["tryb"] == "mowa"
+    assert any("plik dźwiękowy" in x for x in log) and any("Plik dźwiękowy" in g for g in r["luki"])
+    assert r["os_czasu"] and r["os_czasu"][0]["kadr"] is None and "kroimy jedną cebulę" in r["os_czasu"][0]["slychac"]["tekst"]
+    assert r["streszczenie"]["dane"]["streszczenie"], "streszczenie powstało"
+    md = (out / "raport.md").read_text(encoding="utf-8")
+    assert "plik dźwiękowy (bez obrazu)" in md and "![kadr]" not in md and "**Obraz**" not in md and "kroimy jedną cebulę" in md
+    html = (Path(__file__).parents[1] / "vidsum" / "web" / "index.html").read_text(encoding="utf-8")
+    assert ".mp3" in html and "audio/*" in html and 'z.wideo === false' in html
