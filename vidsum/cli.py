@@ -157,7 +157,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     argv = args
     ap = argparse.ArgumentParser(prog="vidsum", description="Analiza filmu: mowa + obraz -> streszczenie ze źródłami.")
-    ap.add_argument("wejscie", nargs="*", help="plik(i) MP4 albo link(i) (YouTube/Instagram/TikTok)")
+    ap.add_argument("wejscie", nargs="*", help="plik(i) wideo (MP4…) albo dźwiękowe (MP3, M4A, WAV…) albo link(i) "
+                                                 "(YouTube/Instagram/TikTok)")
+    ap.add_argument("--tryb", choices=["pelna", "szybki", "mowa"], default="pelna",
+                    help="tryb analizy: pelna (mowa + obraz + napisy z ekranu), szybki (raport z mowy, potem wybrane kadry), "
+                         "mowa (tylko mowa); plik dźwiękowy zawsze idzie trybem mowa")
     ap.add_argument("--zestaw", default=None, metavar="LISTA.txt",
                     help="plik z listą filmów (link albo ścieżka w każdej linii); po analizie powstaje zestaw_wynik.md "
                          "z czasami i kontrolą jakości wszystkich filmów")
@@ -200,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
                   transcript_file=Path(a.napisy) if a.napisy else None, vision=a.obraz,
                   vision_model=a.model_obrazu, summary=a.streszczenie, summary_model=a.model_streszczenia,
                   ollama_host=a.ollama, max_frames=a.max_kadrow, cookies_from_browser=a.ciasteczka_z,
-                  allow_api_key=a.allow_api_key, ocr=not a.bez_ocr)
+                  allow_api_key=a.allow_api_key, ocr=not a.bez_ocr, mode=a.tryb)
     inputs = list(a.wejscie)
     if a.zestaw:
         from .control import read_list

@@ -106,6 +106,9 @@ def _lst(x) -> list:
     return x if isinstance(x, list) else []
 
 
+TYPE_LABEL = {"wyklad": "wykład / rozmowa", "dokument": "dokument", "inne": "inne", "przepis": "przepis", "trening": "trening",
+              "sport": "sport", "poradnik": "poradnik"}       # nazwa typu dla człowieka (w danych zostaje kod bez ogonków)
+
 # które pola „Co masz zrobić” mają sens przy danym typie filmu
 _FIELDS_BY_TYPE = {
     "przepis": {"skladniki", "kroki", "sprzet", "czas", "wskazowki", "bledy", "wnioski"},
@@ -215,7 +218,7 @@ def _src(z: str) -> str:
 
 def to_markdown(s: dict) -> str:
     """Markdown do raportu — z tych samych danych co widok."""
-    L = ["## W skrócie", f"**Typ:** {s['typ']}." + (f" {s['teza']}" if s.get("teza") else ""), ""]
+    L = ["## W skrócie", f"**Typ:** {TYPE_LABEL.get(s['typ'], s['typ'])}." + (f" {s['teza']}" if s.get("teza") else ""), ""]
     if s.get("czas_czytania_s"):
         c = int(s["czas_czytania_s"])
         L += [f"_Czas czytania streszczenia: ≈ {c // 60} min {c % 60:02d} s_" if c >= 60 else f"_Czas czytania: ≈ {c} s_", ""]

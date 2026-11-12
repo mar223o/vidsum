@@ -483,8 +483,12 @@ def story_summary(engine, lines: list[dict], typ: str, meta_line: str, duration:
         if not c["reklama"]:
             c["opis"] = _no_ad_sentences(c["opis"], ads)
     live = [c for c in chapters if not c["reklama"]]
-    parts_txt = "\n".join(f"[C{c['n']}] {ts(c['start'])}–{ts(c['end'])} {c['tytul']}: {c['opis']}" for c in live)
-    facts_txt = "\n".join(f"[F{j}] {ts(f['t'])} {f['oryginal']}" for j, f in enumerate(facts, 1)) or "—"
+    # bardzo długi film (1–2 h = 20+ części): zapytanie o całość musi się zmieścić w stałym kontekście modelu —
+    # streszczenia części przycinamy, a faktów pokazujemy najwyżej 40, równo z całego filmu (numeracja F zostaje)
+    cut = 10_000 // max(1, len(live)) if len(live) > 12 else 2000
+    parts_txt = "\n".join(f"[C{c['n']}] {ts(c['start'])}–{ts(c['end'])} {c['tytul']}: {c['opis'][:cut]}" for c in live)
+    shown = set(map(id, _spread(facts, 40)))
+    facts_txt = "\n".join(f"[F{j}] {ts(f['t'])} {f['oryginal'][:220]}" for j, f in enumerate(facts, 1) if id(f) in shown) or "—"
     pr = REDUCE_PROMPT.format(typ=typ, meta=meta_line, parts=parts_txt, facts=facts_txt, words=words)
     raw = try_fn(engine, pr, log, max_tokens=1600, schema=REDUCE_SCHEMA)
     record("opis_calosci", pr, raw)

@@ -2,7 +2,7 @@ Vidsumly — streszczenia filmów i nagrań (mowa + obraz), wszystko na Twoim ko
 ====================================================================================
 
 INSTALACJA
-  Uruchom VidSum-Setup-<wersja>.exe → skrót „VidSum” w menu Start. Kolejne wersje: Ustawienia → Aktualizacje
+  Uruchom VidSum-Setup-<wersja>.exe → skrót „Vidsumly” w menu Start. Kolejne wersje: Ustawienia → Aktualizacje
   w programie (albo nowy instalator — instaluje się w to samo miejsce, stary kod jest usuwany).
 
 PIERWSZE URUCHOMIENIE (bez PowerShella)
