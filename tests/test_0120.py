@@ -1004,3 +1004,39 @@ def test_mp3_is_summarized_from_speech_without_frames(tmp_path, cue_subs, monkey
     assert "plik dźwiękowy (bez obrazu)" in md and "![kadr]" not in md and "**Obraz**" not in md and "kroimy jedną cebulę" in md
     html = (Path(__file__).parents[1] / "vidsum" / "web" / "index.html").read_text(encoding="utf-8")
     assert ".mp3" in html and "audio/*" in html and 'z.wideo === false' in html
+
+
+def test_truncated_model_answer_keeps_what_was_written():
+    """Prawdziwy model (część 4 dokumentu) wpisał do „fakty” całą transkrypcję i urwał na limicie — tytuł i streszczenie
+    z początku odpowiedzi nie mogą przez to przepaść (w 0.11.9 tak zniknęły cytaty i rozdziały)."""
+    from vidsum.summary import _loads, repair_json
+    raw = ('{"tytul": "Szyfrowanie i podsłuch", "streszczenie": "Omawiana jest metoda \\"DAS\\".", "fakty": [\n'
+           ' "12:25 In theory, someone could notice",\n "12:28 In practice, that tends to hap')
+    d = _loads(raw)
+    assert d["tytul"] == "Szyfrowanie i podsłuch" and "DAS" in d["streszczenie"] and len(d["fakty"]) == 1
+    d = _loads('{"cytaty": [{"t": 1, "tekst": "a"}, {"t": 2, "tekst": "b"}], "rozdzialy": [{"start": 0, "end": 5, "tytul": "W')
+    assert len(d["cytaty"]) == 2 and d["rozdzialy"] == [{"start": 0, "end": 5}]
+    assert _loads("to nie json") == {} and _loads('{"ok": 1}') == {"ok": 1} and repair_json("brak klamry") is None
+
+
+def test_ollama_schema_sent_and_fallback_for_old_ollama(monkeypatch):
+    from vidsum.llm import LLMError, Ollama
+    from vidsum.story import FRAG_SCHEMA
+    eng = Ollama("gemma3:4b", "http://127.0.0.1:9")
+    sent: list = []
+
+    def post(path, body, **kw):
+        sent.append(body.get("format"))
+        if isinstance(body.get("format"), dict) and len(sent) == 2:
+            raise LLMError("invalid format: expected json")
+        return {"message": {"content": "{}"}}
+
+    monkeypatch.setattr(eng, "_post", post)
+    eng.complete("x", as_json=True, schema=FRAG_SCHEMA)
+    assert sent[0]["properties"]["fakty"]["maxItems"] == 5 and sent[0]["properties"]["fakty"]["items"] == {"type": "integer"}
+    eng.complete("x", as_json=True, schema=FRAG_SCHEMA)            # „stara Ollama”: błąd formatu → zwykły JSON
+    assert sent[1] == FRAG_SCHEMA and sent[2] == "json"
+    eng.complete("x", as_json=True, schema=FRAG_SCHEMA)            # i już go nie wysyłamy
+    assert sent[3] == "json"
+    eng.complete("x", as_json=True)
+    assert sent[4] == "json"

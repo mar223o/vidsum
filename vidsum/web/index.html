@@ -554,7 +554,7 @@ const I18N = {
    t_pobieranie_s:"pobieranie",t_ocr_s:"napisy (OCR)",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
    typ_przepis:"przepis",typ_trening:"trening",typ_sport:"sport",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_dokument:"dokument",typ_inne:"inne",
-   setup_h:"Pierwsze uruchomienie — zostały 2–3 kliknięcia",setup_sub:"Vidsumly liczy wszystko na Twoim komputerze. Potrzebuje do tego darmowego programu Ollama i dwóch modeli (pobierane raz).",
+   trust_note:"Streszczenie pisze mały model na Twoim komputerze i może przekręcić szczegół. Fakty i cytaty w zakładkach niżej są dosłownie z nagrania.",setup_h:"Pierwsze uruchomienie — zostały 2–3 kliknięcia",setup_sub:"Vidsumly liczy wszystko na Twoim komputerze. Potrzebuje do tego darmowego programu Ollama i dwóch modeli (pobierane raz).",
    setup_s1:"Program Ollama",setup_s1_missing:"Nie ma go na tym komputerze.",setup_s1_stopped:"Jest zainstalowany, ale nie działa.",setup_s1_ok:"Działa.",
    setup_install:"Zainstaluj Ollamę",setup_install_hint:"Pobiorę oficjalny instalator z ollama.com i otworzę go. W jego oknie kliknij „Install”.",setup_start:"Uruchom Ollamę",
    setup_s2:"Modele",setup_s2_need:n=>`Do pobrania: ${n}. To kilka GB — jednorazowo.`,setup_s2_ok:"Pobrane.",setup_pull:"Pobierz modele",
@@ -622,7 +622,7 @@ const I18N = {
    t_pobieranie_s:"download",t_ocr_s:"on-screen text",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
    typ_przepis:"recipe",typ_trening:"workout",typ_sport:"sport",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_dokument:"documentary",typ_inne:"other",
-   setup_h:"First run — 2–3 clicks left",setup_sub:"Vidsumly computes everything on your computer. For that it needs the free Ollama app and two models (downloaded once).",
+   trust_note:"The summary is written by a small model on your computer and may get a detail wrong. The facts and quotes in the tabs below are verbatim from the recording.",setup_h:"First run — 2–3 clicks left",setup_sub:"Vidsumly computes everything on your computer. For that it needs the free Ollama app and two models (downloaded once).",
    setup_s1:"The Ollama app",setup_s1_missing:"It is not on this computer.",setup_s1_stopped:"It is installed but not running.",setup_s1_ok:"Running.",
    setup_install:"Install Ollama",setup_install_hint:"I will download the official installer from ollama.com and open it. Click “Install” in its window.",setup_start:"Start Ollama",
    setup_s2:"Models",setup_s2_need:n=>`To download: ${n}. A few GB — once.`,setup_s2_ok:"Downloaded.",setup_pull:"Download models",
@@ -1383,6 +1383,7 @@ function sumHtml(r, d){
   return top + `<div class="summary">${d.streszczenie.map(p => `<p>${inline(p)}</p>`).join("")}</div>
     ${cur.live ? "" : `<div class="sumact"><button class="btn" data-a="copysum">⧉ ${t("copy_sum")}</button><button class="btn" data-a="trsum">文A ${cur.lang ? t("tr_back") : t("tr_sum")}</button></div>`}
     ${d.do_zapamietania ? `<blockquote class="pull"><div class="label" style="margin-bottom:4px">${t("remember")}</div>${esc(d.do_zapamietania)}</blockquote>` : ""}
+    ${d.metoda === "części filmu z linii mowy" && (d.co_masz_zrobic?.fakty||[]).length ? `<p class="muted small trust">${t("trust_note")}</p>` : ""}
     ${d.szczera_ocena ? `<div class="note"><h4>${t("honest")}</h4>${inline(d.szczera_ocena)} ${src("szacunek")}</div>` : ""}
     ${d.czego_nie_wiadomo.length ? `<div class="note"><h4>${t("unknown")}</h4><ul>${d.czego_nie_wiadomo.map(x => `<li>${inline(x)}</li>`).join("")}</ul></div>` : ""}
     ${qcHtml(r.kontrola)}

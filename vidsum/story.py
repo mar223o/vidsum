@@ -55,6 +55,30 @@ Odpowiedz WYŁĄCZNIE JSON-em:
 Streszczenie: razem około {words} słów.
 """
 
+# Schematy odpowiedzi (Ollama „structured outputs”): model MUSI oddać numery jako liczby i najwyżej 5 faktów.
+# Pomiar na prawdziwym modelu bez schematu: „fakty” jako 20–40 pozycji (albo cała transkrypcja części jako tekst —
+# odpowiedź urwana na limicie 700 tokenów), „cytat” jako tekst. Krótsza odpowiedź = krótszy czas każdej części.
+FRAG_SCHEMA = {"type": "object",
+               "properties": {"tytul": {"type": "string"}, "streszczenie": {"type": "string"},
+                              "fakty": {"type": "array", "items": {"type": "integer"}, "maxItems": 5},
+                              "cytat": {"type": ["integer", "null"]},
+                              "reklama": {"type": "array", "items": {"type": "integer"}, "maxItems": 40}},
+               "required": ["tytul", "streszczenie", "fakty", "cytat", "reklama"]}
+_STR_LIST = {"type": "array", "items": {"type": "string"}}
+REDUCE_SCHEMA = {"type": "object",
+                 "properties": {"tytul": {"type": "string"}, "teza": {"type": "string"},
+                                "streszczenie": {**_STR_LIST, "minItems": 3, "maxItems": 4},
+                                "do_zapamietania": {"type": "string"},
+                                "najwazniejsze": {"type": "array", "minItems": 3, "maxItems": 6,
+                                                  "items": {"type": "object",
+                                                            "properties": {"zrodlo": {"type": "string"}, "tytul": {"type": "string"},
+                                                                           "opis": {"type": "string"}},
+                                                            "required": ["zrodlo", "tytul", "opis"]}},
+                                "wnioski": {**_STR_LIST, "maxItems": 6}, "szczera_ocena": {"type": "string"},
+                                "czego_nie_wiadomo": {**_STR_LIST, "maxItems": 4}, "pytania": {**_STR_LIST, "maxItems": 5}},
+                 "required": ["tytul", "teza", "streszczenie", "do_zapamietania", "najwazniejsze", "wnioski",
+                              "szczera_ocena", "czego_nie_wiadomo", "pytania"]}
+
 _TYP_EN = {"wyklad": "lecture / talk / explanation", "dokument": "documentary / report", "inne": "video",
            "trening": "workout", "sport": "sport / football training", "poradnik": "tutorial", "przepis": "recipe"}
 
@@ -241,6 +265,14 @@ def pick_facts(part: list[dict], by_n: dict, model_ids: list[int], skip: set[int
             continue                                  # nie dwa sąsiednie zdania — fakty mają pochodzić z całej części
         chosen.append(ns)
         used.update(ns)
+    if not chosen and not trusted:                    # część bez liczb i nazw (opis techniki) — dwa najtreściwsze zdania
+        for sc, ns in cands:
+            if len(chosen) >= 2 or sc < 0.5:
+                break
+            if set(ns) & used or any(x - 1 in used or x + 1 in used for x in ns):
+                continue
+            chosen.append(ns)
+            used.update(ns)
     if not chosen:                                    # krótki film bez liczb i nazw („Exhibit A. The Henley.”)
         for n in sorted(trusted)[:3]:
             ns = sentence_at(n, by_n)
@@ -399,9 +431,15 @@ def story_summary(engine, lines: list[dict], typ: str, meta_line: str, duration:
             return {}
         pr = FRAG_PROMPT.format(a=ts(part[0]["t"]), b=ts(part[-1]["end"]), typ_en=_TYP_EN.get(typ, "video"),
                                 meta=meta_line, lines="\n".join(rows), screen=screen_context(part, ocr))
-        raw = try_fn(engine, pr, log, max_tokens=700)
+        raw = try_fn(engine, pr, log, max_tokens=700, schema=FRAG_SCHEMA)
         record("czesc", pr, raw)
-        return loads(raw)
+        d = loads(raw)
+        if not str(d.get("streszczenie") or "").strip():       # pusta / nieczytelna odpowiedź — jedna próba od nowa
+            log(f"        ! część {ts(part[0]['t'])}–{ts(part[-1]['end'])}: pusta odpowiedź — ponawiam")
+            raw = try_fn(engine, pr, log, max_tokens=700, seed=11, schema=FRAG_SCHEMA)
+            record("czesc_ponownie", pr, raw)
+            d = loads(raw) or d
+        return d
 
     with ThreadPoolExecutor(max_workers=max(1, min(par, len(parts)))) as pool:
         res = list(pool.map(one, parts))
@@ -448,7 +486,7 @@ def story_summary(engine, lines: list[dict], typ: str, meta_line: str, duration:
     parts_txt = "\n".join(f"[C{c['n']}] {ts(c['start'])}–{ts(c['end'])} {c['tytul']}: {c['opis']}" for c in live)
     facts_txt = "\n".join(f"[F{j}] {ts(f['t'])} {f['oryginal']}" for j, f in enumerate(facts, 1)) or "—"
     pr = REDUCE_PROMPT.format(typ=typ, meta=meta_line, parts=parts_txt, facts=facts_txt, words=words)
-    raw = try_fn(engine, pr, log, max_tokens=1600)
+    raw = try_fn(engine, pr, log, max_tokens=1600, schema=REDUCE_SCHEMA)
     record("opis_calosci", pr, raw)
     p = scrub(loads(raw))
     if not isinstance(p, dict):
@@ -490,7 +528,7 @@ def story_summary(engine, lines: list[dict], typ: str, meta_line: str, duration:
                 best, best_sc = ln, sc
         return best["t"] if best else c["start"]
 
-    hl, used_t = [], set()
+    hl, used_t, per_ch = [], set(), {}
     for x in p.get("najwazniejsze") or []:
         if not isinstance(x, dict) or not str(x.get("tytul") or "").strip():
             continue
@@ -505,6 +543,10 @@ def story_summary(engine, lines: list[dict], typ: str, meta_line: str, duration:
             t = _moment(text, max(live, key=lambda c: _sim(text, c["tytul"] + " " + c["opis"])))
         if t is None or any(a["start"] - 1 <= t <= a["end"] + 1 for a in ads) or _about_ad(text, ads):
             continue
+        ch = next((c["n"] for c in reversed(live) if c["start"] <= t), 0)
+        if len(live) >= 3 and per_ch.get(ch, 0) >= 2:
+            continue                                  # „z różnych części”: najwyżej dwie pozycje z jednej
+        per_ch[ch] = per_ch.get(ch, 0) + 1
         while t in used_t:                            # dwie pozycje z tej samej części — nie ten sam znacznik czasu
             t += 1.0
         used_t.add(t)

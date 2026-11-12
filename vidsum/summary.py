@@ -675,6 +675,47 @@ def thin_timeline(timeline: str, limit: int) -> str:
     return "\n".join(out) + f"\n[… pokazana co {k}. linia zapisu; fakty wyżej są z całego filmu]"
 
 
+def repair_json(raw: str) -> str | None:
+    """Urwana odpowiedź JSON (model doszedł do limitu długości w połowie listy) → poprawny JSON z tym, co zdążył napisać.
+
+    Pomiar na prawdziwym modelu (gemma3:4b, 0.12.0, część 4 dokumentu): model wpisał do „fakty” całą transkrypcję
+    części i urwał w połowie — przez nieparsowalny koniec przepadały też gotowe „tytul” i „streszczenie” z początku.
+    W 0.11.9 tak samo zniknęły cytaty i rozdziały. Ucinamy do ostatniego w pełni zapisanego elementu i domykamy nawiasy."""
+    i = raw.find("{")
+    if i < 0:
+        return None
+    stack: list[str] = []
+    safe: tuple[int, list[str]] | None = None       # pozycja tuż po ostatnim kompletnym elemencie + otwarte nawiasy
+    in_str = esc = False
+    for k in range(i, len(raw)):
+        ch = raw[k]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if not stack:
+                break
+            stack.pop()
+            safe = (k + 1, list(stack))
+            if not stack:
+                break
+        elif ch == ",":
+            safe = (k, list(stack))                 # wszystko przed przecinkiem jest kompletne
+    if safe is None:
+        return None
+    pos, open_ = safe
+    return raw[i:pos].rstrip().rstrip(",") + "".join(reversed(open_))
+
+
 def _loads(raw: str) -> dict:
     raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip())
     try:
@@ -685,16 +726,23 @@ def _loads(raw: str) -> dict:
             d = json.loads(raw[i:j + 1]) if 0 <= i < j else {}
         except json.JSONDecodeError:
             d = {}
+        if not d:
+            fixed = repair_json(raw)
+            try:
+                d = json.loads(fixed) if fixed else {}
+            except json.JSONDecodeError:
+                d = {}
     return d if isinstance(d, dict) else {}
 
 
-def _try(engine, prompt: str, log, max_tokens: int | None = None, seed: int | None = None) -> str:
+def _try(engine, prompt: str, log, max_tokens: int | None = None, seed: int | None = None,
+         schema: dict | None = None) -> str:
     """Jedno wywołanie z jedną ponowną próbą. Pomiar: Ollama potrafi przerwać odpowiedź
     („token repeat limit reached”) — wtedy druga próba zwykle przechodzi; jeśli nie, ten etap jest pusty."""
     from .llm import LLMError
     for attempt in (1, 2):
         try:
-            kw = {k: v for k, v in (("max_tokens", max_tokens),) if v}
+            kw = {k: v for k, v in (("max_tokens", max_tokens), ("schema", schema)) if v}
             if seed is not None:
                 kw.update(seed=seed, temperature=0.3)
             if attempt == 1:
@@ -705,7 +753,7 @@ def _try(engine, prompt: str, log, max_tokens: int | None = None, seed: int | No
             # ponowna próba z innym ziarnem: przy temperaturze 0 i tym samym ziarnie model zapętla się tak samo
             # (pomiar: dwa razy „token repeat limit reached” na tym samym etapie)
             try:
-                return engine.complete(prompt, as_json=True, seed=11, temperature=0.3)
+                return engine.complete(prompt, as_json=True, seed=11, temperature=0.3, **({"schema": schema} if schema else {}))
             except TypeError:
                 return engine.complete(prompt, as_json=True)
         except LLMError as e:
