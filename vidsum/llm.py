@@ -144,6 +144,7 @@ class Ollama:
             self.host = "http://" + self.host
         self.timeout = timeout
         self._think_ok = True
+        self._schema_ok = True
         self.parallel = ollama_parallel()
 
 
@@ -185,7 +186,11 @@ class Ollama:
             return _clean_vision(d)
 
     def complete(self, prompt: str, as_json: bool = False, max_tokens: int | None = None,
-                 seed: int = 7, temperature: float | None = None, num_ctx: int | None = None) -> str:
+                 seed: int = 7, temperature: float | None = None, num_ctx: int | None = None,
+                 schema: dict | None = None) -> str:
+        # `schema` (0.12.0): schemat JSON odpowiedzi („structured outputs” Ollamy) — model nie może oddać listy 40 pozycji
+        # tam, gdzie prosimy o 5 numerów, ani tekstu zamiast liczby; odpowiedź jest krótsza, więc i szybsza.
+        # Starsza Ollama schematu nie zna → przy błędzie jedna próba ze zwykłym "json" i więcej go nie wysyłamy.
         # STAŁY kontekst 8192 (większy tylko dla bardzo długich promptów): Ollama przeładowuje model, gdy kolejne
         # zapytania mają różne num_ctx — przy równoległym tłumaczeniu i streszczeniu to kosztowało sekundy
         need = len(prompt) // 3 + 1500
@@ -198,7 +203,7 @@ class Ollama:
                 "options": {"temperature": temperature if temperature is not None else (0 if as_json else 0.2),
                             "num_ctx": num_ctx, "seed": seed,
                             "num_predict": max_tokens or (3000 if as_json else 1200), "repeat_penalty": 1.15},
-                **({"format": "json"} if as_json else {}),
+                **({"format": schema if (schema and self._schema_ok) else "json"} if (as_json or schema) else {}),
                 "messages": [{"role": "user", "content": prompt}]}
         if self._think_ok:
             # modele „myślące” (qwen3) bez myślenia: kilka razy szybciej, a w tym zadaniu nie gorzej
@@ -206,10 +211,15 @@ class Ollama:
         try:
             r = self._post("/api/chat", body)
         except LLMError as e:
-            if "think" not in str(e).lower() or not self._think_ok:
+            low = str(e).lower()
+            if isinstance(body.get("format"), dict) and any(w in low for w in ("format", "schema", "grammar", "unmarshal")):
+                self._schema_ok = False       # Ollama bez schematów odpowiedzi — zwykły JSON
+                body["format"] = "json"
+            elif "think" in low and self._think_ok:
+                self._think_ok = False        # starsza Ollama / model bez tej opcji
+                body.pop("think", None)
+            else:
                 raise
-            self._think_ok = False            # starsza Ollama / model bez tej opcji
-            body.pop("think", None)
             r = self._post("/api/chat", body)
         return r.get("message", {}).get("content", "").strip()
 

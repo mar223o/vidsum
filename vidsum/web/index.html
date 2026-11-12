@@ -142,7 +142,7 @@ label.f{display:grid;gap:5px;font-size:12.5px;color:var(--muted)}
 .job-top .name{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .st{font-size:11.5px;font-weight:500;padding:2px 9px;border-radius:99px;background:var(--hl);border:1px solid var(--line)}
 .st.trwa{color:var(--accent)}.st.gotowe{color:var(--ok)}.st.blad{color:var(--bad)}.st.w_kolejce{color:var(--muted)}
-.timer{font:600 12px var(--mono);color:var(--muted);white-space:nowrap}.stage{font-size:12px;color:var(--accent)}
+.timer{font:600 12px var(--mono);color:var(--muted);white-space:nowrap}.eta{font-size:12px;white-space:nowrap}.stage{font-size:12px;color:var(--accent)}
 .parts{display:flex;gap:6px;flex-wrap:wrap}.parts button{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer}
 .parts button.on{background:var(--raised);color:var(--ink);border-color:var(--line2)}
 .part{max-height:260px;overflow:auto;font-size:13.5px;line-height:1.5;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
@@ -203,6 +203,7 @@ blockquote.pull::before{content:"";position:absolute;left:0;top:14px;bottom:14px
 .player{border-radius:var(--r-lg);overflow:hidden;background:#000;position:relative;
   box-shadow:0 0 0 1px var(--line2),0 40px 100px -30px rgba(0,0,0,.85),0 0 120px -40px rgba(61,123,255,.4)}
 .player video{display:block;width:100%;max-height:72vh;background:#000}
+.player.audio video{height:64px;max-height:64px;background:var(--panel)}
 .player .nofilm{aspect-ratio:16/9;width:100%;max-height:72vh;display:grid;place-items:center;color:#ddd;background:#111 center/cover no-repeat;font-size:13px}
 .m-read .player video{max-height:42vh}
 .ph{background:rgba(7,8,12,.7);backdrop-filter:blur(8px);color:#fff;padding:7px 13px;border-radius:10px;font-size:13px;text-align:center;margin:12px}
@@ -386,6 +387,9 @@ a.chip{text-decoration:none}a.chip:hover{color:var(--ink);border-color:var(--lin
 .iconbtn:hover{background:var(--hl);border-color:var(--line);color:var(--ink)}
 .iconbtn:focus-visible,.btn:focus-visible,nav a:focus-visible,.qtoggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .panel.start{display:grid;gap:12px}
+.setup{display:grid;gap:10px;margin-bottom:14px;border-color:var(--accent)}.setup h2{font-size:16px;margin:0}.setup ol{margin:0;padding-left:20px;display:grid;gap:8px}
+.setup li.done{color:var(--muted)}.setup li.done b::after{content:" ✓";color:var(--ok)}.setup .act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.setup .err{color:var(--bad);font-size:13px}.setup .bar{height:6px;margin-top:6px}
 #drop{display:grid;justify-items:center;gap:6px}
 .pvrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
 .pvhint{flex:1;min-width:200px}
@@ -521,7 +525,7 @@ const I18N = {
    gpu_none:"brak karty NVIDIA — mowa liczona na procesorze (wolniej)",version:"wersja",tech_name:"Nazwa techniczna",data_dir:"Dane programu",upd_current:v=>`Masz wersję ${v}`,
    hero1:"Wrzuć film —",hero2:"powiem Ci, co z niego wynika.",
    hero_sub:"Przepis, trening, poradnik: mowa, napisy i obraz zamienione w konkretną listę do zrobienia.",
-   drop:"Przeciągnij tu pliki wideo",drop_sub:"albo kliknij, aby wybrać (MP4, MOV, MKV, WEBM) — kilka naraz też",
+   drop:"Przeciągnij tu filmy albo nagrania",drop_sub:"albo kliknij, aby wybrać — wideo (MP4, MOV, MKV, WEBM) lub dźwięk (MP3, M4A, WAV); kilka naraz też",
    links_ph:"…albo wklej link(i) YouTube / Instagram / TikTok albo ścieżkę C:\\…\\film.mp4 (jeden w linii)",
    analyze:"Analizuj",settings:"Ustawienia",s_lang:"Język mowy",s_whisper:"Model mowy (Whisper)",s_ocr:"Napisy na ekranie (OCR)",
    s_vis_on:"Analiza obrazu",s_vision:"Model obrazu (Ollama)",s_summary:"Streszczenie",s_frames:"Maks. kadrów",
@@ -533,7 +537,7 @@ const I18N = {
    part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
    quit:"Zamknij program",quit_q:"Zamknąć Vidsumly? Trwająca analiza zostanie zapisana w kolejce i zacznie się od nowa po wznowieniu.",quit_done:"Vidsumly wyłączone. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
-   t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_sport:"Ćwiczenia i technika",t_todo_poradnik:"Kroki",t_todo_dokument:"Fakty",t_todo_inne:"Wnioski",facts:"Fakty, liczby, osoby, daty",ex_sport:"Ćwiczenia i elementy techniki",fk_liczba:"liczba",fk_osoba:"osoba",fk_data:"data",fk_miejsce:"miejsce",fk_fakt:"fakt",
+   t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_sport:"Ćwiczenia i technika",t_todo_poradnik:"Kroki",t_todo_dokument:"Fakty",t_todo_wyklad:"Fakty i wnioski",t_todo_inne:"Wnioski",facts:"Fakty, liczby, osoby, daty",ads:"Reklamy (pominięte w faktach)",shown:"Pokazane na ekranie (gdy mowa wskazuje na obraz)",shown_see:"widać",shown_text:"napisy na ekranie",zmowy_badge:"z mowy — obraz w toku",eta_left:x=>`· zostało ok. ${x}`,eta_soon:"· jeszcze chwila",eta_hint:"Prognoza z poprzednich analiz na tym komputerze — nie obietnica.",mode_label:"Tryb analizy",mode_full:"Pełna",mode_fast:"Mowa + szybki obraz",mode_speech:"Tylko mowa",mode_hint_pelna:"Opis wybranych kadrów, napisy z całego filmu i mowa. Najdokładniejsza — dla przepisów, ćwiczeń i krótkich filmów.",mode_hint_szybki:"Najpierw cały raport z mowy, potem opis tylko wybranych kadrów: tych, na które wskazuje mowa („spójrzcie”, „look at this”), i początków rozdziałów. Dla długich filmów, w których treść niesie mowa.",mode_hint_mowa:"Sam raport z mowy, bez analizy obrazu. Najszybciej — dla podcastów, wykładów i słabszych komputerów.",mode_hw:w=>`${w} Na tym komputerze polecany jest tryb „Tylko mowa”.`,qc:"Kontrola jakości",qc_ok:"bez uwag",qc_n:n=>n===1?"1 uwaga":`uwag: ${n}`,qc_what:"Program sam sprawdza wynik: czy układ pasuje do typu filmu, czy rozdziały obejmują cały film, czy liczby są w mowie albo w napisach, czy w treści nie ma reklam ani obcego języka, czy cytaty padają w filmie i czy tłumaczenie nie zgubiło liczb.",ex_sport:"Ćwiczenia i elementy techniki",fk_liczba:"liczba",fk_osoba:"osoba",fk_data:"data",fk_miejsce:"miejsce",fk_fakt:"fakt",
    t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
    map_hint:"Kliknij gałąź: szczegóły i przewinięcie filmu. Powiększanie: przyciski albo Ctrl + kółko myszy (na pełnym ekranie samo kółko), przeciąganie — przesuwanie.",
    map_full:"Pełny ekran",map_reset:"Dopasuj",t_tr:"Transkrypcja",t_fr:"Kadry",t_desc:"Opis",t_com:"Komentarze",desc_h:"Opis od autora",desc_note:"Tekst autora z serwisu, nie wynik analizy.",au_ch:"Rozdziały od autora",model_ch:"Rozdziały z analizy",of_film:p=>`${p}% filmu`,com_h:"Komentarze widzów",com_note:"Opinie widzów z serwisu, nie fakty z filmu.",com_get:"Pobierz komentarze",com_wait:"Pobieram komentarze…",com_none:"Pod filmem nie ma komentarzy albo serwis ich nie udostępnił.",com_from:(n,d)=>`Najpopularniejsze: ${n}, pobrane ${d}`,com_reply:"odpowiedź",likes:"polubień",open_src:s=>`Otwórz film na ${s}`,cinema:"Tryb kinowy",bars_show:"Pokaż cały kadr",bars_hide:"Ukryj czarne pasy",bars_hint:"Program wykrył czarne pasy wpalone w obraz i je ukrywa. Plik filmu się nie zmienia.",cinema_off:"Zamknij tryb kinowy",expand_all:"Rozwiń wszystkie",collapse_all:"Zwiń wszystkie",
@@ -543,13 +547,19 @@ const I18N = {
    mistakes:"Błędy, których unikać",takeaways:"Wnioski",honest:"Szczera ocena",unknown:"Czego nie wiadomo",
    how:"Jak to przeanalizowano",took:"Czas analizy",engines:"Silniki",gaps:"Ograniczenia",parallel:"mowa równolegle z obrazem",
    chat:"zapytaj",chat_hint:"Zapytaj o cokolwiek z tego filmu — znam transkrypcję i kadry.",ask_ph:"Zapytaj o ten film…",
-   thinking:"Myślę…",copy:"Kopiuj prompt",copy_hint:"Surowy prompt z całą osią czasu — do wklejenia w dowolny czat z AI",note:"Kopiuj notatkę",note_hint:"Całe streszczenie, kroki, oś czasu i transkrypcja jako czysty tekst — dla innego LLM, Notatnika albo opisu",note_dl:"Pobierz notatkę (.md)",note_copied:"Notatka skopiowana",sq_przepis:["Jakie składniki są potrzebne?","Przelicz składniki na 4 porcje","Jaki jest skład i ile to ma kalorii?"],sq_trening:["Jakie ćwiczenia, ile serii i powtórzeń?","Na co uważać przy technice?"],sq_sport:["Jak wykonać to krok po kroku?","Jakie błędy są najczęstsze?"],sq_poradnik:["Co jest potrzebne na start?","Który krok jest najtrudniejszy?"],sq_dokument:["Jakie są najważniejsze daty i liczby?","Kim są osoby w filmie?"],sq_inne:["Jaki jest najważniejszy wniosek?"],copy_tr:"Kopiuj transkrypcję",tr_copied:"Transkrypcja skopiowana",claude:"Podsumuj przez Claude",folder:"Otwórz folder",json:"Pobierz JSON",
+   thinking:"Myślę…",copy:"Kopiuj prompt",copy_hint:"Surowy prompt z całą osią czasu — do wklejenia w dowolny czat z AI",note:"Kopiuj notatkę",note_hint:"Całe streszczenie, kroki, oś czasu i transkrypcja jako czysty tekst — dla innego LLM, Notatnika albo opisu",note_dl:"Pobierz notatkę (.md)",note_copied:"Notatka skopiowana",sq_przepis:["Jakie składniki są potrzebne?","Przelicz składniki na 4 porcje","Jaki jest skład i ile to ma kalorii?"],sq_trening:["Jakie ćwiczenia, ile serii i powtórzeń?","Na co uważać przy technice?"],sq_sport:["Jak wykonać to krok po kroku?","Jakie błędy są najczęstsze?"],sq_poradnik:["Co jest potrzebne na start?","Który krok jest najtrudniejszy?"],sq_dokument:["Jakie są najważniejsze daty i liczby?","Kim są osoby w filmie?"],sq_wyklad:["Jakie są najważniejsze tezy?","Jakie liczby i nazwiska padają?"],sq_inne:["Jaki jest najważniejszy wniosek?"],copy_tr:"Kopiuj transkrypcję",tr_copied:"Transkrypcja skopiowana",claude:"Podsumuj przez Claude",folder:"Otwórz folder",json:"Pobierz JSON",
    copied:"Prompt skopiowany — wklej do czatu z AI",saved:"Zapisano",claude_wait:"Claude pisze streszczenie…",
    no_film:"Film niedostępny (plik przeniesiony albo usunięty) — czasy nadal działają w kadrach.",
    no_data:"Brak streszczenia — użyj „Kopiuj prompt” i wklej go do czatu z AI.",
    t_pobieranie_s:"pobieranie",t_ocr_s:"napisy (OCR)",t_transkrypcja_s:"mowa",t_kadry_s:"kadry",t_obraz_s:"opis obrazu",
    t_streszczenie_s:"streszczenie",seen:"obraz",heard:"mowa",nodata:"brak danych",runtime:"czas trwania",analysis:"analiza",
    typ_przepis:"przepis",typ_trening:"trening",typ_sport:"sport",typ_poradnik:"poradnik",typ_wyklad:"wykład",typ_dokument:"dokument",typ_inne:"inne",
+   trust_note:"Streszczenie pisze mały model na Twoim komputerze i może przekręcić szczegół. Fakty i cytaty w zakładkach niżej są dosłownie z nagrania.",setup_h:"Pierwsze uruchomienie — zostały 2–3 kliknięcia",setup_sub:"Vidsumly liczy wszystko na Twoim komputerze. Potrzebuje do tego darmowego programu Ollama i dwóch modeli (pobierane raz).",
+   setup_s1:"Program Ollama",setup_s1_missing:"Nie ma go na tym komputerze.",setup_s1_stopped:"Jest zainstalowany, ale nie działa.",setup_s1_ok:"Działa.",
+   setup_install:"Zainstaluj Ollamę",setup_install_hint:"Pobiorę oficjalny instalator z ollama.com i otworzę go. W jego oknie kliknij „Install”.",setup_start:"Uruchom Ollamę",
+   setup_s2:"Modele",setup_s2_need:n=>`Do pobrania: ${n}. To kilka GB — jednorazowo.`,setup_s2_ok:"Pobrane.",setup_pull:"Pobierz modele",
+   setup_s3:"Szybszy opis kadrów (opcjonalnie)",setup_s3_txt:"Ollama może liczyć 2 kadry naraz. Zapiszę to ustawienie i uruchomię ją ponownie.",setup_s3_ok:"Włączone: 2 zapytania naraz.",setup_par:"Włącz 2 zapytania naraz",
+   setup_recheck:"Sprawdź ponownie",setup_manual:"Gdyby przycisk nie zadziałał: pobierz Ollamę ze strony",setup_busy:"Poprzedni krok jeszcze trwa.",setup_nowin:"Instalacja jednym kliknięciem działa w Windows. Na tym systemie zainstaluj Ollamę ze strony",
    chip_ff:"Silnik wideo",chip_ol:"Ollama",chip_cl:"Claude Code",point:"punkt",seg:"rozdz.",ocr_show:"pokaż napisy z ekranu",
    open_browser:"Otwórz w przeglądarce",copy_sum:"Kopiuj",tr_sum:"Wersja angielska",tr_sum_q:"Przetłumacz streszczenie na angielski.",tr_back:"Wersja polska",
    res_lang:"Język wyniku",tr_all_wait:"Tłumaczę całą analizę na angielski (streszczenie, kroki, kadry, transkrypcja)…",
@@ -583,7 +593,7 @@ const I18N = {
    gpu_none:"no NVIDIA card — speech runs on the CPU (slower)",version:"version",tech_name:"Technical name",data_dir:"App data",upd_current:v=>`You have version ${v}`,
    hero1:"Drop a video —",hero2:"I'll tell you what it means for you.",
    hero_sub:"Recipe, workout, tutorial: speech, captions and picture turned into a concrete to-do list.",
-   drop:"Drop video files here",drop_sub:"or click to choose (MP4, MOV, MKV, WEBM) — several at once is fine",
+   drop:"Drop videos or recordings here",drop_sub:"or click to choose — video (MP4, MOV, MKV, WEBM) or audio (MP3, M4A, WAV); several at once is fine",
    links_ph:"…or paste YouTube / Instagram / TikTok link(s) or a path C:\\…\\video.mp4 (one per line)",
    analyze:"Analyze",settings:"Settings",s_lang:"Speech language",s_whisper:"Speech model (Whisper)",s_ocr:"On-screen text (OCR)",
    s_vis_on:"Image analysis",s_vision:"Vision model (Ollama)",s_summary:"Summary",s_frames:"Max frames",
@@ -595,7 +605,7 @@ const I18N = {
    part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
    quit:"Quit app",quit_q:"Quit Vidsumly? The running analysis is saved in the queue and starts again when you resume it.",quit_done:"Vidsumly stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
-   t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_sport:"Drills and technique",t_todo_poradnik:"Steps",t_todo_dokument:"Facts",t_todo_inne:"Takeaways",facts:"Facts, numbers, people, dates",ex_sport:"Drills and technique",fk_liczba:"number",fk_osoba:"person",fk_data:"date",fk_miejsce:"place",fk_fakt:"fact",
+   t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_sport:"Drills and technique",t_todo_poradnik:"Steps",t_todo_dokument:"Facts",t_todo_wyklad:"Facts and takeaways",t_todo_inne:"Takeaways",facts:"Facts, numbers, people, dates",ads:"Ads (left out of the facts)",shown:"Shown on screen (when the speech points at the picture)",shown_see:"on screen",shown_text:"on-screen text",zmowy_badge:"from speech — picture in progress",eta_left:x=>`· about ${x} left`,eta_soon:"· almost done",eta_hint:"A forecast from earlier analyses on this computer — not a promise.",mode_label:"Analysis mode",mode_full:"Full",mode_fast:"Speech + quick picture",mode_speech:"Speech only",mode_hint_pelna:"Describes selected frames, reads on-screen text from the whole video, and uses the speech. Most accurate — for recipes, workouts and short videos.",mode_hint_szybki:"The whole report from speech first, then only selected frames: the ones the speech points at (“look at this”) and chapter starts. For long videos where the speech carries the content.",mode_hint_mowa:"Report from speech only, no picture analysis. Fastest — for podcasts, lectures and slower computers.",mode_hw:w=>`${w} On this computer “Speech only” is recommended.`,qc:"Quality check",qc_ok:"no issues",qc_n:n=>n===1?"1 issue":`${n} issues`,qc_what:"The app checks its own result: does the layout fit the video type, do chapters cover the whole video, are the numbers in the speech or on-screen text, are there ads or foreign-language leftovers in the content, are the quotes really said, and did the translation keep the numbers.",ex_sport:"Drills and technique",fk_liczba:"number",fk_osoba:"person",fk_data:"date",fk_miejsce:"place",fk_fakt:"fact",
    t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
    map_hint:"Click a branch: details and jump in the video. Zoom: buttons or Ctrl + mouse wheel (wheel alone in full screen), drag to pan.",
    map_full:"Full screen",map_reset:"Fit",t_tr:"Transcript",t_fr:"Frames",t_desc:"Description",t_com:"Comments",desc_h:"Description from the author",desc_note:"The author's text from the site, not an analysis result.",au_ch:"Chapters from the author",model_ch:"Chapters from the analysis",of_film:p=>`${p}% of the video`,com_h:"Viewer comments",com_note:"Viewers' opinions from the site, not facts from the video.",com_get:"Load comments",com_wait:"Loading comments…",com_none:"The video has no comments, or the site did not provide them.",com_from:(n,d)=>`Top comments: ${n}, loaded ${d}`,com_reply:"reply",likes:"likes",open_src:s=>`Open the video on ${s}`,cinema:"Cinema mode",bars_show:"Show full frame",bars_hide:"Hide black bars",bars_hint:"Black bars burned into the picture were detected and are hidden. The video file is unchanged.",cinema_off:"Exit cinema mode",expand_all:"Expand all",collapse_all:"Collapse all",
@@ -605,13 +615,19 @@ const I18N = {
    mistakes:"Mistakes to avoid",takeaways:"Takeaways",honest:"Honest take",unknown:"Unknown",
    how:"How this was analyzed",took:"Analysis time",engines:"Engines",gaps:"Limits",parallel:"speech in parallel with vision",
    chat:"ask",chat_hint:"Ask anything about this video — I've read the transcript and frames.",ask_ph:"Ask about this video…",
-   thinking:"Thinking…",copy:"Copy prompt",copy_hint:"Raw prompt with the whole timeline — paste into any AI chat",note:"Copy note",note_hint:"The whole summary, steps, timeline and transcript as plain text — for another LLM, Notepad or a description",note_dl:"Download note (.md)",note_copied:"Note copied",sq_przepis:["What ingredients do I need?","Scale the ingredients to 4 servings","What is in it and how many calories?"],sq_trening:["Which exercises, how many sets and reps?","What to watch out for in the technique?"],sq_sport:["How do I do it step by step?","What are the most common mistakes?"],sq_poradnik:["What do I need to start?","Which step is the hardest?"],sq_dokument:["What are the key dates and numbers?","Who are the people in the video?"],sq_inne:["What is the main takeaway?"],copy_tr:"Copy transcript",tr_copied:"Transcript copied",claude:"Summarize with Claude",folder:"Open folder",json:"Download JSON",
+   thinking:"Thinking…",copy:"Copy prompt",copy_hint:"Raw prompt with the whole timeline — paste into any AI chat",note:"Copy note",note_hint:"The whole summary, steps, timeline and transcript as plain text — for another LLM, Notepad or a description",note_dl:"Download note (.md)",note_copied:"Note copied",sq_przepis:["What ingredients do I need?","Scale the ingredients to 4 servings","What is in it and how many calories?"],sq_trening:["Which exercises, how many sets and reps?","What to watch out for in the technique?"],sq_sport:["How do I do it step by step?","What are the most common mistakes?"],sq_poradnik:["What do I need to start?","Which step is the hardest?"],sq_dokument:["What are the key dates and numbers?","Who are the people in the video?"],sq_wyklad:["What are the main points?","Which numbers and names come up?"],sq_inne:["What is the main takeaway?"],copy_tr:"Copy transcript",tr_copied:"Transcript copied",claude:"Summarize with Claude",folder:"Open folder",json:"Download JSON",
    copied:"Prompt copied — paste into an AI chat",saved:"Saved",claude_wait:"Claude is writing the summary…",
    no_film:"Video unavailable (file moved or deleted) — timestamps still work in frames.",
    no_data:"No summary — use “Copy prompt” and paste it into an AI chat.",
    t_pobieranie_s:"download",t_ocr_s:"on-screen text",t_transkrypcja_s:"speech",t_kadry_s:"frames",t_obraz_s:"vision",
    t_streszczenie_s:"summary",seen:"vision",heard:"speech",nodata:"no data",runtime:"runtime",analysis:"analysis",
    typ_przepis:"recipe",typ_trening:"workout",typ_sport:"sport",typ_poradnik:"tutorial",typ_wyklad:"talk",typ_dokument:"documentary",typ_inne:"other",
+   trust_note:"The summary is written by a small model on your computer and may get a detail wrong. The facts and quotes in the tabs below are verbatim from the recording.",setup_h:"First run — 2–3 clicks left",setup_sub:"Vidsumly computes everything on your computer. For that it needs the free Ollama app and two models (downloaded once).",
+   setup_s1:"The Ollama app",setup_s1_missing:"It is not on this computer.",setup_s1_stopped:"It is installed but not running.",setup_s1_ok:"Running.",
+   setup_install:"Install Ollama",setup_install_hint:"I will download the official installer from ollama.com and open it. Click “Install” in its window.",setup_start:"Start Ollama",
+   setup_s2:"Models",setup_s2_need:n=>`To download: ${n}. A few GB — once.`,setup_s2_ok:"Downloaded.",setup_pull:"Download models",
+   setup_s3:"Faster frame notes (optional)",setup_s3_txt:"Ollama can process 2 frames at once. I will save this setting and restart it.",setup_s3_ok:"On: 2 requests at once.",setup_par:"Turn on 2 requests at once",
+   setup_recheck:"Check again",setup_manual:"If the button fails: download Ollama from",setup_busy:"The previous step is still running.",setup_nowin:"One-click install works on Windows. On this system install Ollama from",
    chip_ff:"Video engine",chip_ol:"Ollama",chip_cl:"Claude Code",point:"point",seg:"seg.",ocr_show:"show on-screen text",
    open_browser:"Open in browser",copy_sum:"Copy",tr_sum:"English version",tr_sum_q:"Translate the summary into English.",tr_back:"Polish version",
    res_lang:"Result language",tr_all_wait:"Translating the whole analysis into English (summary, steps, frames, transcript)…",
@@ -655,7 +671,7 @@ const api = (p, o = {}) => fetch(p, {...o, headers:{"X-Token":T, ...(o.headers||
 const ERR_EN = {"Najpierw sprawdź aktualizacje.":"Check for updates first.","Trwa analiza — zaktualizuj po jej zakończeniu.":"An analysis is running — update after it finishes.",
   "brak filmu":"no video","brak folderu":"no folder","brak tokenu":"missing token","brak wyników":"no results","brak":"none",
   "film przeniesiony lub usunięty":"the video was moved or deleted","komentarze są tylko dla filmów z linku":"comments are only available for videos from a link",
-  "nie znaleziono":"not found","nieznana akcja":"unknown action","obsługiwane języki: pl, en":"supported languages: pl, en","puste pytanie":"empty question",
+  "nie znaleziono":"not found","nieznana akcja":"unknown action","Poprzedni krok jeszcze trwa.":"The previous step is still running.","obsługiwane języki: pl, en":"supported languages: pl, en","puste pytanie":"empty question",
   "pusty link":"empty link","tego filmu nie ma w oczekujących":"this video is not waiting in the queue","nie można ponowić":"cannot retry",
   "Program się zamyka — nie przyjmuję nowych filmów.":"The app is closing — no new videos accepted.",
   "Plik źródłowy już nie istnieje — dodaj film jeszcze raz.":"The source file no longer exists — add the video again.",
@@ -701,7 +717,7 @@ document.querySelectorAll(".lang button").forEach(b => b.onclick = () => {
 let lastStatus = {};
 function updInfo(){ return lastStatus.wersja ? t("upd_current", esc(lastStatus.wersja)) + (lastStatus.klucz_github ? " · " + t("upd_key_have") : "") : ""; }
 async function loadStatus(){
-  try{ lastStatus = await api("/api/status"); renderChips(); }
+  try{ lastStatus = await api("/api/status"); renderChips(); if ($("#amode")) renderPv(); }
   catch(e){ $("#chips").innerHTML = `<span class="chip bad">${esc(e.message)}</span>`; }
 }
 function renderChips(){
@@ -845,10 +861,20 @@ function qThumb(j){
   const f = j.card?.miniatura;
   return f ? `<span class="qth" style="background-image:url('${fileUrl(j.id, f)}')"></span>` : `<span class="qth">${ic("film")}</span>`;
 }
+/* 0.12.0: przewidywany czas do końca (prognoza z historii analiz na tym komputerze — vidsum/eta.py) */
+function etaText(left){
+  if (left <= 0) return t("eta_soon");
+  return t("eta_left", left >= 90 ? `${Math.round(left / 60)} min` : `${Math.max(10, Math.round(left / 10) * 10)} s`);
+}
+function etaHtml(j){
+  if (j.status !== "trwa" || !j.eta_s || j.elapsed == null) return "";
+  const end = Date.now()/1000 - j.elapsed + j.eta_s;
+  return ` <span class="eta muted" data-end="${end}" title="${esc(t("eta_hint"))}">${etaText(end - Date.now()/1000)}</span>`;
+}
 function qRow(j, idx, n){
   const st = j.status, pend = st === "w_kolejce";
   const stage = j.etap_po ? t("q_translating") : st === "trwa" ? (j.stage ? `${t("stage_of", j.stage)} · ${t("stage_"+j.stage)}` : t("stage_0")) : "";
-  const timer = j.elapsed != null ? `<span class="timer" data-start="${st==="trwa" ? Date.now()/1000 - j.elapsed : ""}">${fmt(j.elapsed)}</span>` : "";
+  const timer = (j.elapsed != null ? `<span class="timer" data-start="${st==="trwa" ? Date.now()/1000 - j.elapsed : ""}">${fmt(j.elapsed)}</span>` : "") + etaHtml(j);
   const acts = [];
   if (pend) {
     if (idx > 0) acts.push(`<button class="iconbtn" data-q="przesun" data-id="${j.id}" data-pos="${idx-1}" title="${esc(t("q_up"))}" aria-label="${esc(t("q_up"))}">${ic("up")}</button>`);
@@ -955,11 +981,15 @@ function card(j){
 function renderHome(){
   if (!$("#drop")) {
     $("#app").innerHTML = `<section class="hero"><h1>${t("hero1")} ${t("hero2")}</h1><p>${t("hero_sub")}</p></section>
+      <div id="setup"></div>
       <section class="panel start">
         <div id="drop" tabindex="0" role="button"><svg class="ic big" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
-          <input type="file" id="pick" accept="video/*,.mp4,.mov,.mkv,.webm" multiple hidden></div>
+          <input type="file" id="pick" accept="video/*,audio/*,.mp4,.mov,.mkv,.webm,.mp3,.m4a,.wav,.ogg,.opus,.flac,.aac" multiple hidden></div>
         <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}" aria-label="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
-        <div class="pvrow"><span class="seg small" id="pvmode" role="group" aria-label="${esc(t("s_preview"))}">
+        <div class="pvrow"><span class="seg small" id="amode" role="group" aria-label="${esc(t("mode_label"))}">
+          <button data-mode="pelna">${t("mode_full")}</button><button data-mode="szybki">${t("mode_fast")}</button><button data-mode="mowa">${t("mode_speech")}</button></span>
+          <span class="muted pvhint" id="amodehint"></span></div>
+        <div class="pvrow" id="pvrow"><span class="seg small" id="pvmode" role="group" aria-label="${esc(t("s_preview"))}">
           <button data-pv="najszybciej">${t("pv_fast")}</button><button data-pv="zawsze">${t("pv_always")}</button></span>
           <span class="muted pvhint" id="pvhint"></span></div>
         <div class="startfoot"><span class="muted">${t("start_hint")}</span><a href="#/ustawienia">${t("start_settings")}</a></div>
@@ -968,12 +998,60 @@ function renderHome(){
     bindHome();
   }
   renderQueue();
+  loadSetup();
+}
+/* 0.12.0: pierwsze uruchomienie bez PowerShella — Ollama i modele przyciskami (vidsum/ollama_setup.py) */
+let setupState = null, setupTimer = null, setupHidden = false;
+async function loadSetup(){
+  if (!$("#setup") || setupHidden) return;
+  try { setupState = await api("/api/ollama"); } catch { return; }
+  renderSetup();
+  clearTimeout(setupTimer);
+  if (setupState.zadanie?.trwa) setupTimer = setTimeout(loadSetup, 1500);
+}
+function renderSetup(){
+  const el = $("#setup"), s = setupState; if (!el || !s) return;
+  const z = s.zadanie || {}, busy = !!z.trwa;
+  const parDone = s.rownolegle >= 2;
+  if (s.krok === "gotowe" && !busy && !z.blad && (parDone || !s.windows || setupHidden)) { el.innerHTML = ""; if (lastStatus && !lastStatus.ollama) loadStatus(); return; }
+  if (s.krok === "gotowe" && !busy && !z.blad && !el.innerHTML) return;      /* wszystko jest — nie pokazujemy karty tylko dla opcji */
+  const btn = (act, label, primary) => `<button class="btn ${primary ? "primary" : ""}" data-setup="${act}" ${busy ? "disabled" : ""}>${esc(label)}</button>`;
+  const missing = s.modele.filter(m => !m.pobrany).map(m => m.nazwa);
+  const s1 = s.dziala ? `<li class="done"><b>${t("setup_s1")}</b> — ${t("setup_s1_ok")}</li>`
+    : `<li><b>${t("setup_s1")}</b> — ${t(s.zainstalowana ? "setup_s1_stopped" : "setup_s1_missing")}
+        <div class="act">${s.zainstalowana ? btn("uruchom", t("setup_start"), true) : (s.windows ? btn("zainstaluj", t("setup_install"), true) : "")}
+        <span class="muted">${s.zainstalowana ? "" : (s.windows ? t("setup_install_hint") : `${t("setup_nowin")} <a href="${s.strona}" target="_blank" rel="noopener">ollama.com/download</a>.`)}</span></div></li>`;
+  const s2 = !missing.length && s.dziala ? `<li class="done"><b>${t("setup_s2")}</b> — ${t("setup_s2_ok")}</li>`
+    : `<li><b>${t("setup_s2")}</b> — ${s.dziala ? t("setup_s2_need", missing.map(esc).join(", ")) : s.modele.map(m => esc(m.nazwa)).join(", ")}
+        ${s.dziala ? `<div class="act">${btn("modele", t("setup_pull"), true)}</div>` : ""}</li>`;
+  const s3 = !s.windows ? "" : parDone ? `<li class="done"><b>${t("setup_s3")}</b> — ${t("setup_s3_ok")}</li>`
+    : `<li><b>${t("setup_s3")}</b> — ${t("setup_s3_txt")}${s.dziala ? `<div class="act">${btn("rownolegle", t("setup_par"), false)}</div>` : ""}</li>`;
+  const prog = busy || z.etap ? `<div><span class="${busy ? "" : "muted"}">${esc(z.etap || "")}</span>${busy && z.procent != null ? `<div class="bar"><i style="width:${z.procent}%"></i></div>` : ""}</div>` : "";
+  const err = z.blad ? `<div class="err" role="alert">${esc(z.blad)}</div>` : "";
+  el.innerHTML = `<section class="panel setup" aria-live="polite"><h2>${t("setup_h")}</h2><span class="muted">${t("setup_sub")}</span>
+    <ol>${s1}${s2}${s3}</ol>${prog}${err}
+    <div class="act"><button class="linkbtn" data-setup="sprawdz">${t("setup_recheck")}</button>
+    <span class="muted">${t("setup_manual")} <a href="${s.strona}" target="_blank" rel="noopener">ollama.com/download</a></span></div></section>`;
+  el.querySelectorAll("[data-setup]").forEach(b => b.onclick = async () => {
+    if (b.dataset.setup === "sprawdz") { loadSetup(); loadStatus(); return; }
+    try { setupState = await api("/api/ollama", {method:"POST", body: JSON.stringify({akcja: b.dataset.setup})}); }
+    catch(e){ setupState = {...setupState, zadanie: {...(setupState.zadanie||{}), blad: e.message}}; }
+    renderSetup(); clearTimeout(setupTimer); setupTimer = setTimeout(loadSetup, 1200);
+  });
 }
 function pvMode(){ return settings?.tryb_podgladu === "zawsze" ? "zawsze" : "najszybciej"; }
+/* 0.12.0: tryb analizy — pełna / mowa + szybki obraz / tylko mowa (zapamiętywany; propozycja zależy od karty) */
+function aMode(){ return ["pelna","szybki","mowa"].includes(settings?.tryb) ? settings.tryb : "pelna"; }
 function renderPv(){
-  const m = pvMode();
+  const m = pvMode(), a = aMode();
   document.querySelectorAll("#pvmode button").forEach(b => b.classList.toggle("on", b.dataset.pv === m));
   if ($("#pvhint")) $("#pvhint").textContent = t(m === "zawsze" ? "pv_hint_always" : "pv_hint_fast");
+  document.querySelectorAll("#amode button").forEach(b => b.classList.toggle("on", b.dataset.mode === a));
+  if ($("#amodehint")) {
+    const hw = lastStatus.tryb_proponowany === "mowa" && a !== "mowa" ? " " + t("mode_hw", lastStatus.tryb_powod || "") : "";
+    $("#amodehint").textContent = t("mode_hint_" + a) + hw;
+  }
+  if ($("#pvrow")) $("#pvrow").hidden = a !== "pelna";      // wstępne streszczenie ma znaczenie tylko w pełnej analizie
 }
 function bindHome(){
   const drop = $("#drop");
@@ -981,6 +1059,9 @@ function bindHome(){
   $("#pvmode").onclick = e => { const b = e.target.closest("button"); if (!b) return;
     settings = {...(settings || {}), tryb_podgladu: b.dataset.pv}; renderPv();
     api("/api/ustawienia", {method:"POST", body:JSON.stringify({tryb_podgladu: b.dataset.pv})}).catch(() => {}); };
+  $("#amode").onclick = e => { const b = e.target.closest("button"); if (!b) return;
+    settings = {...(settings || {}), tryb: b.dataset.mode}; renderPv();
+    api("/api/ustawienia", {method:"POST", body:JSON.stringify({tryb: b.dataset.mode})}).catch(() => {}); };
   drop.onclick = () => $("#pick").click();
   drop.onkeydown = e => { if (e.key==="Enter"||e.key===" ") $("#pick").click(); };
   $("#pick").onchange = e => { [...e.target.files].forEach(upload); e.target.value = ""; };
@@ -991,7 +1072,7 @@ function bindHome(){
     const lines = $("#links").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
     const busy = jobs.some(j => j.status === "trwa" || j.status === "w_kolejce");
     let first = null;
-    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, tryb_podgladu: pvMode()})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
+    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, tryb_podgladu: pvMode(), tryb: aMode()})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
     $("#links").value = "";
     // pusta kolejka → od razu wynik na żywo; coś już trwa → film czeka w kolejce, zostajesz tutaj
     if (first && !busy && lines.length === 1) { try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + first.id; }
@@ -1004,7 +1085,7 @@ async function waitAndReload(){          // po aktualizacji: czekaj, aż nowa we
 function upload(file){
   const key = Math.random().toString(36).slice(2); uploads[key] = {name:file.name, pct:0}; renderHome();
   const x = new XMLHttpRequest(); x.open("POST", "/api/wyslij");
-  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name)); x.setRequestHeader("X-Preview", pvMode());
+  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name)); x.setRequestHeader("X-Preview", pvMode()); x.setRequestHeader("X-Mode", aMode());
   x.upload.onprogress = e => { if (e.lengthComputable){ uploads[key].pct = Math.round(100*e.loaded/e.total); renderHome(); } };
   x.onloadend = async () => {
     delete uploads[key];
@@ -1081,6 +1162,8 @@ function liveR(j, p){                    // te same pola co analiza.json, z tego
       co_masz_zrobic:dane ? dane.co_masz_zrobic : {skladniki:[], kroki:[], sprzet:[], czas:"", cwiczenia:[], wskazowki:[], bledy:[], wnioski:[]},
       szczera_ocena:"", czego_nie_wiadomo:[], pytania:[], momenty:[], cytaty:[], rozdzialy:[]};
   }
+  if (p.streszczenie_mowa)                // tryb „mowa + szybki obraz”: cały raport z mowy już jest, obraz dojdzie
+    dane = {...p.streszczenie_mowa, partial:true, zmowy:true};
   return {live:true, zrodlo:{tytul:m.tytul || j?.label || "…", autor:m.autor, dlugosc_s:m.dlugosc_s || 0, szerokosc:m.szerokosc, wysokosc:m.wysokosc},
     transkrypcja:{jezyk:tr.jezyk, segmenty:tr.segmenty || [], tlumaczenia:tls}, napisy_ekranowe:p.napisy || [],
     kadry:kadry.map(x => ({t:x.t, file:x.file})),
@@ -1125,7 +1208,7 @@ async function switchLang(l){
 function tabsFor(d){
   const tl = [];
   if (d) {
-    const c = d.co_masz_zrobic, has = c && (c.skladniki.length||c.kroki.length||c.cwiczenia.length||c.wnioski.length||c.wskazowki.length||(c.fakty||[]).length);
+    const c = d.co_masz_zrobic, has = c && (c.skladniki.length||c.kroki.length||c.cwiczenia.length||c.wnioski.length||c.wskazowki.length||(c.fakty||[]).length||(d.pokazane||[]).length||(d.reklamy||[]).length);
     if (has) tl.push(["todo", t("t_todo_"+(TODO_TYPES.includes(d.typ) ? d.typ : "inne"))]);
     if (d.najwazniejsze.length) tl.push(["key", t("t_key")]);
     if (d.momenty.length) tl.push(["mom", t("t_mom")]);
@@ -1133,7 +1216,8 @@ function tabsFor(d){
     if (d.rozdzialy.length) tl.push(["cha", t("t_cha")]);
     if (!d.wstepne && (d.rozdzialy.length || d.najwazniejsze.length)) tl.push(["map", t("t_map")]);
   }
-  tl.push(["tr", t("t_tr")], ["fr", t("t_fr")]);
+  tl.push(["tr", t("t_tr")]);
+  if (cur?.r?.zrodlo?.wideo !== false) tl.push(["fr", t("t_fr")]);
   const z = cur.r?.zrodlo || {};
   if (z.opis) tl.push(["desc", t("t_desc")]);
   if (z.rodzaj === "link" && !cur.live) tl.push(["com", t("t_com")]);
@@ -1175,7 +1259,7 @@ function comHtml(){
     `<div class="com${x.odpowiedz ? " reply" : ""}"><div class="ctop"><b>${esc(x.autor || "—")}</b><span class="muted">${x.polubienia} ${t("likes")}${x.odpowiedz ? " · " + t("com_reply") : ""}</span></div><p>${esc(x.tekst)}</p></div>`).join("")}</div>`;
 }
 const tabIco = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${TAB_ICO[k] || ""}</svg>`;
-const TODO_TYPES = ["przepis","trening","sport","poradnik","dokument"];
+const TODO_TYPES = ["przepis","trening","sport","poradnik","wyklad","dokument"];
 /* propozycje pytań (0.11.5): pytania od modelu + 2 typowe dla rodzaju filmu (składniki, porcje, skład, ćwiczenia, daty) */
 function suggQ(d){
   if (!d) return [];
@@ -1190,10 +1274,12 @@ function renderTab(d){
     if (c.skladniki.length) h += `<div class="sub">${t("ingredients")}</div><ul class="ingr">${c.skladniki.map(x => `<li><b>${esc(x.nazwa)}${src(x.zrodlo)}</b><span>${esc(x.ilosc)}</span></li>`).join("")}</ul>`;
     if (c.kroki.length) h += `<div class="sub">${t("steps")}</div><div class="items">${c.kroki.map((x,i) => `<div class="it" data-t="${x.t}"><span class="n">${i+1}</span><div><label class="chk"><input type="checkbox"><p>${tsb(x.t)} ${esc(x.tekst)}${src(x.zrodlo)}</p></label></div></div>`).join("")}</div>`;
     if ((c.fakty||[]).length) h += `<div class="sub">${t("facts")}</div><div class="items">${c.fakty.map(x => `<div class="it simple" data-t="${x.t}"><div><div class="top">${tsb(x.t)}<span class="tag">${esc(t("fk_"+x.rodzaj))}</span></div><p>${esc(x.tekst)}${src(x.zrodlo)}</p></div></div>`).join("")}</div>`;
+    if ((d.pokazane||[]).length) h += `<div class="sub">${t("shown")}</div><div class="items">${d.pokazane.map(x => `<div class="it simple" data-t="${x.t}"><div><div class="top">${tsb(x.t)}<span class="tag">${esc(x.zwrot || "")}</span></div><p>„${esc(x.mowa_pl || x.mowa)}”</p>${x.obraz ? `<p class="muted">${t("shown_see")}: ${esc(x.obraz)}${src("obraz")}</p>` : ""}${(x.napisy||[]).length ? `<p class="muted">${t("shown_text")}: ${x.napisy.map(n => "„" + esc(n) + "”").join(" · ")}</p>` : ""}</div></div>`).join("")}</div>`;
     if (c.cwiczenia.length) h += `<div class="sub">${t(d.typ === "sport" ? "ex_sport" : "exercises")}</div><div class="items">${c.cwiczenia.map((x,i) => `<div class="it" data-t="${x.t}"><span class="n">${i+1}</span><div><div class="top">${tsb(x.t)}<span class="tag">${esc([x.serie,x.powtorzenia].filter(Boolean).join(" × ") || "—")}</span></div><h4>${esc(x.nazwa)}${src(x.zrodlo)}</h4>${x.technika ? `<p>${esc(x.technika)}</p>` : ""}</div></div>`).join("")}</div>`;
     for (const [k, lab] of [["sprzet","equipment"],["wskazowki","tips"],["bledy","mistakes"],["wnioski","takeaways"]])
       if (c[k].length) h += `<div class="sub">${t(lab)}</div><ul>${c[k].map(x => `<li>${inline(x)}</li>`).join("")}</ul>`;
     if (c.czas) h += `<div class="sub">${t("time")}</div><p>${inline(c.czas)}</p>`;
+    if ((d.reklamy||[]).length) h += `<div class="sub">${t("ads")}</div><ul>${d.reklamy.map(x => `<li data-t="${x.start}">${tsb(x.start)}–${fmt(x.end)}${x.marka ? " " + esc(x.marka) : ""}</li>`).join("")}</ul>`;
     return h;
   }
   if (tab === "key") return `<div class="kh"><h3 class="big">${t("things", d.najwazniejsze.length)}</h3><button class="linkbtn" data-a="keyall">${t(cur.keyOpen ? "collapse_all" : "expand_all")}</button></div><div class="items">${d.najwazniejsze.map((x,i) =>
@@ -1250,7 +1336,7 @@ function liveBar(j){
   }).join(`<span class="lsep"></span>`);
   const last = (j.log || []).filter(x => x.trim()).slice(-1)[0] || "";
   return `<div class="livebar"><div class="lsteps">${steps}</div>
-    <div class="lnow"><span class="timer" data-start="${j.elapsed != null ? Date.now()/1000 - j.elapsed : ""}">⏱ ${fmt(j.elapsed || 0)}</span>
+    <div class="lnow"><span class="timer" data-start="${j.elapsed != null ? Date.now()/1000 - j.elapsed : ""}">⏱ ${fmt(j.elapsed || 0)}</span>${etaHtml(j)}
     <span class="muted">${esc(last.trim().slice(0, 140))}</span></div></div>`;
 }
 function headHtml(r, d){
@@ -1284,6 +1370,7 @@ function readTime(d){
 }
 function sumHtml(r, d){
   const pvTag = d?.wstepne ? `<span class="pvtag">${t("pv_badge")}</span>`
+    : d?.zmowy ? `<span class="pvtag">${t("zmowy_badge")}</span>`
     : (r.podglad?.po_s && r.czasy?.razem_s ? `<span class="pvtag done">${t("pv_done", fmt(r.podglad.po_s), fmt(r.czasy.razem_s))}</span>` : "");
   const top = `<div class="hand">~ ${t("summary")} ~</div><div class="label">${t("summary")} ${d && d.streszczenie.length ? readTime(d) : ""}${pvTag}</div><hr class="rule">`;
   if (!d || !d.streszczenie.length) {
@@ -1296,15 +1383,27 @@ function sumHtml(r, d){
   return top + `<div class="summary">${d.streszczenie.map(p => `<p>${inline(p)}</p>`).join("")}</div>
     ${cur.live ? "" : `<div class="sumact"><button class="btn" data-a="copysum">⧉ ${t("copy_sum")}</button><button class="btn" data-a="trsum">文A ${cur.lang ? t("tr_back") : t("tr_sum")}</button></div>`}
     ${d.do_zapamietania ? `<blockquote class="pull"><div class="label" style="margin-bottom:4px">${t("remember")}</div>${esc(d.do_zapamietania)}</blockquote>` : ""}
+    ${d.metoda === "części filmu z linii mowy" && (d.co_masz_zrobic?.fakty||[]).length ? `<p class="muted small trust">${t("trust_note")}</p>` : ""}
     ${d.szczera_ocena ? `<div class="note"><h4>${t("honest")}</h4>${inline(d.szczera_ocena)} ${src("szacunek")}</div>` : ""}
     ${d.czego_nie_wiadomo.length ? `<div class="note"><h4>${t("unknown")}</h4><ul>${d.czego_nie_wiadomo.map(x => `<li>${inline(x)}</li>`).join("")}</ul></div>` : ""}
+    ${qcHtml(r.kontrola)}
     <details class="note"><summary>${t("how")}</summary>${timingHtml(r.czasy)}
       <p style="font-size:13px" class="muted">${t("engines")}: ${esc(r.ustawienia.whisper)} · ${esc(r.ustawienia.obraz)} · ${esc(r.ustawienia.streszczenie)}${d.metoda ? " · " + esc(d.metoda) : ""}</p>
       ${resHtml(r.zasoby)}
       ${r.luki.length ? `<p style="font-size:13px"><b>${t("gaps")}:</b><br>${r.luki.map(esc).join("<br>")}</p>` : ""}</details>`;
 }
+/* 0.12.0: program sam sprawdza swój wynik (vidsum/quality.py) — pokazujemy to wprost, razem z tym, co znalazł */
+function qcHtml(k){
+  if (!k) return "";
+  const n = (k.uwagi || []).length;
+  return `<details class="note qc"><summary>${t("qc")}: <b>${k.wynik}/100</b> — ${n ? t("qc_n", n) : t("qc_ok")}</summary>
+    <p style="font-size:13px" class="muted">${t("qc_what")}</p>
+    ${n ? `<ul>${k.uwagi.map(i => `<li>${i.poziom === "blad" ? "❌" : "⚠"} ${esc(i.opis)}</li>`).join("")}</ul>` : ""}</details>`;
+}
 function playerHtml(r){
   const z = r.zrodlo, ar = z.szerokosc && z.wysokosc ? `aspect-ratio:${z.szerokosc}/${z.wysokosc};` : "";
+  /* 0.12.0: plik dźwiękowy (mp3, m4a, wav…) — bez obrazu: sam pasek odtwarzania; reszta (przeskoki do chwili) działa tak samo */
+  if (z.wideo === false && !cur.live) return `<div class="player audio"><video id="vid" src="/api/zadania/${cur.id}/film?t=${T}" controls preload="metadata" playsinline></video></div>`;
   const poster = r.kadry?.[0]?.file ? fileUrl(cur.id, r.kadry[0].file) : "";
   if (cur.live) return `<div class="player"><div class="nofilm" style="${ar}background-image:url('${poster}')"><span class="ph">${t("live_video")}</span></div></div>`;
   // stała wysokość od początku (proporcje z analizy): wczytanie filmu nie przesuwa tego, co czytasz niżej
@@ -1628,7 +1727,8 @@ async function poll(){
   if (h.startsWith("#/wynik/") && cur && cur.live) return refreshLive();
   if (h === "#/" || h === "") renderHome(); else if (h.startsWith("#/biblioteka") && !document.activeElement?.matches("#libq")) renderLib();
 }
-setInterval(() => document.querySelectorAll(".timer[data-start]").forEach(el => { if (el.dataset.start) el.textContent = "⏱ " + fmt(Date.now()/1000 - Number(el.dataset.start)); }), 1000);
+setInterval(() => { document.querySelectorAll(".timer[data-start]").forEach(el => { if (el.dataset.start) el.textContent = "⏱ " + fmt(Date.now()/1000 - Number(el.dataset.start)); });
+  document.querySelectorAll(".eta[data-end]").forEach(el => { el.textContent = etaText(Number(el.dataset.end) - Date.now()/1000); }); }, 1000);
 (async () => {
   try { mode = localStorage.getItem("vs_mode") || "video"; } catch {}
   try { settings = await api("/api/ustawienia"); L = settings.jezyk_ui || "pl"; } catch {}

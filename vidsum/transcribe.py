@@ -193,6 +193,38 @@ def split_sentences(words: list[tuple[float, float, str]], max_len: float = 12.0
     return out
 
 
+def split_long_segments(segments: list, max_s: float = 8.0, min_words: int = 3) -> list:
+    """Długie zdanie z przecinkami (≥ max_s) → kawałki po przecinkach; czas dzielony według długości tekstu.
+
+    Pomiar 0.11.9 (tortilla, PL): Whisper oddał 12 s wyliczanki jednym zdaniem („wbijesz 3 jajka, dodasz sól, pieprz,
+    wymieszasz, wrzucisz na patelnię…”) — kroki nie miały czego się trzymać i powstały z napisów na ekranie.
+    Jednowyrazowy kawałek dołącza do poprzedniego („pieprz,” → „dodasz sól, pieprz,”), krótki wstęp do następnego."""
+    out = []
+    for seg in segments:
+        text = (seg.text or "").strip()
+        dur = seg.end - seg.start
+        parts = [p for p in re.split(r"(?<=,)\s+", text) if p]
+        if dur < max_s or len(parts) < 2:
+            out.append(seg)
+            continue
+        merged: list[str] = []
+        for p in parts:
+            if merged and (len(p.split()) < 2 or (len(merged) == 1 and len(merged[0].split()) < min_words)):
+                merged[-1] = merged[-1] + " " + p          # „pieprz,” do poprzedniego; krótki wstęp „Czy wiesz,” do następnego
+            else:
+                merged.append(p)
+        if len(merged) < 2:
+            out.append(seg)
+            continue
+        total = sum(len(p) for p in merged)
+        t = seg.start
+        for p in merged:
+            d = dur * len(p) / total
+            out.append(Segment(round(t, 2), round(t + d, 2), p))
+            t += d
+    return out
+
+
 def _missing_cuda_libs() -> list[str]:
     import ctypes
     import os

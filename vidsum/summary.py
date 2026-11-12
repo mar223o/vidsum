@@ -106,6 +106,21 @@ def _lst(x) -> list:
     return x if isinstance(x, list) else []
 
 
+TYPE_LABEL = {"wyklad": "wykład / rozmowa", "dokument": "dokument", "inne": "inne", "przepis": "przepis", "trening": "trening",
+              "sport": "sport", "poradnik": "poradnik"}       # nazwa typu dla człowieka (w danych zostaje kod bez ogonków)
+
+# które pola „Co masz zrobić” mają sens przy danym typie filmu
+_FIELDS_BY_TYPE = {
+    "przepis": {"skladniki", "kroki", "sprzet", "czas", "wskazowki", "bledy", "wnioski"},
+    "poradnik": {"kroki", "sprzet", "czas", "wskazowki", "bledy", "wnioski"},
+    "trening": {"cwiczenia", "sprzet", "czas", "wskazowki", "bledy", "wnioski"},
+    "sport": {"cwiczenia", "sprzet", "wskazowki", "bledy", "wnioski"},
+    "wyklad": {"wskazowki", "wnioski", "fakty"},
+    "dokument": {"wnioski", "fakty"},
+    "inne": {"wskazowki", "wnioski", "fakty"},
+}
+
+
 def parse_summary(text: str, duration: float, allow_partial: bool = False) -> dict | None:
     """Wyciąga i normalizuje JSON streszczenia z odpowiedzi modelu. None, gdy to nie JSON."""
     t = text.strip()
@@ -134,14 +149,14 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
         "streszczenie": [_str(p) for p in _lst(d.get("streszczenie")) if _str(p)] or
                         ([_str(d.get("streszczenie"))] if isinstance(d.get("streszczenie"), str) else []),
         "co_masz_zrobic": {
-            "skladniki": [{"nazwa": _str(x.get("nazwa")), "ilosc": _str(x.get("ilosc")) or "brak danych",
+            "skladniki": [{"nazwa": _str(x.get("nazwa")), "ilosc": _str(x.get("ilosc") or x.get("ilość")) or "brak danych",
                            "zrodlo": _zr(x.get("zrodlo"))} for x in _lst(cmz.get("skladniki")) if isinstance(x, dict)],
             "kroki": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")), "zrodlo": _zr(x.get("zrodlo"))}
                       for x in _lst(cmz.get("kroki")) if isinstance(x, dict) and _str(x.get("tekst"))],
             "sprzet": [_str(x) for x in _lst(cmz.get("sprzet")) if _str(x)],
             "czas": _str(cmz.get("czas")),
             "cwiczenia": [{"nazwa": _str(x.get("nazwa")), "serie": _str(x.get("serie")),
-                           "powtorzenia": _str(x.get("powtorzenia")), "t": clamp(x.get("t")),
+                           "powtorzenia": _str(x.get("powtorzenia") or x.get("powtórzenia")), "t": clamp(x.get("t")),
                            "technika": _str(x.get("technika")), "zrodlo": _zr(x.get("zrodlo"))}
                           for x in _lst(cmz.get("cwiczenia")) if isinstance(x, dict) and _str(x.get("nazwa"))],
             "wskazowki": [_str(x) for x in _lst(cmz.get("wskazowki")) if _str(x)],
@@ -149,15 +164,17 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
             "wnioski": [_str(x) for x in _lst(cmz.get("wnioski")) if _str(x)],
             "fakty": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")),
                        "rodzaj": _str(x.get("rodzaj")).lower() if _str(x.get("rodzaj")).lower() in _FACT_KINDS else "fakt",
-                       "zrodlo": _zr(x.get("zrodlo"))}
+                       "zrodlo": _zr(x.get("zrodlo")), **({"oryginal": _str(x["oryginal"]), "czasy": _lst(x.get("czasy"))}
+                                                          if _str(x.get("oryginal")) else {})}
                       for x in _lst(cmz.get("fakty")) if isinstance(x, dict) and _str(x.get("tekst"))],
         },
         "najwazniejsze": [{"t": clamp(x.get("t")), "tytul": _str(x.get("tytul")), "opis": _str(x.get("opis")),
-                           "zrodlo": _zr(x.get("zrodlo"))}
+                           "zrodlo": _zr(x.get("zrodlo")), **({"czasy": _lst(x.get("czasy"))} if x.get("czasy") else {})}
                           for x in _lst(d.get("najwazniejsze")) if isinstance(x, dict) and _str(x.get("tytul"))],
         "momenty": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst"))}
                     for x in _lst(d.get("momenty")) if isinstance(x, dict) and _str(x.get("tekst"))],
-        "cytaty": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")), "tlumaczenie": _str(x.get("tlumaczenie"))}
+        "cytaty": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")), "tlumaczenie": _str(x.get("tlumaczenie")),
+                    **({"czasy": _lst(x.get("czasy"))} if x.get("czasy") else {})}
                    for x in _lst(d.get("cytaty")) if isinstance(x, dict) and _str(x.get("tekst"))],
         "rozdzialy": [{"start": clamp(x.get("start")), "end": clamp(x.get("end") if x.get("end") is not None else duration),
                        "tytul": _str(x.get("tytul")), "opis": _str(x.get("opis")),
@@ -170,15 +187,18 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
         "pytania": [_str(x) for x in _lst(d.get("pytania")) if _str(x)][:6],
     }
     # tylko pola pasujące do typu (pomiar na komputerze testowym: gemma wpisała „ćwiczenia” do przepisu na frytki)
+    # 0.11.10: szablon tylko tam, gdzie pasuje (pomiar 0.11.9: reel o ubraniach („inne”) z „Ćwiczeniem: Pokey man”
+    # i ubraniami jako „Sprzęt”; dokument z 91 „krokami” i „tacą, proszkiem do pieczenia” w sprzęcie)
     c = out["co_masz_zrobic"]
-    if out["typ"] == "przepis":
-        c["cwiczenia"] = []
-    elif out["typ"] in ("trening", "sport"):
-        c["skladniki"] = []
-    elif out["typ"] == "dokument":
-        c["skladniki"], c["cwiczenia"] = [], []
-    if out["typ"] != "dokument":
-        c["fakty"] = []
+    keep = _FIELDS_BY_TYPE.get(out["typ"], _FIELDS_BY_TYPE["inne"])
+    for k in ("skladniki", "kroki", "sprzet", "cwiczenia", "wskazowki", "bledy", "wnioski", "fakty"):
+        if k not in keep:
+            c[k] = []
+    if "czas" not in keep:
+        c["czas"] = ""
+    out["reklamy"] = [{"start": clamp(x.get("start")), "end": clamp(x.get("end")), "marka": _str(x.get("marka"))}
+                      for x in _lst(d.get("reklamy")) if isinstance(x, dict)]
+    out["pokazane"] = [x for x in _lst(d.get("pokazane")) if isinstance(x, dict)]
     c["fakty"].sort(key=lambda x: x["t"])
     for k in ("najwazniejsze", "momenty", "cytaty"):
         out[k].sort(key=lambda x: x["t"])
@@ -198,7 +218,7 @@ def _src(z: str) -> str:
 
 def to_markdown(s: dict) -> str:
     """Markdown do raportu — z tych samych danych co widok."""
-    L = ["## W skrócie", f"**Typ:** {s['typ']}." + (f" {s['teza']}" if s.get("teza") else ""), ""]
+    L = ["## W skrócie", f"**Typ:** {TYPE_LABEL.get(s['typ'], s['typ'])}." + (f" {s['teza']}" if s.get("teza") else ""), ""]
     if s.get("czas_czytania_s"):
         c = int(s["czas_czytania_s"])
         L += [f"_Czas czytania streszczenia: ≈ {c // 60} min {c % 60:02d} s_" if c >= 60 else f"_Czas czytania: ≈ {c} s_", ""]
@@ -217,8 +237,9 @@ def to_markdown(s: dict) -> str:
                                                       for x in c["fakty"]] + [""]
         if c["cwiczenia"]:
             L += ["### Ćwiczenia i elementy techniki" if s["typ"] == "sport" else "### Ćwiczenia"] + [
-                f"- `{ts(x['t'])}` **{x['nazwa']}** — {x['serie'] or '?'} × {x['powtorzenia'] or '?'}"
-                f"{(' — ' + x['technika']) if x['technika'] else ''}{_src(x['zrodlo'])}" for x in c["cwiczenia"]] + [""]
+                f"- `{ts(x['t'])}` **{x['nazwa']}**"
+                + (f" — {x['serie'] or '?'} × {x['powtorzenia'] or '?'}" if x["serie"] or x["powtorzenia"] else "")
+                + f"{(' — ' + x['technika']) if x['technika'] else ''}{_src(x['zrodlo'])}" for x in c["cwiczenia"]] + [""]
         for k, lab in (("sprzet", "Sprzęt"), ("wskazowki", "Wskazówki"), ("bledy", "Błędy, których unikać"),
                        ("wnioski", "Wnioski")):
             if c[k]:
@@ -234,6 +255,16 @@ def to_markdown(s: dict) -> str:
         L += ["## Momenty"] + [f"- `{ts(x['t'])}` {x['tekst']}" for x in s["momenty"]] + [""]
     L += ["## Cytaty"] + ([f"- `{ts(x['t'])}` „{x['tekst']}”" + (f" ({x['tlumaczenie']})" if x["tlumaczenie"] else "")
                            for x in s["cytaty"]] or ["brak danych"]) + [""]
+    if s.get("pokazane"):
+        L += ["## Pokazane na ekranie (gdy mowa wskazuje na obraz)"]
+        for x in s["pokazane"]:
+            said = x.get("mowa_pl") or x.get("mowa") or ""
+            L.append(f"- `{ts(x['t'])}` „{said}”" + (f" → widać: {x['obraz']}" if x.get("obraz") else "")
+                     + (" · napisy: " + " | ".join(f"„{n}”" for n in x["napisy"]) if x.get("napisy") else "") + " [obraz]")
+        L.append("")
+    if s.get("reklamy"):
+        L += ["## Reklamy (pominięte w faktach)"] + [f"- `{ts(x['start'])}–{ts(x['end'])}`" + (f" {x['marka']}" if x["marka"] else "")
+                                                    for x in s["reklamy"]] + [""]
     if s["szczera_ocena"]:
         L += ["## Szczera ocena", s["szczera_ocena"] + " [szacunek]", ""]
     if s["czego_nie_wiadomo"]:
@@ -505,19 +536,38 @@ Nie dodawaj niczego, czego nie ma w zapisie — nie szacuj ilości, nie dopisuj 
 jasno wskazują poprawne słowo; w razie wątpliwości pomiń. Źródło: "mowa", "obraz" albo "mowa+obraz" (NAPISY to "obraz").
 {glossary}
 
+To jest film typu: {typ}.
 Odpowiedz WYŁĄCZNIE JSON-em:
-{{"typ": "przepis|trening|sport|poradnik|wyklad|dokument|inne",
- "kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "..."}}],
- "skladniki": [{{"nazwa": "...", "ilosc": "ilość TYLKO jeśli padła w filmie, inaczej brak danych", "zrodlo": "..."}}],
- "cwiczenia": [{{"nazwa": "...", "serie": "...", "powtorzenia": "...", "t": sekundy, "technika": "...", "zrodlo": "..."}}],
- "sprzet": ["..."], "wskazowki": ["porada / wyjaśnienie dlaczego"], "bledy": ["czego unikać"],
- "fakty": [{{"t": sekundy, "tekst": "inny ważny konkret z filmu: liczba, osoba, data, miejsce, fakt", "rodzaj": "liczba|osoba|data|miejsce|fakt", "zrodlo": "..."}}]}}
-Przy sporcie (np. piłka) w "cwiczenia" wpisz ćwiczenia i elementy techniki (nazwa, opis techniki, powtórzenia jeśli padły).
-Puste listy dla tego, czego w filmie nie ma.
+{{{fields}}}
+{hint}Puste listy dla tego, czego w filmie nie ma.
 
 ZAPIS:
 {timeline}
 """
+
+_EX_FIELDS = {
+    "kroki": '"kroki": [{{"t": sekundy, "tekst": "jedna czynność, tryb rozkazujący, z liczbami", "zrodlo": "..."}}]',
+    "skladniki": '"skladniki": [{{"nazwa": "...", "ilosc": "ilość TYLKO jeśli padła w filmie, inaczej brak danych", "zrodlo": "..."}}]',
+    "cwiczenia": '"cwiczenia": [{{"nazwa": "...", "serie": "...", "powtorzenia": "...", "t": sekundy, "technika": "...", "zrodlo": "..."}}]',
+    "sprzet": '"sprzet": ["..."]',
+    "wskazowki": '"wskazowki": ["porada / wyjaśnienie dlaczego"]',
+    "bledy": '"bledy": ["czego unikać — i jak to poprawić, jeśli film to mówi"]',
+    "fakty": '"fakty": [{{"t": sekundy, "tekst": "ważny konkret z filmu: liczba, osoba, data, miejsce, fakt", '
+             '"rodzaj": "liczba|osoba|data|miejsce|fakt", "zrodlo": "..."}}]',
+}
+_EX_HINT = {
+    "sport": 'W "cwiczenia" wpisz ćwiczenia i elementy techniki (nazwa, opis techniki — jak ustawić ciało, powtórzenia jeśli '
+             'padły). Gdy film pokazuje błąd i jego poprawę (np. napisy „The Mistake” / „The Solution”), błąd wpisz do "bledy", '
+             'a poprawne wykonanie do "wskazowki".\n',
+    "trening": 'W "cwiczenia" wpisz każde ćwiczenie z seriami i powtórzeniami (albo czasem), jeśli padły.\n',
+}
+
+
+def extract_fields(typ: str) -> str:
+    """Pola zapytania o fakty dla danego typu — model nie dostaje pól, które do typu nie pasują (0.11.10)."""
+    keep = _FIELDS_BY_TYPE.get(typ, _FIELDS_BY_TYPE["inne"])
+    return ",\n ".join(v.replace("{{", "{").replace("}}", "}") for k, v in _EX_FIELDS.items() if k in keep)
+
 
 PRESENT_HEAD = """Jesteś asystentem, który obejrzał film za użytkownika. Masz zapis filmu i listę faktów już z niego
 wyciągniętych. Napisz po polsku opis całości. Niczego nie zmyślaj; to, co nie wynika z zapisu, oznacz jako szacunek.
@@ -606,6 +656,69 @@ def _chunks(text: str, limit: int) -> list[str]:
     return out
 
 
+def thin_timeline(timeline: str, limit: int) -> str:
+    """Zapis skrócony do `limit` znaków RÓWNO z całego filmu (co k-ta linia), a nie sam początek.
+
+    Pomiar 0.11.9 (dokument 24:50): opis całości dostawał pierwsze 9000 znaków zapisu, czyli ok. 2,5 minuty —
+    „Najważniejsze” kończyło się na 02:31."""
+    if len(timeline) <= limit:
+        return timeline
+    lines = timeline.splitlines()
+    k = 2
+    while sum(len(x) + 1 for x in lines[::k]) > limit and k < len(lines):
+        k += 1
+    kept = lines[::k]
+    out, n = [], 0
+    for x in kept:                                  # pojedyncze bardzo długie linie (ściana napisów) przycinamy
+        x = x if len(x) <= 600 else x[:600] + "…"
+        if n + len(x) + 1 > limit:
+            break
+        out.append(x)
+        n += len(x) + 1
+    return "\n".join(out) + f"\n[… pokazana co {k}. linia zapisu; fakty wyżej są z całego filmu]"
+
+
+def repair_json(raw: str) -> str | None:
+    """Urwana odpowiedź JSON (model doszedł do limitu długości w połowie listy) → poprawny JSON z tym, co zdążył napisać.
+
+    Pomiar na prawdziwym modelu (gemma3:4b, 0.12.0, część 4 dokumentu): model wpisał do „fakty” całą transkrypcję
+    części i urwał w połowie — przez nieparsowalny koniec przepadały też gotowe „tytul” i „streszczenie” z początku.
+    W 0.11.9 tak samo zniknęły cytaty i rozdziały. Ucinamy do ostatniego w pełni zapisanego elementu i domykamy nawiasy."""
+    i = raw.find("{")
+    if i < 0:
+        return None
+    stack: list[str] = []
+    safe: tuple[int, list[str]] | None = None       # pozycja tuż po ostatnim kompletnym elemencie + otwarte nawiasy
+    in_str = esc = False
+    for k in range(i, len(raw)):
+        ch = raw[k]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if not stack:
+                break
+            stack.pop()
+            safe = (k + 1, list(stack))
+            if not stack:
+                break
+        elif ch == ",":
+            safe = (k, list(stack))                 # wszystko przed przecinkiem jest kompletne
+    if safe is None:
+        return None
+    pos, open_ = safe
+    return raw[i:pos].rstrip().rstrip(",") + "".join(reversed(open_))
+
+
 def _loads(raw: str) -> dict:
     raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip())
     try:
@@ -616,16 +729,23 @@ def _loads(raw: str) -> dict:
             d = json.loads(raw[i:j + 1]) if 0 <= i < j else {}
         except json.JSONDecodeError:
             d = {}
+        if not d:
+            fixed = repair_json(raw)
+            try:
+                d = json.loads(fixed) if fixed else {}
+            except json.JSONDecodeError:
+                d = {}
     return d if isinstance(d, dict) else {}
 
 
-def _try(engine, prompt: str, log, max_tokens: int | None = None, seed: int | None = None) -> str:
+def _try(engine, prompt: str, log, max_tokens: int | None = None, seed: int | None = None,
+         schema: dict | None = None) -> str:
     """Jedno wywołanie z jedną ponowną próbą. Pomiar: Ollama potrafi przerwać odpowiedź
     („token repeat limit reached”) — wtedy druga próba zwykle przechodzi; jeśli nie, ten etap jest pusty."""
     from .llm import LLMError
     for attempt in (1, 2):
         try:
-            kw = {k: v for k, v in (("max_tokens", max_tokens),) if v}
+            kw = {k: v for k, v in (("max_tokens", max_tokens), ("schema", schema)) if v}
             if seed is not None:
                 kw.update(seed=seed, temperature=0.3)
             if attempt == 1:
@@ -636,7 +756,7 @@ def _try(engine, prompt: str, log, max_tokens: int | None = None, seed: int | No
             # ponowna próba z innym ziarnem: przy temperaturze 0 i tym samym ziarnie model zapętla się tak samo
             # (pomiar: dwa razy „token repeat limit reached” na tym samym etapie)
             try:
-                return engine.complete(prompt, as_json=True, seed=11, temperature=0.3)
+                return engine.complete(prompt, as_json=True, seed=11, temperature=0.3, **({"schema": schema} if schema else {}))
             except TypeError:
                 return engine.complete(prompt, as_json=True)
         except LLMError as e:
@@ -742,6 +862,19 @@ def tidy(summary: dict, duration: float, max_quotes: int = 4, max_chapters: int 
         kroki.append(k)
     if c:
         c["kroki"] = kroki
+        # ćwiczenia: ta sama technika opisana drugi raz to nie nowe ćwiczenie (pomiar na prawdziwym modelu, reel o piłce:
+        # 12 pozycji, w tym „Kontrola Stopą – Utrzymanie” dwa razy i „Wejście w Żonglerkę” dwa razy)
+        ex: list[dict] = []
+        for x in c.get("cwiczenia", []):
+            body = _str(x.get("technika")) or _str(x.get("nazwa"))
+            dup = next((y for y in ex if _stems(_str(x.get("nazwa"))) == _stems(_str(y.get("nazwa")))
+                        or _same_step(body, _str(y.get("technika")) or _str(y.get("nazwa")))), None)
+            if dup:
+                for k in ("serie", "powtorzenia"):
+                    dup[k] = dup.get(k) or x.get(k)
+                continue
+            ex.append(x)
+        c["cwiczenia"] = ex
         tips = c.get("wskazowki", [])
         c["wnioski"] = [w for w in c.get("wnioski", []) if not any(_same_step(w, x) for x in tips)]
     q = summary.get("cytaty", [])
@@ -775,13 +908,44 @@ GLOSSARY = ("Uwaga na tłumaczenie: baking soda = soda oczyszczona (NIE proszek 
 TYPE_PROMPT = """Fragment transkrypcji filmu. {meta}
 Jaki to typ filmu? Do wyboru: przepis — gotowanie; trening — ćwiczenia na siłowni, w domu, bieganie;
 sport — piłka nożna i inne gry z piłką: technika, sztuczki, ćwiczenia z piłką, analiza meczu; poradnik — instrukcja krok po kroku;
-wyklad — wykład, rozmowa, wyjaśnianie, recenzja, wiadomości; dokument — film dokumentalny, reportaż, historia prawdziwych
-wydarzeń (osoby, daty, liczby); inne.
+wyklad — wykład, rozmowa, podcast, wyjaśnianie jednego zagadnienia, recenzja; dokument — film dokumentalny, reportaż,
+śledztwo dziennikarskie: narrator opowiada historię prawdziwych wydarzeń, miejsc i ludzi (osoby, daty, liczby, wypowiedzi
+świadków); inne — rozrywka, humor, moda, vlog.
 Odpowiedz WYŁĄCZNIE JSON-em z jednym słowem: {{"typ": "przepis|trening|sport|poradnik|wyklad|dokument|inne"}}
 
 TRANSKRYPCJA:
 {text}
 """
+
+def type_sample(text: str, limit: int = 2500) -> str:
+    """Próbka do rozpoznania typu: przy długim filmie początek, środek i koniec (sam początek to często zapowiedź
+    albo reklama — pomiar 0.11.9: dokument 24:50 rozpoznany jako „wyklad”)."""
+    if len(text) <= limit:
+        return text
+    k = limit // 3
+    mid = len(text) // 2
+    return text[:k] + "\n[…]\n" + text[mid - k // 2: mid + k // 2] + "\n[…]\n" + text[-k:]
+
+
+_SPORT = re.compile(r"\b(ball|balls|juggl\w*|dribbl\w*|touch|football|soccer|goalkeeper|striker|defender|midfield\w*|"
+                    r"foot|feet|shot|shooting|passing|pitch|piłk\w*|żongl\w*|drybl\w*|boisk\w*|bramk\w*|podani\w*|"
+                    r"przyjęci\w*|strzał\w*)\b", re.I)
+_SPORT_CORE = re.compile(r"\b(ball|juggl\w*|dribbl\w*|football|soccer|piłk\w*|żongl\w*|drybl\w*)\b", re.I)
+_COOK = re.compile(r"\b(recipe|cook\w*|fry\w*|bake\w*|boil\w*|oven|ingredient\w*|przepis\w*|gotuj\w*|smaż\w*|piecz\w*|"
+                   r"składnik\w*|patelni\w*|piekarnik\w*)\b", re.I)
+
+
+def type_from_content(typ: str, text: str) -> str:
+    """Poprawia typ, gdy treść mówi co innego niż model.
+
+    Pomiar 0.11.9: reel o przyjęciu piłki („keep your foot down… step into the juggle… control of the ball”) model
+    nazwał „poradnik” i kroki powstały z okrzyków trenera. Sport: ≥ 2 słowa jednoznacznie piłkarskie i ≥ 5 słów
+    sportowych razem, bez słów kuchennych. Innych typów nie zgadujemy z pojedynczych słów."""
+    if typ in ("poradnik", "trening", "inne", "wyklad", "") and not _COOK.search(text):
+        if len(_SPORT_CORE.findall(text)) >= 2 and len(_SPORT.findall(text)) >= 5:
+            return "sport"
+    return typ
+
 
 # Format jak przy tłumaczeniu (linia → linia), bo ten mały model robi niezawodnie. Pomiar (gemma3:4b, frytki, 0.7.8):
 # format z numerami linii przy krokach („z”: [3, 4]) — model kończył po 8 krokach, pisał po angielsku, zmyślał „piekarnik”.
@@ -793,9 +957,7 @@ For EVERY numbered line, keep the SAME number and write in Polish:
 - if the line adds nothing or only finishes the sentence from the previous line: an empty string "".
 Keep every number exactly, with its unit (the unit may come from SCREEN = text shown on screen at that moment).
 Do not add tools, amounts, adjectives or tips that are not in the line. Write only in Polish (Latin alphabet).
-Polish terms: baking soda = soda oczyszczona (NOT proszek do pieczenia), baking powder = proszek do pieczenia,
-duck fat = tłuszcz z kaczki, par-fry = podsmaż wstępnie w oleju, blanch (in oil) = blanszuj w oleju, dust/sprinkle = oprósz/posyp, tray = taca.
-{meta}
+{terms}{meta}
 {context}Answer ONLY with JSON: {{"1": "...", "2": "..."}}
 
 LINES:
@@ -809,6 +971,15 @@ Dla KAŻDEGO kroku, w tej samej numeracji, podaj nazwę etapu, do którego nale�
 etapu mają IDENTYCZNĄ nazwę. Razem {lo}–{hi} różnych nazw na cały film.
 Odpowiedz WYŁĄCZNIE JSON-em: {{"1": "...", "2": "..."}}
 """
+
+# 0.11.10: słowniczek kuchenny tylko przy przepisach (pomiar 0.11.9: w dokumencie o ambasadzie „Sprzęt: taca, pot, tray,
+# proszek do pieczenia” — model przepisał słowniczek doklejany do każdego zapytania)
+LINES_TERMS = ("Polish terms: baking soda = soda oczyszczona (NOT proszek do pieczenia), baking powder = proszek do pieczenia,\n"
+               "duck fat = tłuszcz z kaczki, par-fry = podsmaż wstępnie w oleju, blanch (in oil) = blanszuj w oleju, "
+               "dust/sprinkle = oprósz/posyp, tray = taca.\n")
+SPORT_TERMS = ("Polish football terms: juggle / juggling = żonglerka (podbijanie piłki), touch = przyjęcie piłki (dotknięcie), "
+               "first touch = pierwsze przyjęcie, foot = stopa, toes = palce stopy, dribble = drybling, pass = podanie, "
+               "shot = strzał, pitch = boisko, drill = ćwiczenie, pancake touch = przyjęcie „pancake” (płaską stopą).")
 
 INGR_PROMPT = """Lines of a video transcript (a recipe):
 {lines}
@@ -1003,10 +1174,22 @@ _EN = {"the", "and", "to", "them", "with", "of", "until", "it", "is", "this", "i
        "then", "add", "heat", "fry", "cut", "boil", "we", "our", "going"}
 
 
+_EN_ONLY = {"the", "and", "of", "with", "is", "are", "was", "were", "been", "has", "have", "had", "that", "which", "who",
+            "from", "for", "by", "at", "an", "be", "its", "their", "they", "he", "she", "but", "not", "than", "after",
+            "before", "people", "this", "these", "those", "would", "could", "should", "will", "into", "about", "there",
+            "what", "when", "where", "while", "you", "your", "our", "we", "his", "her", "them", "it", "in", "on", "as"}
+
+
 def looks_foreign(text: str) -> bool:
     """Krok przepisany po angielsku zamiast po polsku (pomiar: gemma3:4b przepisywała oryginał)."""
     w = _norm_words(text)
-    return len(w) >= 2 and sum(x in _EN for x in w) / len(w) >= 0.3 and not re.search(r"[ąćęłńóśźż]", text.lower())
+    if re.search(r"[ąćęłńóśźż]", text.lower()):
+        return False
+    if len(w) >= 2 and sum(x in _EN for x in w) / len(w) >= 0.3:
+        return True
+    # dłuższe zdanie z dokumentu (pomiar CI 12.11: „In 2018, the Chinese government bought Royal Mint Court for $343
+    # million.”): mało słów z listy wyżej, ale ≥ 3 słowa, których w polszczyźnie nie ma
+    return len(w) >= 6 and sum(x in _EN_ONLY for x in w) >= 3
 
 
 def _groups(ns: list[int]) -> list[list[int]]:
@@ -1054,7 +1237,29 @@ def _imperative(txt: str) -> bool:
     w = _norm_words(re.sub(r"^(i|a|oraz|albo|lub)\s+", "", txt.strip(), flags=re.I))
     while len(w) > 1 and w[0] in _ADVERBS:          # „Ponownie zamroź”, „Lekko oprósz”
         w = w[1:]
+    if w and w[0] in _PL_NOT_ACTION:                # „Możesz też użyć masła.”, „Wiesz, co jest najlepsze?” — to nie polecenie
+        return False
     return bool(w) and not re.search(r"[aeiouyąęó]$", w[0])
+
+
+_PL_YOU = re.compile(r"\b[^\W\d_]{2,}(?:asz|esz|isz|ysz)\b", re.I)
+_PL_WE = re.compile(r"\b[^\W\d_]{2,}(?:amy|emy|imy|ymy)\b", re.I)
+_PL_NOT_ACTION = {"wiesz", "możesz", "musisz", "chcesz", "masz", "widzisz", "myślisz", "lubisz", "znasz", "pamiętasz",
+                  "potrzebujesz", "będziesz", "zobaczysz", "słyszysz", "rozumiesz", "mamy", "możemy", "musimy", "chcemy",
+                  "wiemy", "widzimy", "lubimy", "będziemy", "jesteśmy", "znamy", "potrzebujemy", "zobaczymy", "pamiętamy",
+                  # rzeczowniki o tych samych końcówkach
+                  "gulasz", "lawasz", "tomasz", "łukasz", "problemy", "systemy", "kremy", "gramy", "kilogramy", "dekagramy",
+                  "programy", "olbrzymy", "rozmiary"}
+
+
+def _pl_instruction(txt: str) -> bool:
+    """Polska instrukcja mówiona inaczej niż rozkazem: „dodasz sól”, „położysz wrapa” (2. os.), „kroimy cebulę”,
+    „dodajemy” (1. os. l. mn.), „należy dodać”. Pomiar na prawdziwym modelu (tortilla, PL): „Na to położysz wrapa” i
+    „Po chwili zdejmiesz z patelni i dodasz szynkę…” trafiły do wskazówek, bo nie zaczynały się od rozkazu."""
+    words = [w.lower() for w in _PL_YOU.findall(txt) + _PL_WE.findall(txt)]
+    if any(w not in _PL_NOT_ACTION for w in words):
+        return True
+    return bool(re.search(r"\b(?:należy|trzeba)\s+(?:\w+\s+){0,2}\w+[ćc]\b", txt, re.I))
 
 
 def _explains(orig: str) -> bool:
@@ -1109,7 +1314,7 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
                "\n".join(f"- {ln['tekst']}" for ln in prev) + "\n") if prev else ""
         local = [{**ln, "n": i} for i, ln in enumerate(ch, 1)]      # numeracja od 1 w każdej części (jak w tłumaczeniu)
         typ_en = {"przepis": "a recipe", "poradnik": "a how-to tutorial"}.get(typ, "a video")
-        pr = LINES_PROMPT.format(typ_en=typ_en, meta=meta_line, context=ctx,
+        pr = LINES_PROMPT.format(typ_en=typ_en, meta=meta_line, context=ctx, terms=LINES_TERMS if typ == "przepis" else "",
                                  lines="\n".join(_num_line(ln) for ln in local))
         raw = _try(engine, pr, log)
         record("kroki", pr, raw)
@@ -1224,18 +1429,25 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         # dokończenie zdania z poprzedniej linii („To completely cool.” → „…, aby całkowicie ostudzić.”) albo
         # powtórzenie — do poprzedniego kroku (pomiar: model zamieniał każdą linię na osobny „krok”)
         if adjacent and n - prev["z"][-1] <= 3 and (txt[:1].islower() or _same_step(txt, prev["tekst"])
-                                                     or _continues(ln["tekst"])):
+                                                     or _continues(ln["tekst"])
+                                                     or (prev["tekst"].rstrip().endswith(",") and ln["tekst"][:1].islower())):
             if not _same_step(txt, prev["tekst"]):
                 join = " albo " if alt and not re.match(r"^(albo|lub)\b", txt, re.I) else ", "
-                prev["tekst"] = prev["tekst"].rstrip(".!") + join + txt[:1].lower() + txt[1:]
+                prev["tekst"] = prev["tekst"].rstrip(".!, ") + join + txt[:1].lower() + txt[1:]
             prev["z"].append(n)
             prev["zrodlo"] = "mowa+obraz" if prev["zrodlo"] == "mowa+obraz" or ln["ekran"] else "mowa"
             continue
-        if _explains(ln["tekst"]) or not _imperative(txt):
+        if _explains(ln["tekst"]) or not (_imperative(txt) or _pl_instruction(txt)):
             if _FILLER.match(ln["tekst"].strip()):
                 continue                           # „This is it.” — bez treści (pomiar: model wstawił tu „Obierz ziemniaki”)
+            if txt.rstrip().endswith("?") and not re.search(r"\d", txt):
+                continue                           # „Pyszne, wysokobiałkowe śniadanie?” — pytanie to nie wskazówka
             notes.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr})
             continue
+        # „Czy wiesz, że jak wbijesz do miski 3 jajka?” → „Wbijesz do miski 3 jajka.” (retoryczne pytanie z instrukcją)
+        q = re.match(r"^czy wiesz,? że (?:jak |jeśli |gdy |kiedy )?(.+?)\??$", txt, re.I)
+        if q:
+            txt = q.group(1)[:1].upper() + q.group(1)[1:].rstrip(",") + "."
         steps.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr, "etap": ""})
     if pending:
         attach_back(pending)
@@ -1250,7 +1462,8 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         # duplikat tylko przy tych samych słowach (pomiar: „skrobia ziemniaczana” wypadała jako duplikat „ziemniaków”)
         if not name or any(_stems(name) == _stems(o) for o in seen) or not (_stems(name) & _stems(spoken_pl)):
             continue
-        q = _str(x.get("ilosc")) if isinstance(x, dict) else ""
+        # model pisze klucz raz „ilosc”, raz „ilość” (pomiar na prawdziwym modelu, tortilla: {"nazwa": "jajka", "ilość": "3"})
+        q = _str(x.get("ilosc") or x.get("ilość") or x.get("quantity") or x.get("amount")) if isinstance(x, dict) else ""
         if not (_nums(q) and _nums(q) <= all_nums):
             q = "brak danych"
         seen.append(name)
@@ -1319,13 +1532,27 @@ def merge_notes(notes: list[dict]) -> list[dict]:
     return out
 
 
+_DANGLING = {"i", "a", "z", "w", "na", "do", "po", "o", "u", "za", "od", "ze", "we", "oraz", "albo", "lub", "the", "of",
+             "and", "to", "in", "on", "with", "for"}
+
+
+def _short_title(text: str, n: int = 4) -> str:
+    """Tytuł rozdziału z początku kroku: do n słów, ale nie urwany na liczbie ani przyimku („Wbijesz do miski 3” →
+    „Wbijesz do miski 3 jajka”, „Po chwili zdejmiesz z” → „Po chwili zdejmiesz z patelni”)."""
+    w = re.sub(r"[.,;:!?]+$", "", text.strip()).split()
+    k = min(n, len(w))
+    while k < len(w) and k < n + 2 and (w[k - 1].lower().strip(",") in _DANGLING or re.fullmatch(r"\d+[.,]?\d*", w[k - 1])):
+        k += 1
+    return " ".join(w[:k]).rstrip(",")
+
+
 def chapters_from_steps(steps: list[dict], duration: float, max_chapters: int = 6, notes: list[dict] | None = None) -> list[dict]:
     """Rozdziały z etapów kroków — granica rozdziału tylko na zmianie etapu (pomiar: rozdział „Smażenie i schładzanie”
     obejmował gotowanie, a ostatni łączył mrożenie, drugie smażenie i solenie)."""
     ch: list[dict] = []
     if steps and not any(s.get("etap") for s in steps):
         # brak etapów: rozdział na każdy krok (tytuł = początek kroku), potem łączenie najkrótszych do max_chapters
-        steps = [{**s, "etap": " ".join(s["tekst"].rstrip(".").split()[:4])} for s in steps]
+        steps = [{**s, "etap": _short_title(s["tekst"])} for s in steps]
     for s in steps:
         name = s.get("etap") or ""
         if ch and (name == ch[-1]["tytul"] or (name and _same_step(name, ch[-1]["tytul"]))):
@@ -1490,7 +1717,6 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     par = max(1, int(parallel if parallel is not None else getattr(engine, "parallel", 1)))
     meta_line = f"Metadane: {meta}" if meta else ""
     ext: dict = {"kroki": [], "skladniki": [], "cwiczenia": [], "sprzet": [], "wskazowki": [], "bledy": [], "fakty": []}
-    types: list[str] = []
 
     def record(stage: str, prompt: str, raw: str) -> None:
         if trace is not None:
@@ -1499,18 +1725,38 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     lines = speech_lines(segments, ocr) if segments else []
     n_words = sum(len(_norm_words(ln["tekst"])) for ln in lines)
     typ = ""
-    if len(lines) >= 4 and n_words >= 25:
-        # typ z początku transkrypcji (krótkie zapytanie) — od niego zależy, czy kroki budujemy z linii mowy
-        sample = " ".join(ln["tekst"] for ln in lines)[:2500]
+    spoken = len(lines) >= 4 and n_words >= 25
+    if spoken or timeline.strip():
+        # typ ustalany RAZ (krótkie zapytanie) — od niego zależy sposób streszczania i to, które pola pokazujemy.
+        # 0.11.10: wcześniej każdy fragment zgadywał typ od nowa (dokument: 11 z 16 fragmentów „przepis”).
+        # Gdy mowy prawie nie ma (np. przepis z samymi napisami) — typ z zapisu: napisy na ekranie i opisy kadrów.
+        sample = type_sample(" ".join(ln["tekst"] for ln in lines) if spoken else timeline)
         pr = TYPE_PROMPT.format(meta=meta_line, text=sample)
         raw = _try(engine, pr, log)
         record("typ", pr, raw)
         # model potrafi przepisać etykietę z opisem („przepis (gotowanie)”) — bierzemy rozpoznaną nazwę typu
         m = re.search(r"przepis|trening|sport|poradnik|wyk[łl]ad|dokument|inne", _str(_loads(raw).get("typ")).lower())
         typ = m.group(0).replace("ł", "l") if m else ""
-    grounded = typ in ("przepis", "poradnik")
+        fixed = type_from_content(typ, " ".join(ln["tekst"] for ln in lines) + " " + meta)
+        if fixed != typ:
+            log(f"        typ: model podał „{typ or '—'}”, z treści wynika „{fixed}”")
+            typ = fixed
+    typ = typ or "inne"
+    grounded = spoken and typ in ("przepis", "poradnik")
+    # film „opowiadany” (dokument, wykład, rozmowa, inne): streszczenie część po części z linii mowy — vidsum/story.py
+    story_mode = spoken and typ in ("wyklad", "dokument", "inne")
     notes: list[dict] = []
-    if grounded:
+    src_words = sum(len(_norm_words(ln["tekst"])) for ln in lines) if lines else len(_norm_words(timeline)) // 2
+    words = target_words(src_words)
+    p: dict = {}
+    if story_mode:
+        from .story import story_summary
+        pl = polish() if callable(polish) else polish
+        if pl:
+            lines = speech_lines(segments, ocr, pl)
+        p = story_summary(engine, lines, typ, meta_line, duration, words, _try, _loads, log, record, par, ocr=ocr)
+        ext["fakty"] = p.pop("fakty", [])
+    elif grounded:
         # polskie linie (tłumaczenie liczy się równolegle) — `polish()` czeka na nie; None = mowa już po polsku / brak
         pl = polish() if callable(polish) else polish
         if pl:
@@ -1536,7 +1782,9 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
             log(f"        fakty: {len(parts)} fragmenty" + (f" ({min(par, len(parts))} naraz)" if par > 1 else ""))
 
         def extract(part: str) -> str:
-            pr = EXTRACT_PROMPT.format(meta=meta_line, timeline=part, glossary=GLOSSARY)
+            pr = EXTRACT_PROMPT.format(meta=meta_line, timeline=part, typ=typ or "inne", fields=extract_fields(typ),
+                                       hint=_EX_HINT.get(typ, ""),
+                                       glossary=GLOSSARY if typ == "przepis" else SPORT_TERMS if typ == "sport" else "")
             raw = _try(engine, pr, log)
             record("fakty", pr, raw)
             return raw
@@ -1545,16 +1793,13 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
             raws = list(pool.map(extract, parts))
         for raw in raws:
             d = _loads(raw)
-            if _str(d.get("typ")).lower() in TYPES:
-                types.append(_str(d.get("typ")).lower())
             for k in ext:
                 for x in _lst(d.get(k)):
                     if x and x not in ext[k]:
                         ext[k].append(x)
-        typ = typ or (max(set(types), key=types.count) if types else "inne")
 
-        # 2) kontrola kompletności (instrukcje: przepis, poradnik, trening)
-        if typ in ("przepis", "poradnik", "trening", "sport"):
+        # 2) kontrola kompletności kroków — tylko tam, gdzie kroki pokazujemy (przepis / poradnik bez mowy)
+        if typ in ("przepis", "poradnik"):
             miss = missing_lines(timeline, ext)
             if miss:
                 log(f"        kontrola kompletności: {len(miss)} fragment(y) bez kroku albo z pominiętą liczbą — dopisuję")
@@ -1594,51 +1839,50 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
                             ext["kroki"].append(k)
     ext["kroki"].sort(key=lambda k: _t(k.get("t")) if isinstance(k, dict) and _t(k.get("t")) is not None else 1e9)
 
-    if grounded:
-        # krótko i tekstem (nie JSON-em): pomiar — przy 27 krokach w JSON-ie + pełnym zapisie gemma3:4b zapętlała się
-        # („token repeat limit reached”) i opis całości wychodził pusty
-        facts_json = "\n".join(
-            [f"Typ: {typ}", "Kroki:"] + [f"{i}. [{ts(k['t'])}] {k['tekst']}" for i, k in enumerate(ext["kroki"], 1)]
-            + (["Wyjaśnienia autora:"] + [f"- [{ts(n['t'])}] {n['tekst']}" for n in notes] if notes else [])
-            + (["Składniki: " + ", ".join(x["nazwa"] for x in ext["skladniki"])] if ext["skladniki"] else []))
-        limit = 5000
-    else:
-        facts_json = json.dumps({"typ": typ, **ext}, ensure_ascii=False)
-        limit = 9000
-    # do opisu całości: zapis skrócony do rozsądnej długości (fakty są już kompletne)
-    short = timeline if len(timeline) <= limit else "\n".join(_chunks(timeline, limit)[0].splitlines()) + "\n[…]"
-    head = PRESENT_HEAD.format(meta=meta_line, facts=facts_json, timeline=short, glossary=GLOSSARY)
+    if not story_mode:
+        if grounded:
+            # krótko i tekstem (nie JSON-em): pomiar — przy 27 krokach w JSON-ie + pełnym zapisie gemma3:4b zapętlała się
+            # („token repeat limit reached”) i opis całości wychodził pusty
+            facts_json = "\n".join(
+                [f"Typ: {typ}", "Kroki:"] + [f"{i}. [{ts(k['t'])}] {k['tekst']}" for i, k in enumerate(ext["kroki"], 1)]
+                + (["Wyjaśnienia autora:"] + [f"- [{ts(n['t'])}] {n['tekst']}" for n in notes] if notes else [])
+                + (["Składniki: " + ", ".join(x["nazwa"] for x in ext["skladniki"])] if ext["skladniki"] else []))
+            limit = 5000
+        else:
+            facts_json = json.dumps({"typ": typ, **ext}, ensure_ascii=False)
+            limit = 9000
+        # do opisu całości: zapis skrócony do rozsądnej długości (fakty są już kompletne)
+        short = thin_timeline(timeline, limit)
+        gloss = GLOSSARY if typ == "przepis" else SPORT_TERMS if typ == "sport" else ""
+        head = PRESENT_HEAD.format(meta=meta_line, facts=facts_json, timeline=short, glossary=gloss)
 
-    src_words = sum(len(_norm_words(ln["tekst"])) for ln in lines) if lines else len(_norm_words(timeline)) // 2
-    words = target_words(src_words)
+        def present(tail: str, need: tuple, stage: str, cap: int = 1600) -> dict:
+            # jedna próba z limitem długości; przy pustym wyniku NIE powtarzamy tego samego (przy temperaturze 0 model
+            # zapętla się identycznie) — niżej jest krótsze polecenie z innym ziarnem
+            pr = head + tail.format(words=words)
+            raw = _try(engine, pr, log, max_tokens=cap)
+            record(stage, pr, raw)
+            return _loads(raw)
 
-    def present(tail: str, need: tuple, stage: str, cap: int = 1600) -> dict:
-        # jedna próba z limitem długości; przy pustym wyniku NIE powtarzamy tego samego (przy temperaturze 0 model
-        # zapętla się identycznie) — niżej jest krótsze polecenie z innym ziarnem
-        pr = head + tail.format(words=words)
-        raw = _try(engine, pr, log, max_tokens=cap)
-        record(stage, pr, raw)
-        return _loads(raw)
-
-    tail_b = PRESENT_B_SHORT if grounded else PRESENT_B
-    need_b = ("cytaty", "rozdzialy") if grounded else ("momenty", "rozdzialy", "cytaty")
-    if par > 1:
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            fa = pool.submit(present, PRESENT_A, ("teza", "streszczenie", "najwazniejsze"), "opis_a")
-            fb = pool.submit(present, tail_b, need_b, "opis_b")
-            p = {**fb.result(), **fa.result()}
-    elif grounded:
-        p = {**present(tail_b, need_b, "opis_b"), **present(PRESENT_A, ("teza", "streszczenie"), "opis_a")}
-    else:
-        p = present(PRESENT_FULL, ("teza", "streszczenie", "najwazniejsze"), "opis")
-    if not p.get("streszczenie"):
-        # zapas: krótsze polecenie bez zapisu (pomiar: przy pełnym poleceniu model potrafi się zapętlić dwa razy z rzędu)
-        log("        opis całości: drugie podejście, krótszym poleceniem")
-        pr = (PRESENT_HEAD.split("ZAPIS (czas")[0].format(meta=meta_line, facts=facts_json, glossary=GLOSSARY)
-              + "Odpowiedz WYŁĄCZNIE JSON-em:\n" + SHORT_A.format(words=words))
-        raw = _try(engine, pr, log, max_tokens=1200, seed=11)
-        record("opis_zapas", pr, raw)
-        p = {**_loads(raw), **{k: v for k, v in p.items() if v}}
+        tail_b = PRESENT_B_SHORT if grounded else PRESENT_B
+        need_b = ("cytaty", "rozdzialy") if grounded else ("momenty", "rozdzialy", "cytaty")
+        if par > 1:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                fa = pool.submit(present, PRESENT_A, ("teza", "streszczenie", "najwazniejsze"), "opis_a")
+                fb = pool.submit(present, tail_b, need_b, "opis_b")
+                p = {**fb.result(), **fa.result()}
+        elif grounded:
+            p = {**present(tail_b, need_b, "opis_b"), **present(PRESENT_A, ("teza", "streszczenie"), "opis_a")}
+        else:
+            p = present(PRESENT_FULL, ("teza", "streszczenie", "najwazniejsze"), "opis")
+        if not p.get("streszczenie"):
+            # zapas: krótsze polecenie bez zapisu (pomiar: przy pełnym poleceniu model potrafi się zapętlić dwa razy z rzędu)
+            log("        opis całości: drugie podejście, krótszym poleceniem")
+            pr = (PRESENT_HEAD.split("ZAPIS (czas")[0].format(meta=meta_line, facts=facts_json, glossary=gloss)
+                  + "Odpowiedz WYŁĄCZNIE JSON-em:\n" + SHORT_A.format(words=words))
+            raw = _try(engine, pr, log, max_tokens=1200, seed=11)
+            record("opis_zapas", pr, raw)
+            p = {**_loads(raw), **{k: v for k, v in p.items() if v}}
     if grounded:
         p["rozdzialy"] = chapters_snapped(_lst(p.get("rozdzialy")), steps_full, duration, notes) or \
             chapters_from_steps([{**s_, "etap": ""} for s_ in steps_full], duration, notes=notes)
@@ -1651,22 +1895,70 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     merged = {**p, "typ": typ, "co_masz_zrobic": {
         "skladniki": ext["skladniki"], "kroki": ext["kroki"], "sprzet": ext["sprzet"], "czas": _str(p.get("czas")),
         "cwiczenia": ext["cwiczenia"], "wskazowki": texts(ext["wskazowki"]), "bledy": texts(ext["bledy"]),
-        "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7],
+        "wnioski": texts(_lst(p.get("wnioski"))) or ([] if story_mode else texts(ext["fakty"])[:7]),
         "fakty": [x if isinstance(x, dict) else {"t": 0, "tekst": _str(x), "rodzaj": "fakt", "zrodlo": "mowa"}
                   for x in ext["fakty"] if x]}}
     merged["co_masz_zrobic"]["sprzet"] = texts(ext["sprzet"])
     has_facts = any(ext[k] for k in ("kroki", "skladniki", "cwiczenia", "wskazowki", "fakty"))
     out = parse_summary(json.dumps(merged, ensure_ascii=False), duration, allow_partial=has_facts)
     if out is not None:
-        out["metoda"] = "kroki z linii mowy" if grounded else "fakty z fragmentów"
+        out["metoda"] = "kroki z linii mowy" if grounded else "części filmu z linii mowy" if story_mode else "fakty z fragmentów"
         source = " ".join(ln["tekst"] + " " + " ".join(ln["ekran"]) for ln in lines) if lines else timeline
         out = fix_terms_deep(out, source + " " + timeline)
         n = drop_unsupported_numbers(out, source + " " + timeline)
         if n:
             log(f"        usunięto {n} zdanie(a) z liczbą, której nie ma w filmie")
         drop_false_missing(out, log)
+        n = drop_frame_echo(out, timeline)
+        if n:
+            log(f"        usunięto {n} pozycji będących kopią opisu kadru")
+        clean_review(out, source + " " + timeline)
         out["czas_czytania_s"] = reading_seconds(out)
     return out
+
+
+_OBRAZ = re.compile(r"OBRAZ: ([^|\n]+)")
+
+
+def drop_frame_echo(summary: dict, timeline: str) -> int:
+    """Usuwa z „Najważniejszych” i „Momentów” pozycje, które są przepisanym opisem kadru.
+
+    Pomiar 0.11.9: „Mężczyzna je bułkę z żółtym składnikiem. (je, trzyma bułkę)”, „Obraz przedstawia mężczyznę od tyłu
+    patrzącego w górę.”, „Latający widok na miasto z lotu ptaka.” — opis kadru to surowiec, nie wniosek dla widza."""
+    scenes = [set(_norm_words(x)) for x in _OBRAZ.findall(timeline)]
+    scenes = [x for x in scenes if len(x) >= 3]
+
+    def echo(text: str) -> bool:
+        if re.match(r"\s*(obraz|kadr|zdjęcie|ujęcie) (przedstawia|pokazuje)", text, re.I):
+            return True
+        w = set(_norm_words(text))
+        return len(w) >= 3 and any(len(w & sc) >= 0.8 * len(w) for sc in scenes)
+
+    n = 0
+    keep = [m for m in summary.get("momenty", []) if not echo(m.get("tekst", ""))]
+    n += len(summary.get("momenty", [])) - len(keep)
+    summary["momenty"] = keep
+    hl = summary.get("najwazniejsze", [])
+    keep = [h for h in hl if not echo(h.get("opis", ""))]
+    if len(keep) >= 2 or not hl:                      # nie zostawiamy pustej sekcji przez nadgorliwość
+        n += len(hl) - len(keep)
+        summary["najwazniejsze"] = keep
+    return n
+
+
+_COOK_TALK = re.compile(r"składnik|gotowan|kulinar|proporcj\w* składnik|przepis|piecz|smaż", re.I)
+
+
+def clean_review(summary: dict, source: str) -> None:
+    """„Szczera ocena” i „Czego nie wiadomo” bez zdań o składnikach i gotowaniu, gdy film nie jest przepisem.
+
+    Pomiar 0.11.9 (reel o ubraniach, typ „inne”): „Brak szczegółowych instrukcji dotyczących proporcji lub ilości
+    składników. Brakuje również informacji o technikach gotowania.”"""
+    if summary.get("typ") == "przepis" or _COOK.search(source):
+        return
+    sents = re.split(r"(?<=[.!?])\s+", summary.get("szczera_ocena", ""))
+    summary["szczera_ocena"] = " ".join(x for x in sents if x and not _COOK_TALK.search(x)).strip()
+    summary["czego_nie_wiadomo"] = [x for x in summary.get("czego_nie_wiadomo", []) if not _COOK_TALK.search(x)]
 
 
 _MISSING = re.compile(r"brak|nie podan|nie poda|nie ma\b|nie wiemy|nie wiadomo|nie określ|nie wskaz|pomija|pominię", re.I)

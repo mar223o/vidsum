@@ -79,9 +79,21 @@ class CaptionOCR:
         return out
 
 
+LONG_FILM_S = 900          # powyżej: OCR jednym przebiegiem i najwyżej MAX_LONG_FRAMES klatek
+MAX_LONG_FRAMES = 240
+
+
 def ocr_fps(duration: float) -> float:
-    """Gęstość OCR: krótkie filmy (Shorts) 2 kl./s, dłuższe rzadziej (czas!)."""
-    return 2.0 if duration <= 180 else 1.0 if duration <= 900 else 0.5
+    """Gęstość OCR: krótkie filmy (Shorts) 2 kl./s, dłuższe rzadziej (czas!).
+
+    0.12.0, długie filmy (> 15 min): najwyżej 240 klatek na cały film, jednym przebiegiem. Pomiar 0.11.9 (dokument
+    24:50): 745 klatek w dwóch przebiegach = 257 s OCR; opis kadrów skończył się 160 s wcześniej i karta czekała.
+    Przy 240 klatkach i tym samym tempie (0,42 s na klatkę) to ok. 100 s — tyle, ile trwa opis kadrów."""
+    if duration <= 180:
+        return 2.0
+    if duration <= LONG_FILM_S:
+        return 1.0
+    return round(min(0.5, MAX_LONG_FRAMES / duration), 4)
 
 
 def _small_gray(path: Path):
@@ -102,6 +114,54 @@ def _same_frame(a, b) -> bool:
         return False
     import numpy as np
     return int((np.abs(a - b) > 40).sum()) < a.size * 0.0005
+
+
+# nakładki aplikacji (TikTok/Instagram) przeklejone do filmu — liczniki, hashtagi, data, wyszukiwarka, utwór
+# (pomiar 0.11.9, reel „wisdm”: „138.6K”, „3,933”, „#fyp #foryoupage”, „Contains: Clumsy - Fergie”, „Q Search - …”)
+_JUNK = [
+    re.compile(r"^\d{1,3}(?:[.,]\d)?\s?[KkMm]$"),                         # 138.6K (licznik polubień)
+    re.compile(r"^\d{1,3}(?:,\d{3})+$"),                                 # 3,933
+    re.compile(r"^(?:#\S+\s*)+$"),                                     # same hashtagi
+    re.compile(r"[·•.]\s*(?:19|20)\d\d-\d\d-\d\d$"),                       # „nick · 2025-12-12” pod filmem
+    re.compile(r"^(?:contains|original audio|oryginalny dźwięk|dźwięk oryginalny|follow|obserwuj|reply to|"
+               r"odpowiedz|liked by|polubione przez|see translation|zobacz tłumaczenie)\b", re.I),
+    re.compile(r"^q\s*search\b|^search\s*[-·•]", re.I),
+    re.compile(r"^@[\w.]+$"),                                           # sam nick
+]
+
+
+def is_overlay_junk(text: str) -> bool:
+    """Napis z interfejsu aplikacji (licznik, hashtagi, data, „Contains: utwór”), a nie z treści filmu."""
+    t = (text or "").strip()
+    return not t or any(r.search(t) for r in _JUNK)
+
+
+def _ocr_key(text: str) -> str:
+    return re.sub(r"[^\w]", "", text.lower()).translate(str.maketrans("l1|", "iii"))
+
+
+def merge_frames(texts_at: list, fps: float) -> list[OcrLine]:
+    """Napisy z kolejnych klatek → linie z czasem od–do. Ten sam napis na kolejnych klatkach = jedna linia.
+
+    0.11.10: wcześniej szukano powtórzenia tylko w 6 ostatnich liniach, a na ekranie TikToka bywa 9–10 napisów —
+    ten sam napis dopisywał się co klatkę (reel „wisdm”: 10× „I wish men had sluttier”)."""
+    lines: list[OcrLine] = []
+    open_: dict[str, OcrLine] = {}
+    for i, texts in enumerate(texts_at):
+        t = i / fps
+        for text, score in texts or []:
+            if is_overlay_junk(text):
+                continue
+            key = _ocr_key(text)                       # „why am l in” = „why am I in” (OCR myli l z I)
+            last = open_.get(key)
+            if last and t - last.end <= 1.5 / fps:
+                last.end = round(t + 1 / fps, 2)           # ten sam napis dalej na ekranie
+                last.score = max(last.score, score)
+            else:
+                open_[key] = OcrLine(round(t, 2), round(t + 1 / fps, 2), text, round(score, 3))
+                lines.append(open_[key])
+    lines.sort(key=lambda l: l.start)
+    return lines
 
 
 def read_captions(video: Path, duration: float, model_dir: Path, log=print) -> list[OcrLine]:
@@ -134,25 +194,21 @@ def read_captions(video: Path, duration: float, model_dir: Path, log=print) -> l
 
         # 1. przebieg: co druga klatka. 2. przebieg: klatka pomiędzy — tylko gdy napisy przed i po się różnią
         # (wtedy coś się zmieniło i krótki napis mógłby zniknąć). Gdy napis stoi, połowa klatek odpada.
-        for i in range(0, n, 2):
-            texts_at[i] = read(i)
-        for i in range(1, n, 2):
-            a = texts_at[i - 1]
-            b = texts_at[i + 1] if i + 1 < n else None
-            if b is not None and [x for x, _ in a] == [x for x, _ in b]:
-                texts_at[i] = a
-                skipped += 1
-            else:
+        if duration > LONG_FILM_S:                     # długi film: jeden przebieg po wszystkich (już rzadkich) klatkach
+            for i in range(n):
                 texts_at[i] = read(i)
-        for i, texts in enumerate(texts_at):
-            t = i / fps
-            for text, score in texts or []:
-                last = next((l for l in reversed(lines[-6:]) if l.text == text), None)
-                if last and t - last.end <= 1.5 / fps:
-                    last.end = round(t + 1 / fps, 2)           # ten sam napis dalej na ekranie
-                    last.score = max(last.score, score)
+        else:
+            for i in range(0, n, 2):
+                texts_at[i] = read(i)
+            for i in range(1, n, 2):
+                a = texts_at[i - 1]
+                b = texts_at[i + 1] if i + 1 < n else None
+                if b is not None and [x for x, _ in a] == [x for x, _ in b]:
+                    texts_at[i] = a
+                    skipped += 1
                 else:
-                    lines.append(OcrLine(round(t, 2), round(t + 1 / fps, 2), text, round(score, 3)))
+                    texts_at[i] = read(i)
+        lines = merge_frames(texts_at, fps)
     el = time.time() - t0
     log(f"        OCR: {n} klatek ({fps}/s; odczytanych {done}, pominiętych {skipped} — bez zmiany napisów), "
         f"{len(lines)} napisów, {el:.1f} s ({el / max(1, done):.2f} s na klatkę)")
@@ -227,6 +283,26 @@ def hotwords(lines: list[OcrLine], title: str | None = None, limit: int = 80) ->
 _FILLERS = {"just", "then", "now", "so", "really", "very", "also", "simply", "gently", "quickly", "and"}
 
 
+def caption_coverage(segments: list, lines: list) -> float:
+    """Jaka część zdań mowy ma w tym samym momencie na ekranie napis, który ją powtarza (≥ połowa słów napisu
+    jest w zdaniu). Wysoka = film ma wypalone napisy do mowy; niska = tekst na ekranie to coś innego."""
+    word = re.compile(r"[^\W_]+", re.UNICODE)
+    n = hit = 0
+    for seg in segments:
+        sw = {w.lower() for w in word.findall(getattr(seg, "text", "") or "")}
+        if len(sw) < 3:
+            continue
+        n += 1
+        for ln in lines:
+            if ln.end < seg.start - 1.0 or ln.start > seg.end + 1.0:
+                continue
+            cw = [w.lower() for w in word.findall(ln.text)]
+            if len(cw) >= 2 and sum(w in sw for w in cw) >= 0.5 * len(cw):
+                hit += 1
+                break
+    return hit / n if n else 0.0
+
+
 def correct_from_captions(segments: list, lines: list, min_score: float = 0.85) -> list[dict]:
     """Poprawia w transkrypcji pojedyncze słowa, które napis na ekranie w TYM SAMYM momencie podaje inaczej.
 
@@ -237,6 +313,10 @@ def correct_from_captions(segments: list, lines: list, min_score: float = 0.85) 
     import difflib
     word = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", re.UNICODE)
     fixes: list[dict] = []
+    if caption_coverage(segments, lines) < 0.4:
+        # 0.11.10: na ekranie nie ma napisów do mowy, tylko np. cytowane dokumenty i nagłówki (dokument „ambasada”:
+        # „Total” → „Toial”, „embassy” → „site”) — ekran nie jest wtedy zapisem tego, co ktoś mówi
+        return fixes
     for seg in segments:
         text = seg.text or ""
         toks = list(word.finditer(text))

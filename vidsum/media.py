@@ -16,16 +16,25 @@ class MediaInfo:
     height: int | None
     has_audio: bool
     fps: float | None
+    has_video: bool = True            # False: plik dźwiękowy (mp3, m4a, wav…) — analiza samej mowy (0.12.0)
+
+
+AUDIO_EXT = (".mp3", ".m4a", ".wav", ".ogg", ".opus", ".flac", ".aac", ".wma", ".oga", ".m4b")
 
 
 def probe(path: Path) -> MediaInfo:
     out = run([find_tool("ffprobe"), "-v", "error", "-print_format", "json",
                "-show_format", "-show_streams", str(path)]).stdout_text
     data = json.loads(out)
-    v = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"), None)
+    # okładka w pliku mp3/m4a jest w ffprobe „strumieniem wideo” (attached_pic) — to nie film
+    v = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"
+              and not (s.get("disposition") or {}).get("attached_pic")), None)
     a = any(s.get("codec_type") == "audio" for s in data.get("streams", []))
     if v is None:
-        raise ValueError("Plik nie zawiera ścieżki wideo.")
+        if not a:
+            raise ValueError("Plik nie zawiera ani obrazu, ani dźwięku.")
+        # 0.12.0: plik dźwiękowy (podcast, nagranie wykładu, notatka głosowa) — streszczamy samą mowę
+        return MediaInfo(float(data.get("format", {}).get("duration") or 0), None, None, True, None, has_video=False)
     fps = None
     if v.get("avg_frame_rate") and v["avg_frame_rate"] != "0/0":
         n, d = v["avg_frame_rate"].split("/")

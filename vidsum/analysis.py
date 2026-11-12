@@ -22,6 +22,28 @@ class FrameInfo:
     vision: dict | None
 
 
+def audio_beats(segments: list[Segment], duration: float, step: float = 30.0) -> list[dict]:
+    """Oś czasu pliku dźwiękowego (0.12.0): odcinki po ok. `step` sekund, bez kadru; granice na początkach zdań."""
+    beats: list[dict] = []
+    start = 0.0
+    while start < duration - 0.5 or not beats:
+        end = min(duration, start + step)
+        nxt = next((s.start for s in segments if end - 5 <= s.start <= end + 10), None)   # nie tniemy zdania w pół
+        if nxt is not None and nxt > start + 5:
+            end = nxt
+        if duration - end < step / 3:
+            end = duration
+        said = [s.text for s in segments if start <= s.start < end or (not beats and s.start < end)]
+        beats.append({"start": round(start, 2), "end": round(max(end, start), 2), "kadr": None, "powod_kadru": [],
+                      "napisy": "", "widac": {"zrodlo": SRC_NONE},
+                      "slychac": {"tekst": " ".join(said).strip(), "zrodlo": SRC_SPEECH if said else SRC_NONE},
+                      "zmiana": None})
+        if end >= duration:
+            break
+        start = end
+    return beats
+
+
 def build_beats(frames: list[FrameInfo], segments: list[Segment], duration: float, ocr_lines=None) -> list[dict]:
     """Jeden beat = odcinek od kadru do następnego kadru.
 

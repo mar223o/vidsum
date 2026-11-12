@@ -6,7 +6,7 @@
 | CTranslate2 4.8.4 | silnik Whispera | MIT | tak |
 | Whisper small/medium (Systran/faster-whisper-*) | model mowy | MIT (tag na HuggingFace) | tak |
 | yt-dlp 2026.10.26 | pobieranie z linków | Unlicense (domena publiczna) | tak* |
-| ffmpeg / ffprobe | audio, kadry | LGPL/GPL (zależnie od kompilacji) | tak |
+| ffmpeg / ffprobe | audio, kadry | LGPL (paczka Windows: kompilacja BtbN `win64-lgpl`, licencja dołączona jako `FFMPEG-LICENSE.txt`) | tak |
 | RapidOCR 1.2.3 (detekcja tekstu) | napisy na ekranie | Apache-2.0 | tak |
 | PP-OCRv5 latin (monkt/paddleocr-onnx) | rozpoznawanie napisów, polskie znaki | Apache-2.0 | tak |
 | OpenCV (zależność RapidOCR) | obróbka obrazu | Apache-2.0 | tak |
@@ -26,4 +26,4 @@ pobierania. To decyzja użytkownika do prywatnego użytku — narzędzie nie omi
 publikuje pobranych plików.
 
 Sprawdzone: tagi licencji modeli przez API HuggingFace (`license:mit`, `license:apache-2.0`).
-Niesprawdzone: dokładny wariant licencji ffmpeg w paczce na Windows (ustalimy przy fazie 2).
+Wariant ffmpeg w paczce na Windows: kompilacja LGPL (`ffmpeg-n*-latest-win64-lgpl-*.zip` z wydań BtbN — patrz `.github/workflows/windows.yml`, krok „Pobierz ffmpeg (BtbN, kompilacja LGPL)”). Sprawdzone w 0.12.0 w pliku workflow; treści samej licencji nie analizowałem prawnie.

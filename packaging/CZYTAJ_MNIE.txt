@@ -1,38 +1,42 @@
-VidSum — analiza filmów (mowa + obraz)
-=======================================
+Vidsumly — streszczenia filmów i nagrań (mowa + obraz), wszystko na Twoim komputerze
+====================================================================================
 
-INSTALACJA (zalecane)
-  Uruchom VidSum-Setup-<wersja>.exe → skrót „VidSum” w menu Start. Kolejne wersje: Ustawienia → Aktualizacje
+INSTALACJA
+  Uruchom VidSum-Setup-<wersja>.exe → skrót „Vidsumly” w menu Start. Kolejne wersje: Ustawienia → Aktualizacje
   w programie (albo nowy instalator — instaluje się w to samo miejsce, stary kod jest usuwany).
+
+PIERWSZE URUCHOMIENIE (bez PowerShella)
+  Program sam sprawdza, czego brakuje, i na stronie startowej pokazuje kartę „Pierwsze uruchomienie”:
+    1. Ollama (darmowy program, który liczy modele na Twoim komputerze) — przycisk „Zainstaluj Ollamę” pobiera
+       oficjalny instalator z ollama.com i otwiera go; w jego oknie kliknij „Install”.
+    2. Modele — przycisk „Pobierz modele” (jednorazowo, kilka GB, z paskiem postępu).
+    3. Opcjonalnie „Włącz 2 zapytania naraz” — szybszy opis kadrów.
+  Poza tym program pobierze jednorazowo model mowy Whisper (~1,6 GB) i — jeśli masz kartę NVIDIA — biblioteki CUDA
+  (~1,3 GB) do %LOCALAPPDATA%\VidSum. Wyniki trafiają do Dokumenty\VidSum (zmienisz w Ustawieniach).
+  Gdyby przycisk nie zadziałał: pobierz Ollamę ręcznie ze strony https://ollama.com/download i kliknij „Sprawdź ponownie”.
+
+CO MOŻNA WRZUCIĆ
+  Filmy (MP4, MOV, MKV, WEBM), nagrania dźwiękowe (MP3, M4A, WAV, OGG, FLAC) i linki (np. YouTube, Instagram).
+  Nagranie dźwiękowe jest streszczane z samej mowy.
+
+TRYBY ANALIZY (przełącznik przy polu na link)
+  Pełna — mowa, opis kadrów i napisy z ekranu (najdokładniejsza dla przepisów i ćwiczeń).
+  Mowa + szybki obraz — najpierw pełny raport z mowy, potem kilkanaście kadrów wskazanych mową („spójrz tutaj”).
+  Tylko mowa — najszybsza; bez obrazu.
 
 START (wersja bez instalatora)
   Kliknij dwukrotnie „VidSum Start” (VidSum Start.exe albo VidSum Start.cmd).
   Program działa W TLE — bez czarnego okna — i otwiera stronę w przeglądarce.
   Wyłączasz go przyciskiem „Zakończ” w prawym górnym rogu strony.
-  Ponowne kliknięcie „VidSum Start”, gdy program już działa, tylko otwiera stronę.
   Dziennik (gdyby coś nie działało): %LOCALAPPDATA%\VidSum\vidsum.log
-
-WYMAGANE OSOBNO
-  Ollama + model obrazu (jednorazowo, w PowerShell):
-      winget install Ollama.Ollama
-      ollama pull qwen3-vl:4b-instruct
-
-SZYBCIEJ (zalecane, jednorazowo w PowerShell, potem Ollama: ikona lamy → Quit i uruchomić ponownie):
-      setx OLLAMA_NUM_PARALLEL 3
-      setx OLLAMA_FLASH_ATTENTION 1
-  Ollama liczy wtedy kilka zapytań naraz (tłumaczenie razem ze streszczeniem, części streszczenia naraz).
 
 OPCJONALNIE
   Program streszcza sam (lokalny model). Claude to dodatek: Claude Code zalogowany kontem Pro
-  i w Ustawieniach streszczenie = claude, albo przycisk „Kopiuj prompt dla Claude”.
-
-PIERWSZE URUCHOMIENIE
-  Program pobierze (jednorazowo): model mowy Whisper (~1,6 GB), model tekstowy gemma3:4b do Ollamy (~2,5 GB)
-  i — jeśli masz kartę NVIDIA — biblioteki CUDA (~1,3 GB) do %LOCALAPPDATA%\VidSum.
-  Wyniki trafiają do Dokumenty\VidSum (zmienisz w Ustawieniach).
+  i w Ustawieniach streszczenie = claude, albo przycisk „Kopiuj prompt”.
 
 WIERSZ POLECEŃ
   VidSum.exe "C:\ścieżka\film.mp4"
+  VidSum.exe "C:\ścieżka\nagranie.mp3"
   VidSum.exe "https://www.youtube.com/watch?v=..."
   VidSum.exe --help
 

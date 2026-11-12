@@ -10,10 +10,51 @@ on:
         description: pomiń starą wersję (już zmierzona)
         type: boolean
         default: false
+      zakres:
+        description: "frytki (stary pomiar) | filmy (4 filmy z 0.11.9, kontrola jakości) | wszystko"
+        default: filmy
 permissions:
   contents: read
 jobs:
+  # 0.12.0: streszczanie i tłumaczenie na prawdziwym modelu dla filmów z komputera użytkownika (tests/data/filmy_0119)
+  filmy:
+    if: inputs.zakres != 'frytki'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        film: [tortilla, pancake_touch, wisdm_moda, dokument_ambasada]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          sudo systemctl stop ollama 2>/dev/null || true
+          nohup ollama serve > ollama.log 2>&1 &
+          for i in $(seq 30); do curl -sf localhost:11434/api/tags && break; sleep 1; done
+          ollama pull gemma3:4b
+      - name: Pomiar
+        run: python tests/bench/story_bench.py gemma3:4b --film ${{ matrix.film }} --wyniki wyniki
+      - name: Podsumowanie
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, glob
+          for f in glob.glob("wyniki/*.json"):
+              d = json.load(open(f, encoding="utf-8"))
+              print(f"### {d['film']} — kontrola {d['wynik']}/100, streszczenie {d['czas_streszczenia_s']} s, tłumaczenie {d['czas_tlumaczenia_s']} s\n")
+              for i in d["kontrola"]:
+                  print(f"- {i['poziom']} `{i['kod']}` {i['opis']}")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "filmy-${{ matrix.film }}", path: wyniki/}
+
   pomiar:
+    if: inputs.zakres != 'filmy'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
