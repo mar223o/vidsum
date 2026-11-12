@@ -506,11 +506,15 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
 
     def refine_job() -> None:
         if ocr_thread and ocr_thread.is_alive():
-            ocr_thread.join()
+            # 0.12.0: w długim filmie Whisper nie czeka w nieskończoność na OCR (pomiar 0.11.9: karta stała 160 s);
+            # po 20 s idzie bez podpowiedzi z ekranu — napisy i tak trafią na oś czasu, gdy OCR skończy
+            ocr_thread.join(timeout=20 if info.duration > 900 else None)
+            if ocr_thread.is_alive():
+                log("        poprawka mowy bez podpowiedzi z napisów (OCR jeszcze trwa — długi film)")
         tr0 = tr_box.get("tr")
         if not (wav and device == "cuda" and tr0 and tr0.segments):
             return
-        lines = ocr_box.get("lines", []) if opt.ocr else []
+        lines = ocr_box.get("lines", []) if opt.ocr and not (ocr_thread and ocr_thread.is_alive()) else []
         hot2 = ""
         if use_hot and lines:
             from .ocr import hotwords_targeted
@@ -639,7 +643,9 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     if speech_thread and speech_thread.is_alive():
         log("        czekam na transkrypcję…")
         speech_thread.join()
-    finish_ocr()
+    if info.duration <= 900:
+        finish_ocr()
+    # długi film: na OCR czekamy dopiero po poprawce mowy — Whisper i wczytanie modelu tekstowego idą w tym czasie
     if "err" in tr_box:
         if wav:
             wav.unlink(missing_ok=True)
@@ -684,6 +690,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         if vision_engine:
             vision_engine.unload()                 # karta dla Whispera
         refine_job()
+    if info.duration > 900:
+        finish_ocr()
     if "tr" in ref_box:
         tr = tr_box["tr"] = ref_box["tr"]
         _emit(opt, "transkrypcja", {"jezyk": tr.language, "segmenty": [asdict(x) for x in tr.segments]})
@@ -1023,6 +1031,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         (out / f"transkrypcja.{lang}.srt").write_text(_srt(tdata["segmenty"]), encoding="utf-8")
     (out / "raport.md").write_text(_report_md(result), encoding="utf-8")
     (out / "przebieg.log").write_text("\n".join(trail) + "\n", encoding="utf-8")
+    try:                                         # nauka prognozy czasu na tym komputerze (vidsum/eta.py)
+        from . import eta
+        eta.record(opt.out_root, mode, info.duration, timings.get("razem_s", 0), __version__)
+    except OSError:
+        pass
     try:
         _append_history(opt.out_root, {**result, "_folder": out.name}, len(ocr_lines))
     except OSError as e:                         # np. plik otwarty w Excelu — analiza i tak jest zapisana

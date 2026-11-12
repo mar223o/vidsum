@@ -146,14 +146,14 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
         "streszczenie": [_str(p) for p in _lst(d.get("streszczenie")) if _str(p)] or
                         ([_str(d.get("streszczenie"))] if isinstance(d.get("streszczenie"), str) else []),
         "co_masz_zrobic": {
-            "skladniki": [{"nazwa": _str(x.get("nazwa")), "ilosc": _str(x.get("ilosc")) or "brak danych",
+            "skladniki": [{"nazwa": _str(x.get("nazwa")), "ilosc": _str(x.get("ilosc") or x.get("ilość")) or "brak danych",
                            "zrodlo": _zr(x.get("zrodlo"))} for x in _lst(cmz.get("skladniki")) if isinstance(x, dict)],
             "kroki": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst")), "zrodlo": _zr(x.get("zrodlo"))}
                       for x in _lst(cmz.get("kroki")) if isinstance(x, dict) and _str(x.get("tekst"))],
             "sprzet": [_str(x) for x in _lst(cmz.get("sprzet")) if _str(x)],
             "czas": _str(cmz.get("czas")),
             "cwiczenia": [{"nazwa": _str(x.get("nazwa")), "serie": _str(x.get("serie")),
-                           "powtorzenia": _str(x.get("powtorzenia")), "t": clamp(x.get("t")),
+                           "powtorzenia": _str(x.get("powtorzenia") or x.get("powtórzenia")), "t": clamp(x.get("t")),
                            "technika": _str(x.get("technika")), "zrodlo": _zr(x.get("zrodlo"))}
                           for x in _lst(cmz.get("cwiczenia")) if isinstance(x, dict) and _str(x.get("nazwa"))],
             "wskazowki": [_str(x) for x in _lst(cmz.get("wskazowki")) if _str(x)],
@@ -234,8 +234,9 @@ def to_markdown(s: dict) -> str:
                                                       for x in c["fakty"]] + [""]
         if c["cwiczenia"]:
             L += ["### Ćwiczenia i elementy techniki" if s["typ"] == "sport" else "### Ćwiczenia"] + [
-                f"- `{ts(x['t'])}` **{x['nazwa']}** — {x['serie'] or '?'} × {x['powtorzenia'] or '?'}"
-                f"{(' — ' + x['technika']) if x['technika'] else ''}{_src(x['zrodlo'])}" for x in c["cwiczenia"]] + [""]
+                f"- `{ts(x['t'])}` **{x['nazwa']}**"
+                + (f" — {x['serie'] or '?'} × {x['powtorzenia'] or '?'}" if x["serie"] or x["powtorzenia"] else "")
+                + f"{(' — ' + x['technika']) if x['technika'] else ''}{_src(x['zrodlo'])}" for x in c["cwiczenia"]] + [""]
         for k, lab in (("sprzet", "Sprzęt"), ("wskazowki", "Wskazówki"), ("bledy", "Błędy, których unikać"),
                        ("wnioski", "Wnioski")):
             if c[k]:
@@ -810,6 +811,19 @@ def tidy(summary: dict, duration: float, max_quotes: int = 4, max_chapters: int 
         kroki.append(k)
     if c:
         c["kroki"] = kroki
+        # ćwiczenia: ta sama technika opisana drugi raz to nie nowe ćwiczenie (pomiar na prawdziwym modelu, reel o piłce:
+        # 12 pozycji, w tym „Kontrola Stopą – Utrzymanie” dwa razy i „Wejście w Żonglerkę” dwa razy)
+        ex: list[dict] = []
+        for x in c.get("cwiczenia", []):
+            body = _str(x.get("technika")) or _str(x.get("nazwa"))
+            dup = next((y for y in ex if _stems(_str(x.get("nazwa"))) == _stems(_str(y.get("nazwa")))
+                        or _same_step(body, _str(y.get("technika")) or _str(y.get("nazwa")))), None)
+            if dup:
+                for k in ("serie", "powtorzenia"):
+                    dup[k] = dup.get(k) or x.get(k)
+                continue
+            ex.append(x)
+        c["cwiczenia"] = ex
         tips = c.get("wskazowki", [])
         c["wnioski"] = [w for w in c.get("wnioski", []) if not any(_same_step(w, x) for x in tips)]
     q = summary.get("cytaty", [])
@@ -1160,7 +1174,29 @@ def _imperative(txt: str) -> bool:
     w = _norm_words(re.sub(r"^(i|a|oraz|albo|lub)\s+", "", txt.strip(), flags=re.I))
     while len(w) > 1 and w[0] in _ADVERBS:          # „Ponownie zamroź”, „Lekko oprósz”
         w = w[1:]
+    if w and w[0] in _PL_NOT_ACTION:                # „Możesz też użyć masła.”, „Wiesz, co jest najlepsze?” — to nie polecenie
+        return False
     return bool(w) and not re.search(r"[aeiouyąęó]$", w[0])
+
+
+_PL_YOU = re.compile(r"\b[^\W\d_]{2,}(?:asz|esz|isz|ysz)\b", re.I)
+_PL_WE = re.compile(r"\b[^\W\d_]{2,}(?:amy|emy|imy|ymy)\b", re.I)
+_PL_NOT_ACTION = {"wiesz", "możesz", "musisz", "chcesz", "masz", "widzisz", "myślisz", "lubisz", "znasz", "pamiętasz",
+                  "potrzebujesz", "będziesz", "zobaczysz", "słyszysz", "rozumiesz", "mamy", "możemy", "musimy", "chcemy",
+                  "wiemy", "widzimy", "lubimy", "będziemy", "jesteśmy", "znamy", "potrzebujemy", "zobaczymy", "pamiętamy",
+                  # rzeczowniki o tych samych końcówkach
+                  "gulasz", "lawasz", "tomasz", "łukasz", "problemy", "systemy", "kremy", "gramy", "kilogramy", "dekagramy",
+                  "programy", "olbrzymy", "rozmiary"}
+
+
+def _pl_instruction(txt: str) -> bool:
+    """Polska instrukcja mówiona inaczej niż rozkazem: „dodasz sól”, „położysz wrapa” (2. os.), „kroimy cebulę”,
+    „dodajemy” (1. os. l. mn.), „należy dodać”. Pomiar na prawdziwym modelu (tortilla, PL): „Na to położysz wrapa” i
+    „Po chwili zdejmiesz z patelni i dodasz szynkę…” trafiły do wskazówek, bo nie zaczynały się od rozkazu."""
+    words = [w.lower() for w in _PL_YOU.findall(txt) + _PL_WE.findall(txt)]
+    if any(w not in _PL_NOT_ACTION for w in words):
+        return True
+    return bool(re.search(r"\b(?:należy|trzeba)\s+(?:\w+\s+){0,2}\w+[ćc]\b", txt, re.I))
 
 
 def _explains(orig: str) -> bool:
@@ -1330,18 +1366,25 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         # dokończenie zdania z poprzedniej linii („To completely cool.” → „…, aby całkowicie ostudzić.”) albo
         # powtórzenie — do poprzedniego kroku (pomiar: model zamieniał każdą linię na osobny „krok”)
         if adjacent and n - prev["z"][-1] <= 3 and (txt[:1].islower() or _same_step(txt, prev["tekst"])
-                                                     or _continues(ln["tekst"])):
+                                                     or _continues(ln["tekst"])
+                                                     or (prev["tekst"].rstrip().endswith(",") and ln["tekst"][:1].islower())):
             if not _same_step(txt, prev["tekst"]):
                 join = " albo " if alt and not re.match(r"^(albo|lub)\b", txt, re.I) else ", "
-                prev["tekst"] = prev["tekst"].rstrip(".!") + join + txt[:1].lower() + txt[1:]
+                prev["tekst"] = prev["tekst"].rstrip(".!, ") + join + txt[:1].lower() + txt[1:]
             prev["z"].append(n)
             prev["zrodlo"] = "mowa+obraz" if prev["zrodlo"] == "mowa+obraz" or ln["ekran"] else "mowa"
             continue
-        if _explains(ln["tekst"]) or not _imperative(txt):
+        if _explains(ln["tekst"]) or not (_imperative(txt) or _pl_instruction(txt)):
             if _FILLER.match(ln["tekst"].strip()):
                 continue                           # „This is it.” — bez treści (pomiar: model wstawił tu „Obierz ziemniaki”)
+            if txt.rstrip().endswith("?") and not re.search(r"\d", txt):
+                continue                           # „Pyszne, wysokobiałkowe śniadanie?” — pytanie to nie wskazówka
             notes.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr})
             continue
+        # „Czy wiesz, że jak wbijesz do miski 3 jajka?” → „Wbijesz do miski 3 jajka.” (retoryczne pytanie z instrukcją)
+        q = re.match(r"^czy wiesz,? że (?:jak |jeśli |gdy |kiedy )?(.+?)\??$", txt, re.I)
+        if q:
+            txt = q.group(1)[:1].upper() + q.group(1)[1:].rstrip(",") + "."
         steps.append({"z": [n], "t": ln["t"], "tekst": txt, "zrodlo": zr, "etap": ""})
     if pending:
         attach_back(pending)
@@ -1356,7 +1399,8 @@ def grounded_steps(engine, lines: list[dict], typ: str, meta_line: str, log=lamb
         # duplikat tylko przy tych samych słowach (pomiar: „skrobia ziemniaczana” wypadała jako duplikat „ziemniaków”)
         if not name or any(_stems(name) == _stems(o) for o in seen) or not (_stems(name) & _stems(spoken_pl)):
             continue
-        q = _str(x.get("ilosc")) if isinstance(x, dict) else ""
+        # model pisze klucz raz „ilosc”, raz „ilość” (pomiar na prawdziwym modelu, tortilla: {"nazwa": "jajka", "ilość": "3"})
+        q = _str(x.get("ilosc") or x.get("ilość") or x.get("quantity") or x.get("amount")) if isinstance(x, dict) else ""
         if not (_nums(q) and _nums(q) <= all_nums):
             q = "brak danych"
         seen.append(name)
@@ -1425,13 +1469,27 @@ def merge_notes(notes: list[dict]) -> list[dict]:
     return out
 
 
+_DANGLING = {"i", "a", "z", "w", "na", "do", "po", "o", "u", "za", "od", "ze", "we", "oraz", "albo", "lub", "the", "of",
+             "and", "to", "in", "on", "with", "for"}
+
+
+def _short_title(text: str, n: int = 4) -> str:
+    """Tytuł rozdziału z początku kroku: do n słów, ale nie urwany na liczbie ani przyimku („Wbijesz do miski 3” →
+    „Wbijesz do miski 3 jajka”, „Po chwili zdejmiesz z” → „Po chwili zdejmiesz z patelni”)."""
+    w = re.sub(r"[.,;:!?]+$", "", text.strip()).split()
+    k = min(n, len(w))
+    while k < len(w) and k < n + 2 and (w[k - 1].lower().strip(",") in _DANGLING or re.fullmatch(r"\d+[.,]?\d*", w[k - 1])):
+        k += 1
+    return " ".join(w[:k]).rstrip(",")
+
+
 def chapters_from_steps(steps: list[dict], duration: float, max_chapters: int = 6, notes: list[dict] | None = None) -> list[dict]:
     """Rozdziały z etapów kroków — granica rozdziału tylko na zmianie etapu (pomiar: rozdział „Smażenie i schładzanie”
     obejmował gotowanie, a ostatni łączył mrożenie, drugie smażenie i solenie)."""
     ch: list[dict] = []
     if steps and not any(s.get("etap") for s in steps):
         # brak etapów: rozdział na każdy krok (tytuł = początek kroku), potem łączenie najkrótszych do max_chapters
-        steps = [{**s, "etap": " ".join(s["tekst"].rstrip(".").split()[:4])} for s in steps]
+        steps = [{**s, "etap": _short_title(s["tekst"])} for s in steps]
     for s in steps:
         name = s.get("etap") or ""
         if ch and (name == ch[-1]["tytul"] or (name and _same_step(name, ch[-1]["tytul"]))):
@@ -1633,7 +1691,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         pl = polish() if callable(polish) else polish
         if pl:
             lines = speech_lines(segments, ocr, pl)
-        p = story_summary(engine, lines, typ, meta_line, duration, words, _try, _loads, log, record, par)
+        p = story_summary(engine, lines, typ, meta_line, duration, words, _try, _loads, log, record, par, ocr=ocr)
         ext["fakty"] = p.pop("fakty", [])
     elif grounded:
         # polskie linie (tłumaczenie liczy się równolegle) — `polish()` czeka na nie; None = mowa już po polsku / brak
@@ -1774,7 +1832,7 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
     merged = {**p, "typ": typ, "co_masz_zrobic": {
         "skladniki": ext["skladniki"], "kroki": ext["kroki"], "sprzet": ext["sprzet"], "czas": _str(p.get("czas")),
         "cwiczenia": ext["cwiczenia"], "wskazowki": texts(ext["wskazowki"]), "bledy": texts(ext["bledy"]),
-        "wnioski": texts(_lst(p.get("wnioski"))) or texts(ext["fakty"])[:7],
+        "wnioski": texts(_lst(p.get("wnioski"))) or ([] if story_mode else texts(ext["fakty"])[:7]),
         "fakty": [x if isinstance(x, dict) else {"t": 0, "tekst": _str(x), "rodzaj": "fakt", "zrodlo": "mowa"}
                   for x in ext["fakty"] if x]}}
     merged["co_masz_zrobic"]["sprzet"] = texts(ext["sprzet"])

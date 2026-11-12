@@ -17,7 +17,8 @@ PROMPT = """You translate lines of an automatic video transcript from {src} into
 Rules:
 - Translate every numbered line separately. Keep the SAME numbers. Do not merge, split, skip or add lines.
 - Lines can be sentence fragments — translate them as fragments.
-- Keep numbers, units, temperatures, quantities and proper names exactly.
+- Keep numbers, units, temperatures, quantities and proper names exactly. Never translate or adapt people's names
+  (Michael stays Michael, not Michał).
 - If a word looks like a speech-recognition mistake, translate what was most likely said, do not invent new facts.
 - Write only in {tgt}{script}. No comments, no explanations.
 {terms}{context}Answer ONLY with JSON: {{"1": "translation of line 1", "2": "..."}}

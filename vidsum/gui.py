@@ -87,9 +87,23 @@ class Job:
                       "czas_analizy": (r.get("czasy") or {}).get("razem_s"), "utworzono": r.get("utworzono")}
         return self._card
 
+    def eta(self) -> float | None:
+        """Prognoza czasu CAŁEJ analizy tego filmu (s) — gdy znamy już jego długość (0.12.0, vidsum/eta.py)."""
+        dur = (self.partial.get("meta") or {}).get("dlugosc_s")
+        if self.status != "trwa" or not dur:
+            return None
+        if getattr(self, "_eta", None) is None:
+            try:
+                from . import eta
+                self._eta = eta.predict(self.opt.out_root, getattr(self.opt, "mode", "pelna"), float(dur))["razem_s"]
+            except Exception:
+                self._eta = 0.0
+        return self._eta or None
+
     def to_dict(self) -> dict:
         end = self.finished or time.time()
-        return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-400:],
+        return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-400:], "eta_s": self.eta(),
+                "tryb": getattr(self.opt, "mode", "pelna"),
                 "error": self.error, "out": str(self.out) if self.out else None, "created": self.created,
                 "stage": self.stage, "etap_po": self.stage_extra, "czesciowe": list(self.partial) if self.status == "trwa" else [],
                 "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card()}

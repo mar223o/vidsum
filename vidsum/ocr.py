@@ -79,9 +79,21 @@ class CaptionOCR:
         return out
 
 
+LONG_FILM_S = 900          # powyżej: OCR jednym przebiegiem i najwyżej MAX_LONG_FRAMES klatek
+MAX_LONG_FRAMES = 240
+
+
 def ocr_fps(duration: float) -> float:
-    """Gęstość OCR: krótkie filmy (Shorts) 2 kl./s, dłuższe rzadziej (czas!)."""
-    return 2.0 if duration <= 180 else 1.0 if duration <= 900 else 0.5
+    """Gęstość OCR: krótkie filmy (Shorts) 2 kl./s, dłuższe rzadziej (czas!).
+
+    0.12.0, długie filmy (> 15 min): najwyżej 240 klatek na cały film, jednym przebiegiem. Pomiar 0.11.9 (dokument
+    24:50): 745 klatek w dwóch przebiegach = 257 s OCR; opis kadrów skończył się 160 s wcześniej i karta czekała.
+    Przy 240 klatkach i tym samym tempie (0,42 s na klatkę) to ok. 100 s — tyle, ile trwa opis kadrów."""
+    if duration <= 180:
+        return 2.0
+    if duration <= LONG_FILM_S:
+        return 1.0
+    return round(min(0.5, MAX_LONG_FRAMES / duration), 4)
 
 
 def _small_gray(path: Path):
@@ -182,16 +194,20 @@ def read_captions(video: Path, duration: float, model_dir: Path, log=print) -> l
 
         # 1. przebieg: co druga klatka. 2. przebieg: klatka pomiędzy — tylko gdy napisy przed i po się różnią
         # (wtedy coś się zmieniło i krótki napis mógłby zniknąć). Gdy napis stoi, połowa klatek odpada.
-        for i in range(0, n, 2):
-            texts_at[i] = read(i)
-        for i in range(1, n, 2):
-            a = texts_at[i - 1]
-            b = texts_at[i + 1] if i + 1 < n else None
-            if b is not None and [x for x, _ in a] == [x for x, _ in b]:
-                texts_at[i] = a
-                skipped += 1
-            else:
+        if duration > LONG_FILM_S:                     # długi film: jeden przebieg po wszystkich (już rzadkich) klatkach
+            for i in range(n):
                 texts_at[i] = read(i)
+        else:
+            for i in range(0, n, 2):
+                texts_at[i] = read(i)
+            for i in range(1, n, 2):
+                a = texts_at[i - 1]
+                b = texts_at[i + 1] if i + 1 < n else None
+                if b is not None and [x for x, _ in a] == [x for x, _ in b]:
+                    texts_at[i] = a
+                    skipped += 1
+                else:
+                    texts_at[i] = read(i)
         lines = merge_frames(texts_at, fps)
     el = time.time() - t0
     log(f"        OCR: {n} klatek ({fps}/s; odczytanych {done}, pominiętych {skipped} — bez zmiany napisów), "

@@ -1,0 +1,22 @@
+[
+ {
+  "etap": "typ",
+  "odpowiedz": "{\"typ\": \"przepis|gotowanie\"}"
+ },
+ {
+  "etap": "kroki",
+  "odpowiedz": "{\"1\": \"Czy wiesz, że jak wbijesz do miski 3 jajka?\", \"2\": \"Dodasz sól, pieprz, wymieszasz.\", \"3\": \"Wrzucisz na rozgrzaną patelnię.\", \"4\": \"Na to położysz wrapa.\", \"5\": \"Po chwili zdejmiesz z patelni i dodasz szynkę, sałatę,\", \"6\": \"mozzarellę i pomidora.\", \"7\": \"\", \"8\": \"Pyszne, wysokobiałkowe śniadanie?\"}"
+ },
+ {
+  "etap": "skladniki",
+  "odpowiedz": "{\"składniki\": [\n        {\"nazwa\": \"jajka\", \"ilość\": \"3\"},\n        {\"nazwa\": \"sól\", \"ilość\": \"brak danych\"},\n        {\"nazwa\": \"pieprz\", \"ilość\": \"brak danych\"},\n        {\"nazwa\": \"wrapa\", \"ilość\": \"1\"},\n        {\"nazwa\": \"szynka\", \"ilość\": \"brak danych\"},\n        {\"nazwa\": \"sałata\", \"ilość\": \"brak danych\"},\n        {\"nazwa\": \"mozzarella\", \"ilość\": \"brak danych\"},\n        {\"nazwa\": \"pomidor\", \"ilość\": \"brak danych\"}\n    ], \n\"sprzet\": [\"miska\", \"patelnia\", \"taca\"]}"
+ },
+ {
+  "etap": "opis_b",
+  "odpowiedz": "{\n  \"cytaty\": [\n    {\"t\": 0, \"tekst\": \"Czy wiesz, że jak wbijesz do miski 3 jajka?\", \"tlumaczenie\": \"Wiesz, ile jajek warto wbić do miski?\"},\n    {\"t\": 6, \"tekst\": \"Na to położysz wrapa, po chwili zdejmiesz z patelni i dodasz szynkę, sałatę,, mozzarellę i pomidora, pyszne, wysokobiałkowe śniadanie?\", \"tlumaczenie\": \"Następnie nałożysz tortillę, a po krótkim czasie usuniesz ją z patelni i dodać będziesz szynkę, sałatę, mozzarelę i pomidor – to będzie smaczne, wysokobiałkowe śniadanie.\"}\n  ],\n  \"rozdzialy\": [\n    {\"start\": 0, \"tytul\": \"Przygotowanie masy jajecznej\"},\n    {\"start\": 2, \"tytul\": \"Smażenie tortilli na patelni\"},\n    {\"start\": 5, \"tytul\": \"Dodawanie składników\"},\n    {\"start\": 8, \"tytul\": \"Układanie składników\"},\n    {\"start\": 10, \"tytul\": \"Wykończenie i podawanie\"}\n  ],\n  \"pytania\": [\n    \"Jakie przyprawy użyto do jajek?\",\n    \"Czy można dodać inne warzywa poza szynką, sałatą, mozzarellą i pomidorem?\",\n    \"Jaka jest temperatura patelni, na której smażona jest tortilla?\",\n    \"Czy można użyć innego rodzaju tortilli niż ta pokazana w filmie?\"\n  ]\n}"
+ },
+ {
+  "etap": "opis_a",
+  "odpowiedz": "{\n  \"tytul\": \"Szybkie wysokobiałkowe śniadanie\",\n  \"teza\": \"Michał Wrzosek pokazuje, jak przygotować szybką i wartościową pod względem składników odżywczą tortillę z jajkiem.\",\n  \"streszczenie\": [\n    \"Film przedstawia przepis na szybkie wysokobiałkowe śniadanie – tortillę z jajkiem. Autor, Michał Wrzosek, demonstruje prosty sposób przygotowania posiłku idealnego dla osób szukających pożywnych i szybkich opcji na rozpoczęcie dnia.\",\n    \"Najpierw dodaje się sól, pieprz i wymiesza 3 jajka w misce. Następnie wrzuca składniki na rozgrzaną patelnię, a po chwili umieszcza tortillę na patelni i dodaje szynkę, sałatę, mozzarellę oraz pomidora. Autor podkreśla, że to pyszne wysokobiałkowe śniadanie.\",\n    \"Wrzosek sugeruje, aby dodać składniki w kolejności, zaczynając od soli, pieprzu i wymieszania jajek. Dodaje również, że po chwili należy usunąć tortillę z patelni. Autor podkreśla znaczenie szybkiego przygotowania tego posiłku.\",\n    \"Podsumowując, film pokazuje prosty przepis na wysokobiałkowe śniadanie, idealny dla osób ceniących szybkie i wartościowe posiłki.\"\n  ],\n  \"do_zapamietania\": \"Pamiętaj o dodaniu soli, pieprzu i wymieszaniu jajek przed smażeniem.\",\n  \"najwazniejsze\": [\n    {\n      \"t\": 2,\n      \"tytul\": \"Przygotowanie składników\",\n      \"opis\": \"Dodanie soli, pieprz, wymieszanie jajka w misce.\",\n      \"zrodlo\": \"mowa|obraz|mowa+obraz\"\n    },\n    {\n      \"t\": 4,\n      \"tytul\": \"Smażenie tortilli\",\n      \"opis\": \"Wrzucenie składników na rozgrzaną patelnię.\",\n      \"zrodlo\": \"mowa|obraz|mowa+obraz\"\n    },\n    {\n      \"t\": 7,\n      \"tytul\": \"Dodawanie składników\",\n      \"opis\": \"Dodawanie szynki, sałaty, mozzarelli i pomidora.\",\n      \"zrodlo\": \"mowa|obraz|mowa+obraz\"\n    }\n  ],\n  \"szczera_ocena\": \"Film prezentuje bardzo prosty przepis na tortillę z jajkiem. Brak jest szczegółowych informacji dotyczących czasu smażenia, a także proporcji składników. Warto byłoby dodać wskazówki dotyczące smaku i ewentualnych modyfikacji przepisu.\",\n  \"czego_nie_wiadomo\": [\n    \"Nie wiadomo, jak długo należy smażyć tortillę, aby jajko było ścięte, a tortilla dobrze się zrumieniła.\"\n  ]\n}"
+ }
+]

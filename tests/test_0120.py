@@ -168,10 +168,10 @@ class StoryEngine:
         assert prompt.startswith("Masz streszczenia"), prompt[:60]
         return json.dumps({"tytul": "Ambasada Chin w Londynie", "teza": "Film bada plany ambasady.",
                            "streszczenie": ["A.", "B.", "C.", "D."], "do_zapamietania": "Z.",
-                           "najwazniejsze": [{"t": 150, "tytul": "Zakup", "opis": "Chiny kupiły teren."},
-                                             {"t": 330, "tytul": "Reklama", "opis": "Usuń swoje dane."},
-                                             {"t": 1040, "tytul": "Protest", "opis": "Ludzie protestują."},
-                                             {"t": 1370, "tytul": "Decyzja", "opis": "Rząd zatwierdził budowę."}],
+                           "najwazniejsze": [{"zrodlo": "C1", "tytul": "Zakup", "opis": "Chiny kupiły Royal Mint Court za 343 miliony."},
+                                             {"zrodlo": "C2", "tytul": "Reklama", "opis": "Delete Me usuwa twoje dane."},
+                                             {"zrodlo": "C5", "tytul": "Protest", "opis": "Setki ludzi protestują, wśród nich Carmen Lau."},
+                                             {"zrodlo": "C6", "tytul": "Decyzja", "opis": "Rząd zatwierdził budowę."}],
                            "wnioski": ["W1", "W2"], "szczera_ocena": "Rzetelne. Brakuje informacji o technikach gotowania.",
                            "czego_nie_wiadomo": ["X"], "pytania": ["P1?"]})
 
@@ -589,3 +589,208 @@ def test_mode_full_adds_frames_pointed_by_speech(tmp_path, cue_subs):
     shown = r["streszczenie"]["dane"]["pokazane"]
     assert len(shown) == 1 and "zobaczcie" in shown[0]["mowa"]
     assert any("Kadry co najwyżej" in g for g in r["luki"])
+
+
+# ---------------- długie filmy, prognoza czasu, interfejs ----------------
+def test_ocr_budget_for_long_films():
+    from vidsum.ocr import ocr_fps
+    assert ocr_fps(60) == 2.0 and ocr_fps(600) == 1.0 and ocr_fps(900) == 1.0       # bez zmian do 15 min
+    for dur in (1000, 1490, 3600, 7200):
+        assert 235 <= dur * ocr_fps(dur) <= 241, "długi film: najwyżej 240 klatek OCR"
+    assert ocr_fps(1490) < 0.5                                                      # 0.11.9: 0,5 kl./s = 745 klatek, 257 s
+
+
+def test_eta_starts_from_measured_points_and_learns(tmp_path):
+    from vidsum import eta
+    # pięć pomiarów użytkownika (0.11.5–0.11.9, RTX 3070 Ti, tryb pełny): prognoza startowa trafia w ±15%
+    for dur, real in ((14, 54), (58, 69), (62, 82), (88, 85), (1490, 568)):
+        p = eta.predict(None, "pelna", dur)
+        assert abs(p["razem_s"] - real) / real < 0.15 and p["z_pomiarow"] == 0
+    assert eta.predict(None, "mowa", 1490)["razem_s"] < eta.predict(None, "szybki", 1490)["razem_s"] < eta.predict(None, "pelna", 1490)["razem_s"]
+    assert eta.predict(tmp_path, "nieznany", 60)["razem_s"] == eta.predict(None, "pelna", 60)["razem_s"]
+    # wolniejszy komputer: dwa pomiary → prognoza przeskalowana; od trzech (różne długości) — własne a i b
+    eta.record(tmp_path, "pelna", 60, 142, "0.12.0")
+    eta.record(tmp_path, "pelna", 62, 143, "0.12.0")
+    slow = eta.predict(tmp_path, "pelna", 60)
+    assert slow["z_pomiarow"] == 2 and 130 <= slow["razem_s"] <= 155
+    eta.record(tmp_path, "pelna", 1500, 1100, "0.12.0")
+    assert 1050 <= eta.predict(tmp_path, "pelna", 1500)["razem_s"] <= 1150 and 130 <= eta.predict(tmp_path, "pelna", 61)["razem_s"] <= 160
+    assert eta.predict(tmp_path, "mowa", 60)["z_pomiarow"] == 0, "pomiary jednego trybu nie mieszają się z drugim"
+    eta.record(tmp_path, "pelna", 0, 10)                                              # zły pomiar — pomijany
+    for i in range(80):
+        eta.record(tmp_path, "mowa", 100 + i, 40 + i)
+    assert len(json.loads((tmp_path / eta.FILE).read_text(encoding="utf-8"))) == eta.KEEP
+    (tmp_path / eta.FILE).write_text("{zepsuty", encoding="utf-8")
+    assert eta.predict(tmp_path, "pelna", 60)["z_pomiarow"] == 0                      # zepsuty plik nie psuje prognozy
+
+
+def test_gui_mode_per_video_status_and_eta(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))
+    monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
+    from vidsum import eta
+    from vidsum.gui import App, Job
+    app = App(tmp_path / "wyniki", "tok")
+    assert app.settings["tryb"] == "pelna" and app.options(app.settings).mode == "pelna"
+    s = app.job_settings("zawsze", "szybki")
+    assert s["tryb"] == "szybki" and app.settings["tryb"] == "szybki" and app.options(s).mode == "szybki"
+    assert app.job_settings(None, "zly tryb")["tryb"] == "szybki"                     # zła wartość — zostaje ostatni wybór
+    assert app.job_settings(None, "mowa")["tryb"] == "mowa"
+    st = app.status()
+    assert st["tryb_proponowany"] in ("pelna", "mowa") and "karta_pamiec_mb" in st
+    if not st["gpu_nvidia"]:
+        assert st["tryb_proponowany"] == "mowa" and "NVIDIA" in st["tryb_powod"]
+    job = Job("a1", "https://example.com/x", "x", app.options(app.settings), None)
+    assert job.to_dict()["eta_s"] is None and job.to_dict()["tryb"] == "mowa"       # jeszcze nie trwa
+    job.status, job.started = "trwa", __import__("time").time()
+    assert job.to_dict()["eta_s"] is None                                             # długość jeszcze nieznana
+    job.partial["meta"] = {"dlugosc_s": 1490.0}
+    assert job.to_dict()["eta_s"] == eta.predict(tmp_path / "wyniki", "mowa", 1490.0)["razem_s"]
+
+
+def test_index_has_mode_switch_and_eta_texts():
+    html = (Path(__file__).parents[1] / "vidsum" / "web" / "index.html").read_text(encoding="utf-8")
+    for needle in ('id="amode"', 'data-mode="pelna"', 'data-mode="szybki"', 'data-mode="mowa"', "X-Mode", "tryb: aMode()",
+                   "mode_hint_szybki", "eta_left", "streszczenie_mowa", "qcHtml(r.kontrola)", 't("shown")'):
+        assert needle in html, needle
+    for lang_block in html.split("const I18N = {")[1].split("\n };")[0].split("\n en:"):
+        for key in ("mode_full:", "mode_fast:", "mode_speech:", "eta_soon:", "qc_ok:", "shown:", "ads:", "zmowy_badge:", "t_todo_wyklad:"):
+            assert key in lang_block, key
+
+
+# ---------------- odtworzenie na odpowiedziach PRAWDZIWEGO modelu (gemma3:4b, pomiar CI z 2026-11-12) ----------------
+class Replay:
+    """Oddaje po kolei odpowiedzi, które prawdziwy model dał na zapytania danego etapu (tests/data/model_0120)."""
+    parallel = 1
+
+    def __init__(self, name: str):
+        self.left = json.loads((DATA.parent / "model_0120" / f"{name}.json").read_text(encoding="utf-8"))
+        self.prompts: list[str] = []
+
+    def complete(self, prompt, as_json=False, **kw):
+        self.prompts.append(prompt)
+        kind = ("typ" if prompt.startswith("Fragment transkrypcji") else "czesc" if prompt.startswith("Numbered lines")
+                else "opis_calosci" if prompt.startswith("Masz streszczenia")
+                else "skladniki" if "Lines of a video transcript (a recipe)" in prompt
+                else "kroki" if 'Answer ONLY with JSON: {"1":' in prompt
+                else "fakty" if "ZAPIS:" in prompt and "FAKTY Z FILMU" not in prompt
+                else "opis" if any(r["etap"] == "opis" for r in self.left)
+                else "opis_b" if '"cytaty"' in prompt else "opis_a")
+        for i, r in enumerate(self.left):
+            if r["etap"] == kind:
+                del self.left[i]
+                return r["odpowiedz"]
+        raise AssertionError(f"brak nagranej odpowiedzi etapu {kind}: {prompt[:60]}")
+
+
+def replay(name: str):
+    from vidsum.summary import compact_timeline, staged_summary, tidy, verify_quotes
+    from vidsum.transcribe import Segment, split_long_segments
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / "bench"))
+    from story_bench import beats_from
+    d = film(name)
+    d["segmenty"] = [{"start": x.start, "end": x.end, "text": x.text}
+                     for x in split_long_segments([Segment(**x) for x in d["segmenty"]])]
+    dur = float(d["zrodlo"]["dlugosc_s"])
+    eng, log = Replay(name), []
+    s = staged_summary(eng, compact_timeline(beats_from(d)), "tytuł: " + (d["zrodlo"].get("tytul") or ""), dur, log.append,
+                       segments=d["segmenty"], ocr=d["napisy_ekranowe"])
+    verify_quotes(s, d["segmenty"])
+    tidy(s, dur, max_quotes=4 if dur < 600 else 8, max_chapters=max(6, min(12, round(dur / 300))))
+    return d, s, eng, log
+
+
+def test_real_model_documentary_facts_quotes_and_moments():
+    """Prawdziwy model oddał: listy 20–40 kolejnych numerów jako „fakty”, cytat TEKSTEM zamiast numeru, czas „najważniejszych”
+    w minutach. Wynik 0.12.0 w pierwszej wersji: fakt „Hej, nasza autorka Amanda…”, zero cytatów, „Najważniejsze” całe
+    na 00:00. Teraz fakty to zdania z liczbami, datami i nazwami z całego filmu."""
+    from vidsum import quality
+    d, s, eng, log = replay("dokument_ambasada")
+    facts = s["co_masz_zrobic"]["fakty"]
+    orig = " | ".join(f["oryginal"] for f in facts)
+    for must in ("343 million", "In August 2025, then Deputy Prime Minister Angela Rayner", "January 20th, 2026",
+                 "over 200 secret rooms", "420 million pounds", "at least 54 overseas police"):
+        assert must in orig, must
+    assert "Amanda" not in orig and "it's a 10" not in orig and len(facts) >= 15
+    assert facts[-1]["t"] > 1200 and facts[0]["t"] < 200, "fakty z całego filmu"
+    assert len(s["cytaty"]) >= 3 and any("Netflix espionage thriller" in q["tekst"] for q in s["cytaty"])
+    hl = s["najwazniejsze"]
+    assert len(hl) >= 4 and max(h["t"] for h in hl) > 900 and len({round(h["t"] / 240) for h in hl}) >= 3, hl
+    lau = next(h for h in hl if "Lau" in h["tytul"])
+    assert 1040 <= lau["t"] <= 1060, "pozycja o Carmen Lau wskazuje zdanie, w którym pada jej nazwisko (17:28)"
+    ads = s["reklamy"]
+    assert 298 <= ads[0]["start"] <= 302 and ads[0]["marka"] == "Delete Me", "wstęp reklamy od „Wait, you've been shopping…”"
+    assert not any(ads[0]["start"] <= f["t"] <= ads[0]["end"] for f in facts)
+    a = {"zrodlo": d["zrodlo"], "transkrypcja": {"jezyk": "en", "segmenty": d["segmenty"], "tlumaczenia": {}},
+         "napisy_ekranowe": d["napisy_ekranowe"], "os_czasu": [], "streszczenie": {"dane": s}}
+    codes = {i["kod"] for i in quality.check(a)}
+    assert not codes & {"najwazniejsze_poczatek", "brak_cytatow", "puste_streszczenie", "reklama_w_faktach"}, codes
+    assert not any("Delete" in x for x in s["streszczenie"]) and not any("Delete" in c["opis"] for c in s["rozdzialy"])
+    sent = eng.prompts[2]                                   # druga część — w niej jest reklama
+    assert "Delete.me removes" not in sent and "(an advertisement was removed here)" in sent
+
+
+def test_real_model_reel_no_line_numbers_and_screen_context():
+    d, s, eng, log = replay("wisdm_moda")
+    blob = json.dumps(s, ensure_ascii=False)
+    assert "linia" not in blob and "linie" not in blob, "„Henley (linia 8)” — numery linii nie trafiają do wyniku"
+    assert [f["oryginal"] for f in s["co_masz_zrobic"]["fakty"]] == ["Exhibit A. The Henley.", "Option two. The baby tee.",
+                                                                     "Exhibit C. The Tank."]
+    henley = next(h for h in s["najwazniejsze"] if "Henley" in h["tytul"])
+    assert 15 <= henley["t"] <= 18
+    part = eng.prompts[1]
+    assert "I wish men had sluttier outfit options because why am I in a mini skirt" in part, "komentarz z ekranu jako kontekst"
+    assert "138.6K" not in part and "#fyp" not in part and "Contains:" not in part
+    assert s["cytaty"] and s["cytaty"][0]["tekst"].endswith("don't do it.")
+
+
+def test_real_model_polish_recipe_steps_from_second_person_speech():
+    """Tortilla (PL): „położysz wrapa”, „zdejmiesz z patelni i dodasz szynkę…” to instrukcje, nie wskazówki; ilość z klucza „ilość”."""
+    d, s, eng, log = replay("tortilla")
+    c = s["co_masz_zrobic"]
+    steps = [k["tekst"] for k in c["kroki"]]
+    assert steps == ["Wbijesz do miski 3 jajka.", "Dodasz sól, pieprz, wymieszasz.", "Wrzucisz na rozgrzaną patelnię.",
+                     "Na to położysz wrapa.", "Po chwili zdejmiesz z patelni i dodasz szynkę, sałatę, mozzarellę i pomidora."], steps
+    assert {"nazwa": "jajka", "ilosc": "3", "zrodlo": "mowa"} in c["skladniki"]
+    assert {x["nazwa"] for x in c["skladniki"]} >= {"sól", "pieprz", "wrapa", "szynka", "sałata", "mozzarella", "pomidor"}
+    assert not any(x.rstrip().endswith("?") for x in c["wskazowki"])
+    assert s["rozdzialy"][0]["tytul"] == "Wbijesz do miski 3 jajka"
+
+
+def test_real_model_football_reel_is_sport_without_duplicate_drills():
+    from vidsum.summary import to_markdown
+    d, s, eng, log = replay("pancake_touch")
+    assert s["typ"] == "sport" and any("z treści wynika „sport”" in x for x in log)
+    ex = s["co_masz_zrobic"]["cwiczenia"]
+    assert 3 <= len(ex) <= 7 and len({x["nazwa"] for x in ex}) == len(ex), [x["nazwa"] for x in ex]
+    md = to_markdown(s)
+    assert "? × ?" not in md and "### Ćwiczenia i elementy techniki" in md and "### Kroki" not in md
+    assert "żongler" in json.dumps(s, ensure_ascii=False).lower()
+
+
+def test_story_fact_scoring_quote_by_text_and_scrub():
+    from vidsum.story import find_quote, info_score, pick_facts, scrub
+    assert info_score("In 2018, the Chinese government bought Royal Mint Court for $343 million.") >= 6
+    assert info_score("It is a symbol of the CCP's growing influence and it's a 10.") < 3
+    assert info_score("Hey, as a little experiment, our writer Amanda is going to narrate this episode.") < 3
+    assert info_score("One of these is the United States.") < 3
+    lines = [{"n": i, "t": float(i), "end": i + 1.0, "tekst": t} for i, t in enumerate(
+        ["Hey guys, welcome to the channel.", "In 2018, China bought the site for $343 million.", "It was empty.",
+         "The plans show over 200 secret rooms.", "That is a lot.", "But in practice, things are more complicated."], 1)]
+    by_n = {x["n"]: x for x in lines}
+    assert pick_facts(lines, by_n, list(range(1, 10)), set()) == [[2], [4]], "zalew numerów od modelu nie decyduje"
+    assert pick_facts(lines, by_n, [3], set(), k=1) == [[2]], "konkret wygrywa ze wskazaniem linii bez treści"
+    assert find_quote("But in practice, things are more complicated.", lines, by_n) == [6]
+    assert find_quote(4, lines, by_n) == [4] and find_quote("zupełnie inne zdanie", lines, by_n) == []
+    assert scrub("Henley (linia 8), baby tee (linie 11 i 12) oraz Tank [F3].") == "Henley, baby tee oraz Tank."
+
+
+def test_polish_spoken_instructions_and_not_instructions():
+    from vidsum.summary import _imperative, _pl_instruction, _short_title
+    for t in ("Na to położysz wrapa.", "Kroimy cebulę w kostkę.", "Należy dodać sól.", "Po chwili zdejmiesz z patelni."):
+        assert _pl_instruction(t), t
+    for t in ("Możesz też użyć masła.", "Mamy tutaj piękne ziemniaki.", "To jest bardzo ważne.", "Gulasz jest gotowy.",
+              "Pyszne, wysokobiałkowe śniadanie?"):
+        assert not _pl_instruction(t) and not (_imperative(t) and t.startswith(("Możesz", "Mamy"))), t
+    assert _short_title("Wbijesz do miski 3 jajka.") == "Wbijesz do miski 3 jajka"
+    assert _short_title("Po chwili zdejmiesz z patelni i dodasz szynkę.") == "Po chwili zdejmiesz z patelni"
