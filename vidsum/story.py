@@ -379,7 +379,8 @@ def screen_context(part: list[dict], ocr: list[dict] | None, limit: int = 600) -
             break
         out.append(row)
         size += len(row)
-    return ("ON-SCREEN TEXT in this part (context only — it can explain what the speaker reacts to):\n"
+    return ("ON-SCREEN TEXT in this part (context only — e.g. a caption or a comment the speaker reacts to; it is NOT "
+            "a second person in the video and NOT the speaker's own words):\n"
             + "\n".join(out) + "\n") if out else ""
 
 
@@ -554,7 +555,17 @@ def story_summary(engine, lines: list[dict], typ: str, meta_line: str, duration:
         while t in used_t:                            # dwie pozycje z tej samej części — nie ten sam znacznik czasu
             t += 1.0
         used_t.add(t)
-        hl.append({"t": t, "tytul": x.get("tytul"), "opis": x.get("opis") or "", "zrodlo": "mowa"})
+        item = {"t": t, "tytul": x.get("tytul"), "opis": x.get("opis") or "", "zrodlo": "mowa"}
+        # model przepisuje czasem angielski fakt jako opis (pomiar CI 43228784364: „In 2018, the Chinese government bought
+        # Royal Mint Court…”) — opis = ten fakt po polsku teraz albo po tłumaczeniu linii (localize, pole „czasy”)
+        from .summary import looks_foreign
+        if item["opis"] and looks_foreign(item["opis"]):
+            f = max(facts, key=lambda f: _sim(item["opis"], f["oryginal"]), default=None)
+            if f and _sim(item["opis"], f["oryginal"]) >= 0.6:
+                item["opis"], item["czasy"] = f["tekst"], f["czasy"]
+            elif not f or f["tekst"] == f["oryginal"]:
+                item["opis"] = ""
+        hl.append(item)
     hl.sort(key=lambda h: h["t"])
     p["najwazniejsze"] = hl
     p["rozdzialy"] = [{k: v for k, v in c.items() if k not in ("reklama", "n")} for c in chapters]
@@ -593,6 +604,13 @@ def localize(summary: dict, segments: list[dict], pl_segments: list[dict] | None
             new = pl_for(q.get("czasy"))
             if new:
                 q["tlumaczenie"] = new
+                n += 1
+    from .summary import looks_foreign
+    for h in summary.get("najwazniejsze", []):          # opis przepisany z angielskiego faktu → ten fakt po polsku
+        if h.get("czasy") and looks_foreign(h.get("opis") or "x x x"):
+            new = pl_for(h["czasy"])
+            if new:
+                h["opis"] = new
                 n += 1
     for x in summary.get("pokazane", []):                # „Pokazane na ekranie”: słowa narratora po polsku
         if not x.get("mowa_pl"):

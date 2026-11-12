@@ -21,7 +21,8 @@ Commit: autor `mar223o <193065166+mar223o@users.noreply.github.com>`, stopki Co-
 7. [x] Pliki dźwiękowe (mp3, m4a, wav, ogg, flac) — prośba z 12.11, 14:21.
 8. [x] Badania ze źródłami: `docs/badania_0.12.md`.
 9. [x] Dokumenty: `docs/INSTRUKCJA.md`, `docs/PRYWATNOSC.md`, `docs/licencje.md` (ffmpeg = kompilacja LGPL).
-10. [ ] Wydanie 0.12.0 → `RAPORT_0.12.0.md` z sha256.
+10. [x] Wydanie 0.12.0 → `RAPORT_0.12.0.md` (sha256 w wiadomości do użytkownika i na stronie wydania).
+11. [x] Po pomiarze CI 43228784364: angielski opis „Najważniejszych” → fakt po polsku; kontrola jakości to wykrywa; napisy z ekranu w zapytaniu opisane jako „nie druga osoba”.
 
 ### Świadomie NIE zrobione w 0.12.0 (wymaga komputera użytkownika albo decyzji)
 - Whisper int8 / wczytanie w trakcie opisu kadrów — dopiero po `--zmierz-czasy` na karcie użytkownika.

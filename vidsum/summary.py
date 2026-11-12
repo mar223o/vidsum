@@ -169,7 +169,7 @@ def parse_summary(text: str, duration: float, allow_partial: bool = False) -> di
                       for x in _lst(cmz.get("fakty")) if isinstance(x, dict) and _str(x.get("tekst"))],
         },
         "najwazniejsze": [{"t": clamp(x.get("t")), "tytul": _str(x.get("tytul")), "opis": _str(x.get("opis")),
-                           "zrodlo": _zr(x.get("zrodlo"))}
+                           "zrodlo": _zr(x.get("zrodlo")), **({"czasy": _lst(x.get("czasy"))} if x.get("czasy") else {})}
                           for x in _lst(d.get("najwazniejsze")) if isinstance(x, dict) and _str(x.get("tytul"))],
         "momenty": [{"t": clamp(x.get("t")), "tekst": _str(x.get("tekst"))}
                     for x in _lst(d.get("momenty")) if isinstance(x, dict) and _str(x.get("tekst"))],
@@ -1174,10 +1174,22 @@ _EN = {"the", "and", "to", "them", "with", "of", "until", "it", "is", "this", "i
        "then", "add", "heat", "fry", "cut", "boil", "we", "our", "going"}
 
 
+_EN_ONLY = {"the", "and", "of", "with", "is", "are", "was", "were", "been", "has", "have", "had", "that", "which", "who",
+            "from", "for", "by", "at", "an", "be", "its", "their", "they", "he", "she", "but", "not", "than", "after",
+            "before", "people", "this", "these", "those", "would", "could", "should", "will", "into", "about", "there",
+            "what", "when", "where", "while", "you", "your", "our", "we", "his", "her", "them", "it", "in", "on", "as"}
+
+
 def looks_foreign(text: str) -> bool:
     """Krok przepisany po angielsku zamiast po polsku (pomiar: gemma3:4b przepisywała oryginał)."""
     w = _norm_words(text)
-    return len(w) >= 2 and sum(x in _EN for x in w) / len(w) >= 0.3 and not re.search(r"[ąćęłńóśźż]", text.lower())
+    if re.search(r"[ąćęłńóśźż]", text.lower()):
+        return False
+    if len(w) >= 2 and sum(x in _EN for x in w) / len(w) >= 0.3:
+        return True
+    # dłuższe zdanie z dokumentu (pomiar CI 12.11: „In 2018, the Chinese government bought Royal Mint Court for $343
+    # million.”): mało słów z listy wyżej, ale ≥ 3 słowa, których w polszczyźnie nie ma
+    return len(w) >= 6 and sum(x in _EN_ONLY for x in w) >= 3
 
 
 def _groups(ns: list[int]) -> list[list[int]]:

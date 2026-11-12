@@ -33,6 +33,8 @@ def _texts(s: dict) -> list[tuple[str, str]]:
     out += [("fakty", f.get("tekst", "")) for f in c.get("fakty", [])]
     out += [("wskazówki", x) for x in c.get("wskazowki", [])] + [("wnioski", x) for x in c.get("wnioski", [])]
     out += [("najważniejsze", f"{h.get('tytul', '')}. {h.get('opis', '')}") for h in s.get("najwazniejsze", [])]
+    out += [("najważniejsze (opis)", h.get("opis", "")) for h in s.get("najwazniejsze", [])
+            if len((h.get("opis") or "").split()) >= 6]         # angielski opis pod polskim tytułem (pomiar CI 12.11)
     out += [("momenty", m.get("tekst", "")) for m in s.get("momenty", [])]
     out += [("rozdziały", f"{r.get('tytul', '')}. {r.get('opis', '')}") for r in s.get("rozdzialy", [])]
     return [(k, t) for k, t in out if t and t.strip()]

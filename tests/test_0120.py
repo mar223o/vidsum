@@ -1040,3 +1040,20 @@ def test_ollama_schema_sent_and_fallback_for_old_ollama(monkeypatch):
     assert sent[3] == "json"
     eng.complete("x", as_json=True)
     assert sent[4] == "json"
+
+
+def test_english_highlight_description_becomes_polish_fact():
+    """Pomiar CI 43228784364 (gemma3:4b): opis „Najważniejszych” przepisany z angielskiego faktu pod polskim tytułem.
+    Teraz: opis = ten fakt po polsku (od razu albo po tłumaczeniu linii), a kontrola jakości to wykrywa."""
+    from vidsum import quality
+    from vidsum.story import localize
+    from vidsum.summary import looks_foreign
+    assert looks_foreign("In 2018, the Chinese government bought Royal Mint Court for $343 million.")
+    assert not looks_foreign("Chiny kupiły teren za 343 miliony dolarów w 2018 roku.")
+    segs = [{"start": 153.09, "end": 158.29, "text": "In 2018, the Chinese government bought Royal Mint Court for $343 million."}]
+    pl = [{"start": 153.09, "end": 158.29, "text": "W 2018 roku rząd chiński kupił Royal Mint Court za 343 miliony dolarów."}]
+    s = {"najwazniejsze": [{"t": 153.09, "tytul": "Zakup Royal Mint Court", "opis": segs[0]["text"], "czasy": [153.09]}]}
+    a = {"zrodlo": {"dlugosc_s": 200}, "transkrypcja": {"jezyk": "en", "segmenty": segs, "tlumaczenia": {}},
+         "napisy_ekranowe": [], "os_czasu": [], "streszczenie": {"dane": s}}
+    assert "obcy_jezyk" in {i["kod"] for i in quality.check(a)}
+    assert localize(s, segs, pl) == 1 and s["najwazniejsze"][0]["opis"] == pl[0]["text"]
