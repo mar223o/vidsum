@@ -18,9 +18,9 @@ def _models_dir() -> str:
 
 def main(argv: list[str] | None = None) -> int:
     if sys.stdout is None or sys.stderr is None:
-        # uruchomienie bez okna (VidSum Start.exe / pythonw): komunikaty do pliku dziennika zamiast konsoli
+        # uruchomienie bez okna (Vidsumly Start.exe / pythonw): komunikaty do pliku dziennika zamiast konsoli
         from .gui import app_dir
-        logf = open(app_dir() / "vidsum.log", "a", encoding="utf-8", buffering=1)
+        logf = open(app_dir() / "vidsumly.log", "a", encoding="utf-8", buffering=1)
         sys.stdout = sys.stdout or logf
         sys.stderr = sys.stderr or logf
     from .tools import disable_power_throttling
@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     if args[:1] == ["--porownaj-modele-obrazu"]:   # te same kadry: qwen vs gemma (czas + trafność według wzorca)
         from .vision_bench import compare_models
         if len(args) < 2:
-            print("Użycie: VidSum.exe --porownaj-modele-obrazu \"folder analizy\" [model1,model2]", file=sys.stderr)
+            print("Użycie: Vidsumly.exe --porownaj-modele-obrazu \"folder analizy\" [model1,model2]", file=sys.stderr)
             return 2
         models = (args[2] if len(args) > 2 else "qwen3-vl:4b-instruct@lekki,qwen3-vl:4b-instruct,gemma3:4b").split(",")
         try:
@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     if args[:1] == ["--pomiar-kadrow"]:        # pomiar sposobów opisu kadrów na tej karcie graficznej
         from .vision_bench import run as bench
         if len(args) < 2:
-            print("Użycie: VidSum.exe --pomiar-kadrow \"folder analizy\"", file=sys.stderr)
+            print("Użycie: Vidsumly.exe --pomiar-kadrow \"folder analizy\"", file=sys.stderr)
             return 2
         try:
             bench(Path(args[1]))
@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args[:1] == ["--zmierz-czasy"]:          # 0.11.9: gdzie da się odzyskać czas — Whisper, równoległość, model tekstowy
         if len(args) < 2:
-            print('Użycie: VidSum.exe --zmierz-czasy "folder analizy"', file=sys.stderr)
+            print('Użycie: Vidsumly.exe --zmierz-czasy "folder analizy"', file=sys.stderr)
             return 2
         from .speed_bench import run as _bench
         try:
@@ -84,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args[:1] == ["--kontrola"]:              # 0.12.0: automatyczna kontrola jakości gotowych analiz → jeden plik
         if len(args) < 2:
-            print('Użycie: VidSum.exe --kontrola "folder analizy albo folder z wieloma analizami"', file=sys.stderr)
+            print('Użycie: Vidsumly.exe --kontrola "folder analizy albo folder z wieloma analizami"', file=sys.stderr)
             return 2
         from .control import check_path
         try:
@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args[:1] == ["--streszcz-ponownie"]:     # 0.12.0: samo streszczenie z zapisanej analizy (bez pobierania i kadrów)
         if len(args) < 2:
-            print('Użycie: VidSum.exe --streszcz-ponownie "folder analizy" [model]', file=sys.stderr)
+            print('Użycie: Vidsumly.exe --streszcz-ponownie "folder analizy" [model]', file=sys.stderr)
             return 2
         from .control import resummarize
         from .llm import LLMError
@@ -109,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args[:1] == ["--zapytaj"]:               # 0.11.5: pytanie do czatu o gotową analizę (pomiar modelu czatu)
         if len(args) < 3:
-            print('Użycie: VidSum.exe --zapytaj "folder analizy" "pytanie" [model]', file=sys.stderr)
+            print('Użycie: Vidsumly.exe --zapytaj "folder analizy" "pytanie" [model]', file=sys.stderr)
             return 2
         import json as _json
         import time as _time
@@ -138,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print("✔ model gotowy")
         return 0
-    # Bez argumentów (dwuklik na VidSum.exe) albo z --ui: interfejs w przeglądarce
+    # Bez argumentów (dwuklik na Vidsumly.exe) albo z --ui: interfejs w przeglądarce
     if not args or args[0] == "--ui":
         try:
             from .update import cleanup_after_update
@@ -190,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ciasteczka-z", default=None, metavar="PRZEGLĄDARKA",
                     help="dla Instagrama/TikToka: chrome / edge / firefox")
     ap.add_argument("--allow-api-key", action="store_true", help="pozwól Claude Code użyć ANTHROPIC_API_KEY (płatne)")
-    ap.add_argument("--version", action="version", version=f"VidSum {__version__}")
+    ap.add_argument("--version", action="version", version=f"Vidsumly {__version__}")
     a = ap.parse_args(argv)
     try:
         lang = normalize(a.jezyk)

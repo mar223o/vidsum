@@ -19,8 +19,8 @@ def _rpc(proc, msg):
 
 def test_mcp_protocol_and_tools(tmp_path):
     env = dict(os.environ, LOCALAPPDATA=str(tmp_path / "app"), PYTHONIOENCODING="utf-8")
-    (tmp_path / "app" / "VidSum").mkdir(parents=True)
-    (tmp_path / "app" / "VidSum" / "ustawienia.json").write_text(json.dumps({"wyniki": str(tmp_path / "wyniki")}))
+    (tmp_path / "app" / "Vidsumly").mkdir(parents=True)
+    (tmp_path / "app" / "Vidsumly" / "ustawienia.json").write_text(json.dumps({"wyniki": str(tmp_path / "wyniki")}))
     proc = subprocess.Popen([sys.executable, "-m", "vidsum", "--mcp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, text=True, encoding="utf-8", env=env,
                             cwd=Path(__file__).parent.parent)

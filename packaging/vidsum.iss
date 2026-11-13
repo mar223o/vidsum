@@ -1,11 +1,11 @@
-﻿; Instalator VidSum (Inno Setup 6) — budowany w GitHub Actions z paczki „-python” (portable\VidSum).
-; Instalacja bez uprawnień administratora do %LOCALAPPDATA%\Programs\VidSum; skrót w menu Start (i na pulpicie);
-; odinstalowanie przez Ustawienia → Aplikacje. Dane użytkownika (Dokumenty\VidSum, %LOCALAPPDATA%\VidSum) zostają.
+﻿; Instalator Vidsumly (Inno Setup 6) — budowany w GitHub Actions z paczki „-python” (portable\Vidsumly).
+; Instalacja bez uprawnień administratora do %LOCALAPPDATA%\Programs\Vidsumly; skrót w menu Start (i na pulpicie);
+; odinstalowanie przez Ustawienia → Aplikacje. Dane użytkownika (Dokumenty\Vidsumly, %LOCALAPPDATA%\Vidsumly) zostają.
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
 #ifndef SourceDir
-  #define SourceDir "..\portable\VidSum"
+  #define SourceDir "..\portable\Vidsumly"
 #endif
 
 [Setup]
@@ -16,12 +16,15 @@ AppName=Vidsumly
 AppVersion={#AppVersion}
 AppVerName=Vidsumly {#AppVersion}
 AppPublisher=Vidsumly
-DefaultDirName={localappdata}\Programs\VidSum
+DefaultDirName={localappdata}\Programs\Vidsumly
+; 0.13.0: instalacje z folderu „VidSum” przenoszone do „Vidsumly”; stary folder programu kasowany po zamknięciu
+; działającej z niego starej wersji (PrepareToInstall niżej). Dane użytkownika nie są w nim.
+UsePreviousAppDir=no
 DefaultGroupName=Vidsumly
 UsePreviousGroup=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-OutputBaseFilename=VidSum-Setup-{#AppVersion}
+OutputBaseFilename=Vidsumly-Setup-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -38,10 +41,12 @@ Name: "pl"; MessagesFile: "compiler:Languages\Polish.isl"
 Name: "desktopicon"; Description: "Skrót na pulpicie"; GroupDescription: "Skróty:"
 
 [InstallDelete]
+; 0.13.0: stary folder programu „VidSum” (do 0.12.0) — program jest teraz w „Vidsumly”
+Type: filesandordirs; Name: "{localappdata}\Programs\VidSum"
 ; stary kod usuwany przed instalacją nowego — bez nieaktualnych plików
 Type: filesandordirs; Name: "{app}\vidsum"
 Type: filesandordirs; Name: "{app}\vidsum.stare"
-; 0.10.0: nowa nazwa — stare skróty „VidSum” usuwane; folder programu i dane bez zmian
+; 0.10.0: nowa nazwa — stare skróty „VidSum” usuwane
 Type: filesandordirs; Name: "{userprograms}\VidSum"
 Type: files; Name: "{userdesktop}\VidSum.lnk"
 ; 0.10.1: ostateczna nazwa Vidsumly — usuwane też skróty „Vidento” z 0.10.0
@@ -62,9 +67,28 @@ Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\vidsum"
 Type: filesandordirs; Name: "{app}\vidsum.stare"
-; 0.10.0: nowa nazwa — stare skróty „VidSum” usuwane; folder programu i dane bez zmian
+; 0.10.0: nowa nazwa — stare skróty „VidSum” usuwane
 Type: filesandordirs; Name: "{userprograms}\VidSum"
 Type: files; Name: "{userdesktop}\VidSum.lnk"
 ; 0.10.1: ostateczna nazwa Vidsumly — usuwane też skróty „Vidento” z 0.10.0
 Type: filesandordirs; Name: "{userprograms}\Vidento"
 Type: files; Name: "{userdesktop}\Vidento.lnk"
+
+[Code]
+{ 0.13.0: przed instalacją zamknij Vidsumly uruchomiony ze STAREGO folderu (Programs\VidSum). Menedżer ponownego
+  uruchamiania Windows zamyka tylko programy używające plików z NOWEGO folderu, a stara wersja działała ze starego.
+  Zamykane są wyłącznie procesy, których plik leży w starym folderze programu — inne programy Pythona nie są ruszane. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Old, Cmd: String;
+  Code: Integer;
+begin
+  Result := '';
+  Old := ExpandConstant('{localappdata}\Programs\VidSum');
+  if DirExists(Old) then
+  begin
+    Cmd := '-NoProfile -ExecutionPolicy Bypass -Command "Get-Process | Where-Object { $_.Path -like ''' + Old + '\*'' } | Stop-Process -Force -ErrorAction SilentlyContinue"';
+    Exec('powershell.exe', Cmd, '', SW_HIDE, ewWaitUntilTerminated, Code);
+    Sleep(1000);
+  end;
+end;

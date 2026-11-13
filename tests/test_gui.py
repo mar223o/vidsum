@@ -55,7 +55,7 @@ def wait_done(base, jid, timeout=60):
 def test_index_and_token(server):
     base, _ = server
     st, html = req(base, "/", token=False)
-    assert st == 200 and b"VidSum" in html and b'lang="pl"' in html
+    assert st == 200 and b"Vidsumly" in html and b'lang="pl"' in html
     with pytest.raises(urllib.error.HTTPError) as e:
         req(base, "/api/status", token=False)
     assert e.value.code == 403
@@ -75,7 +75,7 @@ def test_settings_roundtrip_and_whitelist(server, tmp_path):
     base, app = server
     _, s = req(base, "/api/ustawienia", data=json.dumps({"jezyk_ui": "en", "zlosliwe": 1}).encode(), method="POST")
     assert s["jezyk_ui"] == "en" and "zlosliwe" not in s
-    saved = json.loads((tmp_path / "appdata" / "VidSum" / "ustawienia.json").read_text(encoding="utf-8"))
+    saved = json.loads((tmp_path / "appdata" / "Vidsumly" / "ustawienia.json").read_text(encoding="utf-8"))
     assert saved["jezyk_ui"] == "en"
 
 
@@ -105,7 +105,7 @@ def test_upload_polish_name_and_results(server):
     st, prompt = req(base, f"/api/zadania/{job['id']}/plik/prompt_dla_claude.md")
     assert "OŚ CZASU" in prompt.decode("utf-8")
     # przesłana kopia filmu jest sprzątana po analizie
-    assert not any((Path(os.environ["LOCALAPPDATA"]) / "VidSum" / "wyslane").glob("*/*.mp4"))
+    assert not any((Path(os.environ["LOCALAPPDATA"]) / "Vidsumly" / "wyslane").glob("*/*.mp4"))
 
 
 def test_path_traversal_blocked(server):
@@ -220,7 +220,7 @@ def test_fixed_port_persistent_token_single_instance(tmp_path):
             time.sleep(0.2)
             if gui._running_instance(gui.DEFAULT_PORT):
                 break
-        token = (tmp_path / "app" / "VidSum" / "token.txt").read_text().strip()
+        token = (tmp_path / "app" / "Vidsumly" / "token.txt").read_text().strip()
         base = f"http://127.0.0.1:{gui.DEFAULT_PORT}"
         st, s = req(base, "/api/status", headers={"X-Token": token}, token=False)
         assert st == 200 and "wersja" in s
@@ -268,14 +268,14 @@ def test_partial_results_and_quit(server, monkeypatch):
 
 
 def test_windowless_start_logs_to_file(tmp_path):
-    """Bez okna konsoli (pythonw / VidSum Start.exe) sys.stdout to None — komunikaty idą do vidsum.log."""
+    """Bez okna konsoli (pythonw / Vidsumly Start.exe) sys.stdout to None — komunikaty idą do vidsumly.log."""
     import subprocess
     code = ("import sys; sys.stdout = None; sys.stderr = None\n"
             "from vidsum.cli import main\n"
             "try:\n    main(['--version'])\nexcept SystemExit:\n    pass\n")
     env = dict(os.environ, LOCALAPPDATA=str(tmp_path))
     subprocess.run([sys.executable, "-c", code], env=env, cwd=Path(__file__).parent.parent, timeout=60, check=True)
-    assert "VidSum" in (tmp_path / "VidSum" / "vidsum.log").read_text(encoding="utf-8")
+    assert "Vidsumly" in (tmp_path / "Vidsumly" / "vidsumly.log").read_text(encoding="utf-8")
 
 
 def test_window_opens_as_edge_app_without_gpu(monkeypatch, tmp_path):
@@ -507,11 +507,11 @@ def test_shutdown_kills_child_processes_and_keeps_ollama(tmp_path, monkeypatch):
             break
         time.sleep(0.05)
     assert job.status == "przerwane" and "e" in err
-    q = json.loads((tmp_path / "VidSum" / "kolejka.json").read_text(encoding="utf-8"))
+    q = json.loads((tmp_path / "Vidsumly" / "kolejka.json").read_text(encoding="utf-8"))
     assert q["zadania"][0]["przerwane"] and q["wstrzymana"]
     with pytest.raises(tools.ToolError):
         tools.run([sys.executable, "-c", "pass"])                       # po zamknięciu nic nowego nie startuje
-    assert json.loads((tmp_path / "VidSum" / "zamkniecie.json").read_text(encoding="utf-8"))["powod"] == "test"
+    assert json.loads((tmp_path / "Vidsumly" / "zamkniecie.json").read_text(encoding="utf-8"))["powod"] == "test"
 
 
 def test_result_translated_after_analysis_before_next_video(tmp_path, monkeypatch):
@@ -559,7 +559,7 @@ def test_old_uploads_cleaned_but_queued_kept(tmp_path, monkeypatch):
     from vidsum import gui
     from vidsum.pipeline import Options
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
-    up = tmp_path / "VidSum" / "wyslane"
+    up = tmp_path / "Vidsumly" / "wyslane"
     old, queued, fresh = up / "stary", up / "wkolejce", up / "swiezy"
     for d in (old, queued, fresh):
         d.mkdir(parents=True)
@@ -567,7 +567,7 @@ def test_old_uploads_cleaned_but_queued_kept(tmp_path, monkeypatch):
     past = time.time() - 3 * 86400
     for d in (old, queued):
         os.utime(d, (past, past))
-    w = gui.Worker(tmp_path / "VidSum" / "kolejka.json", lambda s: Options())
+    w = gui.Worker(tmp_path / "Vidsumly" / "kolejka.json", lambda s: Options())
     w.set_paused(True)
     w.submit(gui.Job("q", str(queued / "f.mp4"), "f.mp4", Options(), queued / "f.mp4"))
     monkeypatch.setattr(gui, "Worker", lambda *a, **k: w)

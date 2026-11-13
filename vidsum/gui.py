@@ -30,16 +30,7 @@ from .pipeline import Options, analyze
 from .tools import ToolError, find_tool
 
 
-def app_dir() -> Path:
-    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / ".local" / "share")
-    p = Path(base) / "VidSum"
-    p.mkdir(parents=True, exist_ok=True)
-    return p
-
-
-def default_results_dir() -> Path:
-    docs = Path.home() / "Documents"
-    return (docs if docs.is_dir() else Path.home()) / "VidSum"
+from .paths import app_dir, default_results_dir  # noqa: E402  (0.13.0: foldery „Vidsumly”, przeniesienie starych)
 
 
 def web_dir() -> Path:
@@ -570,7 +561,7 @@ def make_handler(app: App):
     web = web_dir()
 
     class H(BaseHTTPRequestHandler):
-        server_version = f"VidSum/{__version__}"
+        server_version = f"Vidsumly/{__version__}"
 
         def log_message(self, *a):  # cicho w konsoli
             pass
@@ -985,7 +976,7 @@ DEFAULT_PORT = 8765
 
 
 def _persistent_token() -> str:
-    """Stały klucz (zapisany w %LOCALAPPDATA%\\VidSum) — zakładki i stare karty działają po restarcie programu."""
+    """Stały klucz (zapisany w %LOCALAPPDATA%\\Vidsumly) — zakładki i stare karty działają po restarcie programu."""
     f = app_dir() / "token.txt"
     try:
         tok = f.read_text(encoding="utf-8").strip()
@@ -999,7 +990,7 @@ def _persistent_token() -> str:
 
 
 def _running_instance(port: int) -> bool:
-    """Czy pod tym portem działa już VidSum (drugie uruchomienie → otwórz istniejący zamiast nowego)."""
+    """Czy pod tym portem działa już Vidsumly (drugie uruchomienie → otwórz istniejący zamiast nowego)."""
     import urllib.request
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2) as r:
@@ -1010,9 +1001,9 @@ def _running_instance(port: int) -> bool:
 
 
 def _replace_older(port: int, token: str) -> bool:
-    """Działa INNA wersja VidSum (np. stara po aktualizacji) i nic nie analizuje → zamknij ją, żeby otworzyła się ta.
+    """Działa INNA wersja Vidsumly (np. stara po aktualizacji) i nic nie analizuje → zamknij ją, żeby otworzyła się ta.
 
-    Na komputerze testowym „VidSum Start” z nowej wersji otwierał stronę starej, która dalej działała w tle."""
+    Na komputerze testowym „Vidsumly Start” z nowej wersji otwierał stronę starej, która dalej działała w tle."""
     import json as _json
     import urllib.request
     base = f"http://127.0.0.1:{port}"
@@ -1025,7 +1016,7 @@ def _replace_older(port: int, token: str) -> bool:
         if get("/api/status").get("wersja") == __version__:
             return False
         if any(j.get("status") == "trwa" for j in get("/api/zadania")):
-            print("Działa starsza wersja VidSum i właśnie analizuje — zostawiam ją (zamknij ją po analizie).")
+            print("Działa starsza wersja Vidsumly i właśnie analizuje — zostawiam ją (zamknij ją po analizie).")
             return False
         req = urllib.request.Request(base + "/api/zakoncz", data=b"{}", method="POST",
                                      headers={"X-Token": token, "Content-Type": "application/json"})
@@ -1035,7 +1026,7 @@ def _replace_older(port: int, token: str) -> bool:
     for _ in range(50):                    # do 5 s na zwolnienie portu
         time.sleep(0.1)
         if not _running_instance(port):
-            print("Zamknięto starszą wersję VidSum.")
+            print("Zamknięto starszą wersję Vidsumly.")
             return True
     return False
 
@@ -1053,7 +1044,7 @@ def _edge_exe() -> str | None:
 
 
 def open_window(url: str) -> None:
-    """VidSum we własnym oknie (bez kart i paska adresu, własna ikona na pasku zadań) — Edge w trybie aplikacji,
+    """Vidsumly we własnym oknie (bez kart i paska adresu, własna ikona na pasku zadań) — Edge w trybie aplikacji,
     z osobnym profilem i BEZ przyspieszania sprzętowego: okno nie zabiera pamięci karty modelom (pomiar: przeglądarki
     i inne programy brały ~850 MB karty i analiza trwała 3:40 zamiast ~1:40). Bez Edge / VIDSUM_PRZEGLADARKA=1 →
     domyślna przeglądarka, jak dotąd."""
@@ -1061,7 +1052,7 @@ def open_window(url: str) -> None:
     if not edge:
         webbrowser.open(url)
         return
-    prof = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "okno"
+    prof = app_dir() / "okno"
     args = [edge, f"--app={url}", f"--user-data-dir={prof}", "--disable-gpu", "--window-size=1400,900",
             "--no-first-run", "--no-default-browser-check"]
     try:
@@ -1076,18 +1067,18 @@ def fix_shortcut_icons() -> None:
     if os.name != "nt":
         return
     ico = Path(__file__).parent / "web" / "vidsum.ico"
-    mark = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "ikony_skrotow.txt"
+    mark = app_dir() / "ikony_skrotow.txt"
     # znacznik = ścieżka + rozmiar ikony: nowa ikona (0.10.0) → skróty odświeżane jeszcze raz
     sig = f"{ico}|{ico.stat().st_size}" if ico.exists() else ""
     if not ico.exists() or (mark.exists() and mark.read_text(encoding="utf-8").strip() == sig):
         return
     ps = ("$s=New-Object -ComObject WScript.Shell;"
-          "$p=@(\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\VidSum\\VidSum.lnk\","
+          "$p=@(\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidsumly\\Vidsumly.lnk\","
           "\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidento\\Vidento.lnk\","
           "\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidsumly\\Vidsumly.lnk\","
           "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidento.lnk'),"
           "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidsumly.lnk'),"
-          "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'VidSum.lnk'));"
+          "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidsumly.lnk'));"
           "foreach($f in $p){ if(Test-Path $f){ $l=$s.CreateShortcut($f);"
           f" if($l.Arguments -like '*vidsum*'){{ $l.IconLocation='{ico},0'; $l.Save() }} }} }}")
     try:
@@ -1100,7 +1091,7 @@ def fix_shortcut_icons() -> None:
 
 
 def _set_window_icon(title: str) -> None:
-    """Ikona VidSum na pasku tytułu i pasku zadań (pywebview na Windows bierze ikonę z pythonw.exe)."""
+    """Ikona Vidsumly na pasku tytułu i pasku zadań (pywebview na Windows bierze ikonę z pythonw.exe)."""
     if os.name != "nt":
         return
     try:
@@ -1168,7 +1159,7 @@ def run_window(url: str, app: "App | None" = None) -> bool:
     if os.name == "nt":
         try:                                            # osobna pozycja na pasku zadań (nie „Python”)
             import ctypes
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("VidSum.Aplikacja")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Vidsumly.Aplikacja")
         except Exception:
             pass
     try:
@@ -1186,7 +1177,7 @@ def run_window(url: str, app: "App | None" = None) -> bool:
                 return win.create_confirmation_dialog(BRAND, CLOSE_Q["en" if en else "pl"])
             return True
         win.events.closing += closing
-        store = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VidSum" / "okno"
+        store = app_dir() / "okno"
         webview.start(_set_window_icon, (f"{BRAND} {__version__}",), private_mode=False, storage_path=str(store))
         return True
     except Exception as e:

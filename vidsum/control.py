@@ -1,9 +1,9 @@
 """Narzędzia kontroli (0.12.0): sprawdzenie gotowych analiz, ponowne streszczenie bez pobierania i opisu kadrów,
 raport z całego zestawu filmów — jeden plik zamiast siedmiu załączników na film.
 
-  VidSum.exe --kontrola "folder analizy albo folder z wieloma analizami"
-  VidSum.exe --streszcz-ponownie "folder analizy" [model]
-  VidSum.exe --zestaw lista.txt -o "folder wyników"        (lista: link albo ścieżka w każdej linii, # = komentarz)
+  Vidsumly.exe --kontrola "folder analizy albo folder z wieloma analizami"
+  Vidsumly.exe --streszcz-ponownie "folder analizy" [model]
+  Vidsumly.exe --zestaw lista.txt -o "folder wyników"        (lista: link albo ścieżka w każdej linii, # = komentarz)
 """
 from __future__ import annotations
 

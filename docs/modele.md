@@ -1,6 +1,6 @@
 # Wybór lokalnego modelu tekstowego (faza 6)
 
-Model tekstowy robi w VidSum trzy rzeczy: **streszczenie**, **czat z filmem** i **tłumaczenie transkrypcji**.
+Model tekstowy robi w Vidsumly trzy rzeczy: **streszczenie**, **czat z filmem** i **tłumaczenie transkrypcji**.
 Ma działać na karcie z 8 GB VRAM (RTX 3070 Ti) obok Whispera i modelu obrazu (po kolei, nie naraz)
 i mieć licencję pozwalającą także na sprzedaż.
 
@@ -72,7 +72,7 @@ normalizowane (NAPISY → obraz). To jest główna różnica względem Claude (1
 **Domyślny model tekstowy: `gemma3:4b`** — najwięcej faktów bez zmyśleń w pomiarze, najlepsze tłumaczenia,
 najmniejszy (3,3 GB: mieści się w 8 GB VRAM z dużym zapasem, więc jest też najszybszy na karcie).
 Licencja: Gemma Terms of Use — użycie prywatne i komercyjne dozwolone, z zasadami zakazanego użycia Google;
-VidSum modelu nie rozprowadza (pobiera go Ollama na komputer użytkownika).
+Vidsumly modelu nie rozprowadza (pobiera go Ollama na komputer użytkownika).
 
 Alternatywy (opcja `--model-tekstowy`): `qwen3:8b` (Apache 2.0, podobna jakość streszczeń, słabsze tłumaczenie na polski,
 czasem wtrąca chińskie znaki — program je odrzuca i ponawia), Bielik Minitron 7B (Apache 2.0, polski model).

@@ -1,4 +1,4 @@
-name: Windows — testy i budowa VidSum
+name: Windows — testy i budowa Vidsumly
 
 # Wydanie automatyczne (repozytorium publiczne — budowa na maszynach GitHuba jest darmowa): gdy na main trafi nowa
 # wersja w vidsum/__init__.py, a wydania v<wersja> jeszcze nie ma (albo nie ma w nim instalatora), GitHub buduje
@@ -32,7 +32,7 @@ jobs:
           ver=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' vidsum/__init__.py)
           echo "ver=$ver" >> "$GITHUB_OUTPUT"
           # wydanie już kompletne (jest instalator) — nic nie budujemy
-          if gh release view "v$ver" --json assets -q '.assets[].name' 2>/dev/null | grep -qx "VidSum-Setup-$ver.exe"; then
+          if gh release view "v$ver" --json assets -q '.assets[].name' 2>/dev/null | grep -qx "Vidsumly-Setup-$ver.exe"; then
             echo "need=false" >> "$GITHUB_OUTPUT"; echo "v$ver już wydane"
           else
             echo "need=true" >> "$GITHUB_OUTPUT"; echo "buduję v$ver"
@@ -89,24 +89,24 @@ jobs:
           PYTHONUTF8: "1"
         run: python -m pytest -q -rs
 
-      # ---------------- wariant A: VidSum.exe (PyInstaller) ----------------
-      - name: "A: budowa VidSum.exe"
+      # ---------------- wariant A: Vidsumly.exe (PyInstaller) ----------------
+      - name: "A: budowa Vidsumly.exe"
         working-directory: packaging
         run: pyinstaller vidsum.spec --noconfirm --distpath ..\dist --workpath ..\build
 
       - name: "A: ffmpeg i instrukcja"
         run: |
-          New-Item -ItemType Directory -Force dist\VidSum\bin | Out-Null
-          Copy-Item ffbin\* dist\VidSum\bin\
-          Copy-Item packaging\CZYTAJ_MNIE.txt dist\VidSum\
-          Copy-Item -Recurse skill dist\VidSum\skill
-          Copy-Item docs\licencje.md, docs\format_json.md dist\VidSum\
+          New-Item -ItemType Directory -Force dist\Vidsumly\bin | Out-Null
+          Copy-Item ffbin\* dist\Vidsumly\bin\
+          Copy-Item packaging\CZYTAJ_MNIE.txt dist\Vidsumly\
+          Copy-Item -Recurse skill dist\Vidsumly\skill
+          Copy-Item docs\licencje.md, docs\format_json.md dist\Vidsumly\
 
       # ---------------- wariant B: oficjalny Python z python.org (podpisany) ----------------
       - name: "B: paczka z podpisanym Pythonem (bez PyInstallera)"
         run: |
           $v = python -c "import platform; print(platform.python_version())"
-          $P = "portable\VidSum"
+          $P = "portable\Vidsumly"
           New-Item -ItemType Directory -Force $P | Out-Null
           Invoke-WebRequest "https://www.python.org/ftp/python/$v/python-$v-embed-amd64.zip" -OutFile embed.zip
           Expand-Archive embed.zip -DestinationPath "$P\python"
@@ -125,7 +125,7 @@ jobs:
           "DEPS=$deps" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           New-Item -ItemType Directory -Force "$P\bin" | Out-Null
           Copy-Item ffbin\* "$P\bin\"
-          Copy-Item packaging\VidSum.cmd, "packaging\VidSum Start.cmd", packaging\CZYTAJ_MNIE.txt, docs\licencje.md, docs\format_json.md $P
+          Copy-Item packaging\Vidsumly.cmd, "packaging\Vidsumly Start.cmd", packaging\CZYTAJ_MNIE.txt, docs\licencje.md, docs\format_json.md $P
           Copy-Item -Recurse skill "$P\skill"
           $sig = Get-AuthenticodeSignature "$P\python\python.exe"
           Write-Host "Podpis python.exe: $($sig.Status) — $($sig.SignerCertificate.Subject)"
@@ -135,8 +135,8 @@ jobs:
         run: |
           $env:PATH = "C:\Windows\System32;C:\Windows"   # tylko to, co ma każdy Windows
           $runs = @(
-            @{ name = "A (exe)"; cmd = "$PWD\dist\VidSum\VidSum.exe" },
-            @{ name = "B (python.org)"; cmd = "$PWD\portable\VidSum\VidSum.cmd" }
+            @{ name = "A (exe)"; cmd = "$PWD\dist\Vidsumly\Vidsumly.exe" },
+            @{ name = "B (python.org)"; cmd = "$PWD\portable\Vidsumly\Vidsumly.cmd" }
           )
           foreach ($r in $runs) {
             Write-Host "=== $($r.name) ==="
@@ -159,15 +159,15 @@ jobs:
         run: |
           $env:PATH = "C:\Windows\System32;C:\Windows"
           $runs = @(
-            @{ name = "A"; file = "$PWD\dist\VidSum\VidSum.exe"; port = 8765 },
-            @{ name = "B"; file = "$PWD\portable\VidSum\VidSum.cmd"; port = 8766 }
+            @{ name = "A"; file = "$PWD\dist\Vidsumly\Vidsumly.exe"; port = 8765 },
+            @{ name = "B"; file = "$PWD\portable\Vidsumly\Vidsumly.cmd"; port = 8766 }
           )
           foreach ($r in $runs) {
             $p = Start-Process $r.file -ArgumentList "--ui","--port","$($r.port)","--bez-przegladarki","--token","ci" -PassThru
             Start-Sleep 10
             try {
               $page = Invoke-WebRequest "http://127.0.0.1:$($r.port)/" -UseBasicParsing
-              if ($page.Content -notmatch "VidSum") { throw "brak strony" }
+              if ($page.Content -notmatch "Vidsumly") { throw "brak strony" }
               $st = Invoke-RestMethod "http://127.0.0.1:$($r.port)/api/status" -Headers @{"X-Token"="ci"}
               Write-Host "$($r.name) status: $($st | ConvertTo-Json -Compress)"
               if (-not $st.ffmpeg) { throw "ffmpeg niewidoczny" }
@@ -175,27 +175,27 @@ jobs:
               catch { if ($_.Exception.Response.StatusCode.value__ -ne 403) { throw } }
             } finally {
               Stop-Process $p -Force -ErrorAction SilentlyContinue
-              Get-Process python, VidSum -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+              Get-Process python, Vidsumly -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             }
           }
 
-      - name: "Start bez okna konsoli (VidSum Start) i wyłączanie przyciskiem „Zakończ”"
+      - name: "Start bez okna konsoli (Vidsumly Start) i wyłączanie przyciskiem „Zakończ”"
         run: |
           $runs = @(
-            @{ name = "A"; file = "$PWD\dist\VidSum\VidSum Start.exe" },
-            @{ name = "B"; file = "$PWD\portable\VidSum\VidSum Start.cmd" }
+            @{ name = "A"; file = "$PWD\dist\Vidsumly\Vidsumly Start.exe" },
+            @{ name = "B"; file = "$PWD\portable\Vidsumly\Vidsumly Start.cmd" }
           )
           foreach ($r in $runs) {
             Start-Process $r.file
             $ok = $false
             for ($i = 0; $i -lt 60; $i++) {
               Start-Sleep 1
-              try { if ((Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing -TimeoutSec 2).Content -match "VidSum") { $ok = $true; break } } catch {}
+              try { if ((Invoke-WebRequest "http://127.0.0.1:8765/" -UseBasicParsing -TimeoutSec 2).Content -match "Vidsumly") { $ok = $true; break } } catch {}
             }
-            if (-not $ok) { throw "$($r.name): VidSum Start nie uruchomił interfejsu" }
-            $proc = Get-CimInstance Win32_Process | Where-Object { $_.Name -match "VidSum Start|pythonw" }
+            if (-not $ok) { throw "$($r.name): Vidsumly Start nie uruchomił interfejsu" }
+            $proc = Get-CimInstance Win32_Process | Where-Object { $_.Name -match "Vidsumly Start|pythonw" }
             Write-Host "$($r.name): działa w tle jako: $(($proc | ForEach-Object { $_.Name }) -join ', ')"
-            $tok = (Get-Content "$env:LOCALAPPDATA\VidSum\token.txt" -Raw).Trim()
+            $tok = (Get-Content "$env:LOCALAPPDATA\Vidsumly\token.txt" -Raw).Trim()
             Invoke-RestMethod -Method Post "http://127.0.0.1:8765/api/zakoncz" -Headers @{"X-Token"=$tok} | Out-Null
             Start-Sleep 3
             $alive = $true
@@ -203,14 +203,14 @@ jobs:
             if ($alive) { throw "$($r.name): przycisk Zakoncz nie wylaczyl programu" }
             Write-Host "$($r.name): wylaczony przyciskiem Zakoncz - OK"
           }
-          Get-Content "$env:LOCALAPPDATA\VidSum\vidsum.log" -Tail 5
+          Get-Content "$env:LOCALAPPDATA\Vidsumly\vidsumly.log" -Tail 5
 
       - name: Test dymny serwera MCP (oba warianty)
         run: |
           $env:PATH = "C:\Windows\System32;C:\Windows"
           $init = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci"}}}'
           $list = '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
-          foreach ($f in @("$PWD\dist\VidSum\VidSum.exe", "$PWD\portable\VidSum\VidSum.cmd")) {
+          foreach ($f in @("$PWD\dist\Vidsumly\Vidsumly.exe", "$PWD\portable\Vidsumly\Vidsumly.cmd")) {
             $out = ($init, $list) | & $f --mcp
             Write-Host "MCP $f :"; $out | ForEach-Object { Write-Host "  $_" }
             $r2 = $out | Where-Object { $_ -match '"id": ?2' } | Select-Object -First 1 | ConvertFrom-Json
@@ -222,24 +222,24 @@ jobs:
       - name: Pamięć podręczna bibliotek CUDA
         uses: actions/cache@v4
         with:
-          path: ~\AppData\Local\VidSum\cuda
+          path: ~\AppData\Local\Vidsumly\cuda
           key: cuda-cublas12.8.4.1-cudnn9.10.2.21
-      - name: "Pobranie i załadowanie bibliotek CUDA (VidSum.exe --pobierz-cuda; runner nie ma karty NVIDIA)"
+      - name: "Pobranie i załadowanie bibliotek CUDA (Vidsumly.exe --pobierz-cuda; runner nie ma karty NVIDIA)"
         run: |
-          & "$PWD\dist\VidSum\VidSum.exe" --pobierz-cuda
+          & "$PWD\dist\Vidsumly\Vidsumly.exe" --pobierz-cuda
           if ($LASTEXITCODE -ne 0) { throw "biblioteki CUDA nie dają się załadować" }
-          Get-ChildItem "$env:LOCALAPPDATA\VidSum\cuda" | ForEach-Object { Write-Host ("  {0,-45} {1,8:N0} MB" -f $_.Name, ($_.Length / 1MB)) }
+          Get-ChildItem "$env:LOCALAPPDATA\Vidsumly\cuda" | ForEach-Object { Write-Host ("  {0,-45} {1,8:N0} MB" -f $_.Name, ($_.Length / 1MB)) }
           # ten sam test w wariancie z Pythonem (biblioteki już pobrane — tylko ładowanie)
-          & "$PWD\portable\VidSum\VidSum.cmd" --pobierz-cuda
+          & "$PWD\portable\Vidsumly\Vidsumly.cmd" --pobierz-cuda
           if ($LASTEXITCODE -ne 0) { throw "B: biblioteki CUDA nie dają się załadować" }
 
       - name: ZIP + sha256 (oba warianty)
         run: |
-          $ver = (& "dist\VidSum\VidSum.exe" --version).Split(" ")[1]
-          $a = "VidSum-$ver-windows-x64.zip"
-          $b = "VidSum-$ver-windows-x64-python.zip"
-          7z a -tzip -mx=7 $a .\dist\VidSum | Out-Null
-          7z a -tzip -mx=7 $b .\portable\VidSum | Out-Null
+          $ver = (& "dist\Vidsumly\Vidsumly.exe" --version).Split(" ")[1]
+          $a = "Vidsumly-$ver-windows-x64.zip"
+          $b = "Vidsumly-$ver-windows-x64-python.zip"
+          7z a -tzip -mx=7 $a .\dist\Vidsumly | Out-Null
+          7z a -tzip -mx=7 $b .\portable\Vidsumly | Out-Null
           foreach ($z in @($a, $b)) {
             $h = (Get-FileHash $z -Algorithm SHA256).Hash.ToLower()
             "$h  $z" | Out-File -Encoding ascii "$z.sha256"
@@ -250,44 +250,64 @@ jobs:
 
       - name: "C: paczka aktualizacji (sam kod) + instalator (Inno Setup)"
         run: |
-          $ver = (& "dist\VidSum\VidSum.exe" --version).Split(" ")[1]
-          $c = "VidSum-$ver-aktualizacja.zip"
-          Push-Location portable\VidSum
-          7z a -tzip -mx=9 "..\..\$c" vidsum "VidSum Start.cmd" VidSum.cmd CZYTAJ_MNIE.txt | Out-Null
+          $ver = (& "dist\Vidsumly\Vidsumly.exe" --version).Split(" ")[1]
+          $c = "Vidsumly-$ver-aktualizacja.zip"
+          Push-Location portable\Vidsumly
+          7z a -tzip -mx=9 "..\..\$c" vidsum "Vidsumly Start.cmd" Vidsumly.cmd CZYTAJ_MNIE.txt | Out-Null
           Pop-Location
-          "{`"wersja`": `"$ver`", `"zaleznosci`": `"$env:DEPS`"}" | Out-File -Encoding ascii "VidSum-$ver-aktualizacja.json"
+          "{`"wersja`": `"$ver`", `"zaleznosci`": `"$env:DEPS`"}" | Out-File -Encoding ascii "Vidsumly-$ver-aktualizacja.json"
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
-          & $iscc /Qp "/DAppVersion=$ver" "/DSourceDir=$PWD\portable\VidSum" "/O$PWD" packaging\vidsum.iss
+          & $iscc /Qp "/DAppVersion=$ver" "/DSourceDir=$PWD\portable\Vidsumly" "/O$PWD" packaging\vidsum.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup: błąd $LASTEXITCODE" }
-          $s = "VidSum-Setup-$ver.exe"
-          foreach ($z in @($c, "VidSum-$ver-aktualizacja.json", $s)) {
+          $s = "Vidsumly-Setup-$ver.exe"
+          foreach ($z in @($c, "Vidsumly-$ver-aktualizacja.json", $s)) {
             $h = (Get-FileHash $z -Algorithm SHA256).Hash.ToLower()
             "$h  $z" | Out-File -Encoding ascii "$z.sha256"
             Write-Host "$z  $([math]::Round((Get-Item $z).Length/1MB, 1)) MB  sha256 $h"
           }
           "ZIP_C=$c" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "META_C=VidSum-$ver-aktualizacja.json" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "META_C=Vidsumly-$ver-aktualizacja.json" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "SETUP=$s" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          # 0.13.0: kopia instalatora pod starą nazwą — wersje do 0.12.0 szukają przy aktualizacji „VidSum-Setup-<wersja>.exe”
+          $old = "VidSum-Setup-$ver.exe"
+          Copy-Item $s $old
+          $h = (Get-FileHash $old -Algorithm SHA256).Hash.ToLower()
+          "$h  $old" | Out-File -Encoding ascii "$old.sha256"
+          "SETUP_OLD=$old" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: "Test przeniesienia instalacji z folderu VidSum (0.12.0 → 0.13.0)"
+        run: |
+          $oldDir = "$env:LOCALAPPDATA\Programs\VidSum"
+          New-Item -ItemType Directory -Force "$oldDir\python" | Out-Null
+          Set-Content "$oldDir\stary.txt" "stara instalacja"
+          $p = Start-Process -FilePath ".\$env:SETUP" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "instalator: kod $($p.ExitCode)" }
+          $newDir = "$env:LOCALAPPDATA\Programs\Vidsumly"
+          if (-not (Test-Path "$newDir\python\python.exe")) { throw "brak instalacji w $newDir" }
+          if (Test-Path $oldDir) { throw "stary folder programu $oldDir nie został usunięty" }
+          & "$newDir\python\python.exe" -m vidsum --version
+          if ($LASTEXITCODE -ne 0) { throw "przeniesiony Vidsumly nie działa" }
+          Write-Host "przeniesienie VidSum → Vidsumly: ok"
 
       - name: "Test instalatora i podmiany kodu"
         run: |
-          $dir = "$env:RUNNER_TEMP\VidSum inst ąę"
+          $dir = "$env:RUNNER_TEMP\Vidsumly inst ąę"
           $p = Start-Process -FilePath ".\$env:SETUP" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=`"$dir`"" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "instalator: kod $($p.ExitCode)" }
           & "$dir\python\python.exe" -m vidsum --version
-          if ($LASTEXITCODE -ne 0) { throw "zainstalowany VidSum nie działa" }
+          if ($LASTEXITCODE -ne 0) { throw "zainstalowany Vidsumly nie działa" }
           if (-not (Test-Path "$dir\vidsum\_build.json")) { throw "brak _build.json" }
           # okno programu: pywebview + .NET (pythonnet) + WebView2 w zainstalowanym Pythonie
           & "$dir\python\python.exe" -c "import webview; from webview.platforms import winforms; print('okno programu: ok')"
           if ($LASTEXITCODE -ne 0) { throw "okno programu (pywebview/WebView2) nie działa w instalacji" }
-          # ikona VidSum w skrócie (Menu Start) i plik ikony w instalacji
+          # ikona Vidsumly w skrócie (Menu Start) i plik ikony w instalacji
           if (-not (Test-Path "$dir\vidsum\web\vidsum.ico")) { throw "brak vidsum.ico w instalacji" }
           $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Vidsumly\Vidsumly.lnk"
           if (Test-Path $lnk) {
             $ic = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).IconLocation
             Write-Host "ikona skrótu: $ic"
-            if ($ic -notlike "*vidsum.ico*") { throw "skrót bez ikony VidSum: $ic" }
+            if ($ic -notlike "*vidsum.ico*") { throw "skrót bez ikony Vidsumly: $ic" }
           } else { Write-Host "brak skrótu w Menu Start (instalacja cicha) — pomijam sprawdzenie ikony" }
           # aktualizacja samego kodu na zainstalowanej kopii: paczka C z podmienioną wersją 9.9.9
           $t = "$env:RUNNER_TEMP\akt"; New-Item -ItemType Directory -Force $t | Out-Null
@@ -298,7 +318,7 @@ jobs:
           & "$dir\python\python.exe" -c "import sys; from pathlib import Path; from vidsum import update; update.swap_code(Path(sys.argv[1]), '9.9.9', Path(sys.argv[2]))" "$env:RUNNER_TEMP\akt999.zip" "$dir"
           $v = & "$dir\python\python.exe" -m vidsum --version
           Write-Host "po podmianie: $v"
-          if ($v -ne "VidSum 9.9.9") { throw "podmiana kodu nie zadziałała" }
+          if ($v -ne "Vidsumly 9.9.9") { throw "podmiana kodu nie zadziałała" }
           if (Test-Path "$dir\vidsum\stary_plik.py") { throw "stary plik został" }
           $un = Get-ChildItem $dir -Filter "unins*.exe" | Select-Object -First 1
           $p = Start-Process -FilePath $un.FullName -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES" -Wait -PassThru
@@ -314,7 +334,7 @@ jobs:
           Write-Host "Defender: sygnatury $($s.AntivirusSignatureVersion) z $($s.AntivirusSignatureLastUpdated); silnik $($s.AMEngineVersion)"
           $mp = "$env:ProgramFiles\Windows Defender\MpCmdRun.exe"
           $bad = 0
-          foreach ($p in @("$PWD\dist\VidSum", "$PWD\portable\VidSum", "$PWD\$env:ZIP_A", "$PWD\$env:ZIP_B", "$PWD\$env:SETUP")) {
+          foreach ($p in @("$PWD\dist\Vidsumly", "$PWD\portable\Vidsumly", "$PWD\$env:ZIP_A", "$PWD\$env:ZIP_B", "$PWD\$env:SETUP")) {
             & $mp -Scan -ScanType 3 -File $p -DisableRemediation | Out-Host
             Write-Host "Skan $p → kod $LASTEXITCODE (0 = brak zagrożeń, 2 = wykryto)"
             if ($LASTEXITCODE -ne 0) { $bad++ }
@@ -325,7 +345,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         continue-on-error: true      # limit miejsca na artefakty nie może blokować wydania (Release)
         with:
-          name: VidSum-windows-x64-exe
+          name: Vidsumly-windows-x64-exe
           path: |
             ${{ env.ZIP_A }}
             ${{ env.ZIP_A }}.sha256
@@ -334,7 +354,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: VidSum-windows-x64-python
+          name: Vidsumly-windows-x64-python
           path: |
             ${{ env.ZIP_B }}
             ${{ env.ZIP_B }}.sha256
@@ -346,13 +366,13 @@ jobs:
           TAG: v${{ needs.wersja.outputs.ver }}
         run: |
           $files = @($env:SETUP, "$env:SETUP.sha256", $env:ZIP_C, "$env:ZIP_C.sha256", $env:META_C, "$env:META_C.sha256",
-                     $env:ZIP_A, "$env:ZIP_A.sha256", $env:ZIP_B, "$env:ZIP_B.sha256")
+                     $env:ZIP_A, "$env:ZIP_A.sha256", $env:ZIP_B, "$env:ZIP_B.sha256", $env:SETUP_OLD, "$env:SETUP_OLD.sha256")
           $notes = "RAPORT_$($env:TAG.TrimStart('v')).md"
           if (-not (Test-Path $notes)) { $notes = "RAPORT_FAZA2.md" }
           gh release view $env:TAG 2>$null
           if ($LASTEXITCODE -ne 0) {
             # najpierw puste wydanie (tworzy tag na tym commicie), potem pliki po jednym
-            gh release create $env:TAG --target $env:GITHUB_SHA --title "VidSum $env:TAG" --notes-file $notes --latest
+            gh release create $env:TAG --target $env:GITHUB_SHA --title "Vidsumly $env:TAG" --notes-file $notes --latest
             if ($LASTEXITCODE -ne 0) { throw "nie udało się utworzyć wydania $env:TAG" }
           }
           # po jednym pliku, z ponowieniem: duże pliki wysyłane naraz kończyły się „HTTP 408 Upload body timed out”

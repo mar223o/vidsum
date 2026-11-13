@@ -6,7 +6,7 @@ Program nie ma kont, nie zbiera statystyk i niczego nie wysyła do autora.
 ## Co jest liczone lokalnie
 - rozpoznawanie mowy (Whisper), opis kadrów i napisy z ekranu (OCR), streszczenie, tłumaczenie i czat — modele działają
   na Twoim komputerze (Ollama, faster-whisper);
-- wyniki zapisują się w folderze `Dokumenty\VidSum` (zmienisz w Ustawieniach); ustawienia i dziennik w `%LOCALAPPDATA%\VidSum`.
+- wyniki zapisują się w folderze `Dokumenty\Vidsumly` (zmienisz w Ustawieniach); ustawienia i dziennik w `%LOCALAPPDATA%\Vidsumly`.
 
 ## Kiedy program łączy się z internetem
 | Kiedy | Z kim | Po co |

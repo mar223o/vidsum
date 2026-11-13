@@ -1,6 +1,6 @@
 """Pomiar, gdzie da się odzyskać czas (0.11.9) — na komputerze użytkownika, na gotowej analizie.
 
-Uruchomienie:  VidSum.exe --zmierz-czasy "folder analizy"   →  pomiar_czasow.md / .json w tym folderze.
+Uruchomienie:  Vidsumly.exe --zmierz-czasy "folder analizy"   →  pomiar_czasow.md / .json w tym folderze.
 
 Co mierzy (każdy krok osobno; błąd jednego nie przerywa reszty):
 1. Whisper sam na karcie: float16 (tak jak dziś) i int8_float16 — wczytanie, rozpoznanie, zajęta pamięć karty,

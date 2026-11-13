@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vidsumly</title>
-<meta name="application-name" content="Vidsumly"><!-- nazwa techniczna: VidSum -->
+<meta name="application-name" content="Vidsumly"><!-- nazwa techniczna: Vidsumly -->
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <style>
 /* Vidsumly 0.10.x (dawniej VidSum) — grafitowy granat i jeden akcent (lazur); wcześniej: kolory marki z ikony,
@@ -806,7 +806,7 @@ function renderDiag(){
     row(s.gpu_nvidia, t("gpu"), s.gpu_nvidia ? (s.cuda_pobrana ? t("gpu_cuda_ok") : t("gpu_cuda_missing")) : t("gpu_none")),
     row(s.claude, "Claude Code", s.claude_info)].join("");
   const ab = $("#about");
-  if (ab) ab.innerHTML = [row(null, "Vidsumly", `${t("version")} ${s.wersja}`), row(null, t("tech_name"), "VidSum"),
+  if (ab) ab.innerHTML = [row(null, "Vidsumly", `${t("version")} ${s.wersja}`),
     row(null, t("data_dir"), s.folder_danych || ""), row(null, t("s_out"), settings.wyniki || "")].join("");
 }
 function bindUpdates(){

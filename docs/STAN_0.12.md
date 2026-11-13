@@ -47,3 +47,4 @@ segmenty, tłumaczenie pl, napisy z ekranu, sceny kadrów.
 - [ ] Plik `dla_llm.md` + przycisk „Kopiuj dla LLM” (ponumerowane linie, legenda źródeł, fakty z odwołaniem do linii).
 - [ ] Czat z klikalnymi czasami `mm:ss`.
 - [ ] Fiszki i mapa myśli z faktów (quiz: użytkownik zrezygnował, 13.11, 16:38).
+- [x] Nazwa „Vidsumly” wszędzie (13.11, 16:39): pliki .exe/.cmd, instalator i pliki wydania, folder programu, foldery danych i wyników (przenoszone przy pierwszym uruchomieniu), dziennik, klucz w Menedżerze poświadczeń. Kopia instalatora pod starą nazwą w wydaniu, żeby 0.12.0 umiało się zaktualizować. Bez zmiany: pakiet Pythona `vidsum` i repozytorium `mar223o/vidsum` (niewidoczne dla użytkownika).

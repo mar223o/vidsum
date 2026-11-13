@@ -1,4 +1,4 @@
-# PyInstaller: jeden folder z VidSum.exe (onedir — szybki start, łatwe podmienienie ffmpeg).
+# PyInstaller: jeden folder z Vidsumly.exe (onedir — szybki start, łatwe podmienienie ffmpeg).
 # Budowanie:  pyinstaller packaging/vidsum.spec --noconfirm
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
@@ -12,10 +12,10 @@ a = Analysis(["vidsum_entry.py"], pathex=[".."], binaries=binaries, datas=datas,
              excludes=["tkinter", "matplotlib", "IPython", "pytest", "torch", "scipy", "pandas", "sympy"], noarchive=False)
 pyz = PYZ(a.pure)
 import sys
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="VidSum", console=True,
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Vidsumly", console=True,
           icon=None, upx=False,   # bez UPX — kompresja .exe to częsty powód fałszywych alarmów
           version="version_info.txt" if sys.platform == "win32" else None)
-# drugi plik startowy BEZ okna konsoli (to klika użytkownik); VidSum.exe zostaje dla wiersza poleceń i MCP
-exe_start = EXE(pyz, a.scripts, [], exclude_binaries=True, name="VidSum Start", console=False,
+# drugi plik startowy BEZ okna konsoli (to klika użytkownik); Vidsumly.exe zostaje dla wiersza poleceń i MCP
+exe_start = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Vidsumly Start", console=False,
                 icon=None, upx=False, version="version_info.txt" if sys.platform == "win32" else None)
-coll = COLLECT(exe, exe_start, a.binaries, a.datas, name="VidSum", upx=False)
+coll = COLLECT(exe, exe_start, a.binaries, a.datas, name="Vidsumly", upx=False)

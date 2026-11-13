@@ -1,7 +1,7 @@
 """Pomiar opisu kadrów na komputerze użytkownika (karta graficzna): te same kadry z gotowej analizy opisane
 trzema sposobami — do decyzji, czy szybszy sposób daje te same opisy.
 
-    VidSum.exe --pomiar-kadrow "C:\\...\\Dokumenty\\VidSum\\<folder analizy>"
+    Vidsumly.exe --pomiar-kadrow "C:\\...\\Dokumenty\\Vidsumly\\<folder analizy>"
 
 Sposoby:
   teraz   — jak w programie (JSON, 1 kadr na zapytanie),

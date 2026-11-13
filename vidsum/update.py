@@ -1,6 +1,6 @@
 """Aktualizacje z (prywatnego) repozytorium GitHub.
 
-Klucz GitHub (tylko odczyt, tylko repozytorium VidSum) trzymamy w Menedżerze poświadczeń Windows — nigdy w pliku
+Klucz GitHub (tylko odczyt, tylko repozytorium programu) trzymamy w Menedżerze poświadczeń Windows — nigdy w pliku
 ani w logu. Zwykła aktualizacja pobiera sam kod (kilka MB) i podmienia folder `vidsum`; gdy zmieniły się biblioteki
 (inny `zaleznosci` w _build.json), pobierany jest pełny instalator.
 """
@@ -23,7 +23,8 @@ from pathlib import Path
 from . import __version__
 
 REPO = "mar223o/vidsum"
-CRED_TARGET = "VidSum/github"
+CRED_TARGET = "Vidsumly/github"
+OLD_CRED_TARGET = "VidSum/github"          # do 0.12.0 — czytany, gdy nowego jeszcze nie ma
 API = "https://api.github.com"
 PKG = Path(__file__).resolve().parent          # folder `vidsum` (kod programu)
 ROOT = PKG.parent                              # folder instalacji
@@ -67,7 +68,8 @@ def token_get() -> str | None:
         return None
     ctypes, CREDENTIAL, adv = api
     p = ctypes.POINTER(CREDENTIAL)()
-    if not adv.CredReadW(CRED_TARGET, CRED_TYPE_GENERIC, 0, ctypes.byref(p)):
+    if not adv.CredReadW(CRED_TARGET, CRED_TYPE_GENERIC, 0, ctypes.byref(p)) and \
+            not adv.CredReadW(OLD_CRED_TARGET, CRED_TYPE_GENERIC, 0, ctypes.byref(p)):
         return None
     try:
         c = p.contents
@@ -97,6 +99,7 @@ def token_delete() -> None:
     api = _cred_api()
     if api:
         api[2].CredDeleteW(CRED_TARGET, CRED_TYPE_GENERIC, 0)
+        api[2].CredDeleteW(OLD_CRED_TARGET, CRED_TYPE_GENERIC, 0)
 
 
 # ---------------- GitHub ----------------
@@ -116,7 +119,7 @@ class _NoAuthOnRedirect(urllib.request.HTTPRedirectHandler):
 def _open(url: str, token: str | None, accept: str = "application/vnd.github+json", timeout: float = 60):
     """Zapytanie do GitHuba. Repozytorium jest publiczne (od 0.7.8) — klucz niepotrzebny; jeśli zapisany, idzie dalej
     (prywatne repozytorium / wyższy limit zapytań)."""
-    h = {"Accept": accept, "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "VidSum-aktualizacje"}
+    h = {"Accept": accept, "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "Vidsumly-aktualizacje"}
     if token:
         h["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=h)
@@ -125,12 +128,12 @@ def _open(url: str, token: str | None, accept: str = "application/vnd.github+jso
         return opener.open(req, timeout=timeout)
     except urllib.error.HTTPError as e:
         if e.code == 401 or (e.code == 403 and token):
-            raise UpdateError("GitHub odrzucił klucz (wygasł albo nie ma dostępu do repozytorium VidSum). "
+            raise UpdateError("GitHub odrzucił klucz (wygasł albo nie ma dostępu do repozytorium Vidsumly). "
                               "Usuń go w Ustawieniach → Aktualizacje — przy publicznym repozytorium nie jest potrzebny.") from e
         if e.code == 403:
             raise UpdateError("GitHub chwilowo ogranicza zapytania (limit na godzinę) — spróbuj za chwilę.") from e
         if e.code == 404:
-            raise UpdateError("Brak wydań" + (" albo klucz nie ma dostępu do repozytorium VidSum." if token else
+            raise UpdateError("Brak wydań" + (" albo klucz nie ma dostępu do repozytorium Vidsumly." if token else
                               " albo repozytorium jest prywatne — wtedy wklej klucz w Ustawieniach → Aktualizacje.")) from e
         raise UpdateError(f"GitHub: błąd {e.code}.") from e
     except urllib.error.URLError as e:
@@ -155,6 +158,15 @@ def can_swap_code() -> bool:
     return not getattr(sys, "frozen", False) and os.access(ROOT, os.W_OK) and (PKG / "__init__.py").is_file()
 
 
+def asset_names(tag: str, assets: dict) -> tuple[str, str, str]:
+    """Pliki wydania: od 0.13.0 „Vidsumly-…”, wcześniej „VidSum-…” (aktualizacja do starszego wydania też działa)."""
+    for brand in ("Vidsumly", "VidSum"):
+        names = (f"{brand}-{tag}-aktualizacja.zip", f"{brand}-{tag}-aktualizacja.json", f"{brand}-Setup-{tag}.exe")
+        if any(n in assets for n in names):
+            return names
+    return (f"Vidsumly-{tag}-aktualizacja.zip", f"Vidsumly-{tag}-aktualizacja.json", f"Vidsumly-Setup-{tag}.exe")
+
+
 def check(token: str | None = None) -> dict:
     token = token or token_get()                    # opcjonalny (repozytorium publiczne)
     with _open(f"{API}/repos/{REPO}/releases/latest", token) as r:
@@ -165,7 +177,7 @@ def check(token: str | None = None) -> dict:
            "notatki": (rel.get("body") or "")[:3000], "rodzaj": None, "strona": rel.get("html_url")}
     if not out["jest_nowsza"]:
         return out
-    code, meta, setup = (f"VidSum-{tag}-aktualizacja.zip", f"VidSum-{tag}-aktualizacja.json", f"VidSum-Setup-{tag}.exe")
+    code, meta, setup = asset_names(tag, assets)
     deps_new = None
     if meta in assets:
         with _open(assets[meta]["url"], token, "application/octet-stream") as r:
@@ -227,7 +239,7 @@ def swap_code(zip_path: Path, expect_version: str, root: Path = ROOT) -> None:
         except OSError:
             old.rename(pkg)                                # przywróć poprzednią wersję
             raise
-        for f in stage.iterdir():                          # pliki uruchamiające (VidSum Start.cmd itd.)
+        for f in stage.iterdir():                          # pliki uruchamiające (Vidsumly Start.cmd itd.)
             if f.is_file():
                 shutil.copy2(f, root / f.name)
         shutil.rmtree(old, ignore_errors=True)             # stary kod usunięty (zostaje tylko, gdy plik zajęty)
@@ -263,7 +275,7 @@ def apply(info: dict, token: str | None = None, log=print) -> str:
         shutil.rmtree(tmp, ignore_errors=True)
         return "kod"
     from .procs import popen_detached
-    popen_detached([str(dst)], cwd=str(tmp))               # instalator sam zamknie działający VidSum
+    popen_detached([str(dst)], cwd=str(tmp))               # instalator sam zamknie działający Vidsumly
     return "pelna"
 
 

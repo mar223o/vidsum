@@ -1015,7 +1015,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
 
     result = {
         "schema": SCHEMA,
-        "narzedzie": {"nazwa": "VidSum", "wersja": __version__},
+        "narzedzie": {"nazwa": "Vidsumly", "wersja": __version__},
         "utworzono": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "zrodlo": {"rodzaj": src.kind, "wejscie": src.original, "url": src.webpage_url,
                    "tytul": src.title, "autor": src.uploader, "plik": src.path.name,
