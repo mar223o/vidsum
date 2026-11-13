@@ -361,6 +361,8 @@ jobs:
           retention-days: 7
 
       - name: Release (tag v<wersja> tworzy GitHub)
+        # 0.13.0: wydanie tylko z main (ręczne uruchomienie na gałęzi roboczej = sama budowa i testy, bez wydania)
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: v${{ needs.wersja.outputs.ver }}
