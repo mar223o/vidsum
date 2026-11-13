@@ -108,7 +108,7 @@ def test_llm_file_has_legend_line_refs_and_numbered_transcript():
     from vidsum.note import llm_text
     d = json.loads((Path(__file__).parent / "data" / "frytki_0114" / "analiza.json").read_text(encoding="utf-8"))
     t = llm_text(d)
-    assert t.startswith("---\ntytul: ") and "## Jak czytać ten plik" in t and "[obraz] = automatyczny opis kadru" in t
+    assert t.startswith("# Raport z filmu: ") and "Jak czytać (dla ludzi i dla AI)" in t and "[obraz] = automatyczny opis kadru" in t
     segs = d["transkrypcja"]["segmenty"]
     assert f"[L1 00:{int(segs[0]['start']):02d}] {segs[0]['text'].strip()}" in t
     assert f"[L{len(segs)} " in t, "każda linia transkrypcji ma numer"
@@ -119,26 +119,26 @@ def test_llm_file_has_legend_line_refs_and_numbered_transcript():
 
 
 def test_gui_writes_and_serves_llm_file(server):
-    """Analiza z GUI zapisuje dla_llm.md; endpoint /dla_llm buduje plik z analiza.json (działa też dla starszych analiz)."""
+    """Analiza z GUI zapisuje raport_z_filmu.md; endpointy /notatka i /dla_llm dają ten sam raport z analiza.json."""
     from test_gui import DATA, req, wait_done
     base, app = server
     _, job = req(base, "/api/link", data=json.dumps({"zrodlo": str(DATA / "bez_audio.mp4")}).encode(), method="POST")
     assert wait_done(base, job["id"])["status"] == "gotowe"
     out = app.worker.jobs[job["id"]].out
-    assert (out / "dla_llm.md").is_file()
-    (out / "dla_llm.md").unlink()                      # jak w analizie sprzed 0.13.0
-    st, body = req(base, f"/api/zadania/{job['id']}/dla_llm")
-    assert st == 200 and "## Jak czytać ten plik" in body.decode("utf-8")
-    st, body = req(base, f"/api/zadania/{job['id']}/notatka")
-    assert st == 200 and body.decode("utf-8").startswith("Notatka z analizy")
+    assert (out / "raport_z_filmu.md").is_file()
+    (out / "raport_z_filmu.md").unlink()               # jak w analizie sprzed 0.13.1
+    st, a = req(base, f"/api/zadania/{job['id']}/notatka")
+    st2, b = req(base, f"/api/zadania/{job['id']}/dla_llm")
+    assert st == st2 == 200 and a == b and a.decode("utf-8").startswith("# Raport z filmu: ")
 
 
 def test_index_has_llm_button_flashcards_and_map_facts():
     html = (Path(__file__).parents[1] / "vidsum" / "web" / "index.html").read_text(encoding="utf-8")
-    for k in ('data-a="llm"', "/dla_llm?pobierz=1", "function flashcards(d)", 'tl.push(["cards"', 'data-a="cards_copy"',
+    for k in ('rep:"Raport z filmu"', 'copy:"Prompt do streszczenia"', 'download="raport_z_filmu.md"',
+              'download="prompt_do_streszczenia.md"', 'details class="dd"', "function flashcards(d)", 'tl.push(["cards"', 'data-a="cards_copy"',
               "co_masz_zrobic?.fakty) || []).filter(f => f.t >= ch.start"):
         assert k in html, k
-    assert html.count("t_cards:") == 2 and html.count("llm_copied:") == 2
+    assert html.count("t_cards:") == 2 and html.count("dd_copy:") == 2 and "Kopiuj notatkę" not in html
 
 
 def test_restore_names_only_when_name_in_source():
@@ -180,7 +180,7 @@ def test_mode_transcript_only_no_summary_no_vision(tmp_path, monkeypatch):
     assert r["ustawienia"]["tryb"] == "transkrypcja" and r["ustawienia"]["obraz"] == "brak"
     assert r["transkrypcja"]["segmenty"] and not (r.get("streszczenie") or {}).get("dane")
     assert any("Sama transkrypcja" in x for x in logs)
-    assert (out / "transkrypcja.srt").is_file() and (out / "dla_llm.md").is_file()
+    assert (out / "transkrypcja.srt").is_file() and (out / "raport_z_filmu.md").is_file()
 
 
 def test_mode_transcript_in_ui_and_eta():

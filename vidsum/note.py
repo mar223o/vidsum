@@ -40,7 +40,8 @@ def _yaml(v) -> str:
 
 
 def llm_text(a: dict) -> str:
-    """Cała analiza jako jeden plik Markdown dla innego modelu (NotebookLM, Claude, ChatGPT): metadane, legenda,
+    """„Raport z filmu” (0.13.1: notatka + plik dla LLM w jednym) — do czytania i do rozmowy z innym modelem
+    (NotebookLM, Claude, ChatGPT): metadane, legenda,
     wynik z odwołaniami do numerów linii [L12] i pełna transkrypcja w ponumerowanych liniach (oryginał | tłumaczenie).
 
     Zasada: wszystko, co jest wnioskiem programu, ma odwołanie do linii albo czasu; opisy kadrów są oznaczone jako
@@ -70,19 +71,22 @@ def llm_text(a: dict) -> str:
         lab = ",".join(f"L{n}" for n in ns)
         return f"[{lab + ' ' if lab else ''}{_ts(t)}]"
 
-    L: list[str] = ["---",
-                    f"tytul: {_yaml(z.get('tytul'))}", f"autor: {_yaml(z.get('autor'))}",
-                    f"zrodlo: {_yaml(z.get('url') or z.get('wejscie') or z.get('plik'))}",
-                    f"dlugosc: {_yaml(_ts(z.get('dlugosc_s') or 0))}", f"jezyk_mowy: {_yaml(tr.get('jezyk_nazwa') or tr.get('jezyk'))}",
-                    f"typ_filmu: {_yaml(s.get('typ'))}", f"program: {_yaml('Vidsumly ' + str((a.get('narzedzie') or {}).get('wersja', '')))}",
-                    f"utworzono: {_yaml(a.get('utworzono'))}", "---", "",
-                    f"# {z.get('tytul') or 'Analiza filmu'}", "",
-                    "## Jak czytać ten plik",
-                    "- `[L12 03:41]` — linia nr 12 transkrypcji niżej, czas 03:41 w filmie. Każdy fakt i cytat ma takie odwołanie.",
-                    "- Źródła: [mowa] = transkrypcja (automatyczna, mogą być literówki), [napisy] = tekst odczytany z ekranu (OCR),",
-                    "  [obraz] = automatyczny opis kadru małym modelem (często nieprecyzyjny — traktuj jako wskazówkę),",
-                    "  [opis] = opis autora pod filmem, [wniosek programu] = streszczenie napisane przez lokalny model (sprawdzaj z liniami).",
-                    "- Fragmenty oznaczone jako reklama nie są treścią filmu.", ""]
+    title = z.get("tytul") or "Analiza filmu"
+    src = z.get("url") or z.get("wejscie") or z.get("plik") or ""
+    L: list[str] = [f"# Raport z filmu: {title}", "",
+                    f"- **Autor:** {z.get('autor') or 'brak danych'}",
+                    f"- **Źródło:** {src or 'brak danych'}",
+                    f"- **Długość:** {_ts(z.get('dlugosc_s') or 0)} · **język mowy:** {tr.get('jezyk_nazwa') or tr.get('jezyk') or 'brak danych'}"
+                    + (f" · **typ filmu:** {s.get('typ')}" if s.get("typ") else ""),
+                    f"- **Przygotowane przez:** Vidsumly {(a.get('narzedzie') or {}).get('wersja', '')}, {a.get('utworzono') or ''}".rstrip(", "),
+                    "",
+                    "> **Jak czytać (dla ludzi i dla AI).** Na górze wynik, na dole pełna transkrypcja w ponumerowanych liniach.",
+                    "> `[L12 03:41]` = linia nr 12 transkrypcji, czas 03:41 w filmie — każdy fakt, krok i cytat ma takie odwołanie.",
+                    "> Źródła: [mowa] = transkrypcja (automatyczna, możliwe literówki); [napisy] = tekst z ekranu (OCR);",
+                    "> [obraz] = automatyczny opis kadru małym modelem (często nieprecyzyjny); [opis] = opis autora pod filmem;",
+                    "> [wniosek programu] = streszczenie napisane przez lokalny model — sprawdzaj je z liniami transkrypcji.",
+                    "> Fragmenty oznaczone jako reklama nie są treścią filmu. Rozmawiając z AI o tym filmie, proś o odwołania [L…].",
+                    ""]
     if s:
         L += ["## Streszczenie [wniosek programu]", ""]
         if s.get("teza"):

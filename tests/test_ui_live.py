@@ -234,10 +234,18 @@ def test_breakdown_tabs_fit_and_new_tabs(live, width):
         if width >= 1000:
             assert "Otwórz film na YouTube" in page.inner_text("#rhead")
             assert page.get_attribute("#rhead a.srclink", "href") == "https://www.youtube.com/watch?v=x"
-            # 0.11.5: „Kopiuj notatkę” + pobranie, „Kopiuj prompt” (bez „dla Claude”), bez „Podsumuj przez Claude” i JSON
+            # 0.13.1: dwa przyciski — „Raport z filmu” i „Prompt do streszczenia”; „Kopiuj / Pobierz” dopiero po kliknięciu
             acts = page.inner_text("#rhead .actions")
-            assert "Kopiuj notatkę" in acts and "Kopiuj prompt" in acts and "Claude" not in acts and "JSON" not in acts
-            assert "/notatka?pobierz=1" in page.get_attribute('#rhead .actions a.btn.icon', "href")
+            assert "Raport z filmu" in acts and "Prompt do streszczenia" in acts and "JSON" not in acts
+            menu = page.locator("#rhead details.dd").first
+            assert not menu.locator(".ddm").is_visible(), "menu zamknięte, dopóki nie klikniesz"
+            menu.locator("summary").click()
+            assert menu.locator(".ddm").is_visible() and "Kopiuj" in menu.inner_text() and "Pobierz" in menu.inner_text()
+            assert "/notatka?pobierz=1" in menu.locator("a.btn").get_attribute("href")
+            page.screenshot(path=str(shots / f"menu_raportu_{width}.png"))
+            page.mouse.click(5, 5)
+            page.wait_for_timeout(100)
+            assert not menu.locator(".ddm").is_visible(), "kliknięcie obok zamyka menu"
             for m in ("bal", "read", "video"):
                 page.click(f'#modes button[data-m="{m}"]')
                 page.wait_for_timeout(150)
