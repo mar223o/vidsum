@@ -1,6 +1,6 @@
-"""Serwer MCP (stdio, JSON-RPC 2.0) — Claude Desktop / Claude Code wywołuje VidSum na tym komputerze.
+"""Serwer MCP (stdio, JSON-RPC 2.0) — Claude Desktop / Claude Code wywołuje Vidsumly na tym komputerze.
 
-Uruchomienie: VidSum.exe --mcp   (albo VidSum.cmd --mcp, python -m vidsum --mcp)
+Uruchomienie: Vidsumly.exe --mcp   (albo Vidsumly.cmd --mcp, python -m vidsum --mcp)
 Bez zewnętrznych bibliotek. Na stdout idą WYŁĄCZNIE wiadomości protokołu; logi analizy → stderr.
 
 Narzędzia:
@@ -23,7 +23,7 @@ PROTOCOL = "2025-06-18"
 
 TOOLS = [
     {"name": "analizuj_film",
-     "description": ("Analizuje film lokalnie programem VidSum (plik na tym komputerze albo link YouTube/Instagram/TikTok): "
+     "description": ("Analizuje film lokalnie programem Vidsumly (plik na tym komputerze albo link YouTube/Instagram/TikTok): "
                      "napisy z ekranu (OCR), mowa (Whisper large-v3-turbo), kadry i ich opisy. Zwraca oś czasu ze źródłami "
                      "(MOWA / NAPISY / OBRAZ). Trwa od ~1 min (krótki film) do kilkunastu minut (40 min)."),
      "inputSchema": {"type": "object", "properties": {
@@ -31,7 +31,7 @@ TOOLS = [
          "jezyk": {"type": "string", "enum": ["auto", "pl", "en"], "default": "auto"}},
          "required": ["zrodlo"]}},
     {"name": "lista_analiz",
-     "description": "Lista analiz zapisanych przez VidSum na tym komputerze (tytuł, typ, długość, folder).",
+     "description": "Lista analiz zapisanych przez Vidsumly na tym komputerze (tytuł, typ, długość, folder).",
      "inputSchema": {"type": "object", "properties": {}}},
     {"name": "pobierz_analize",
      "description": "Zwraca oś czasu, transkrypcję i streszczenie zapisanej analizy (folder z lista_analiz).",
@@ -96,7 +96,7 @@ def _call(name: str, args: dict) -> str:
         except LLMError:
             opt.vision = "brak"     # bez Ollamy: mowa + napisy z ekranu; brak opisu kadrów trafi do luk
         out = analyze(args["zrodlo"], opt, log=lambda m: print(m, file=sys.stderr, flush=True))
-        return _describe(out) + ("\n\nNapisz teraz streszczenie według procedury VidSum: typ filmu, co masz zrobić "
+        return _describe(out) + ("\n\nNapisz teraz streszczenie według procedury Vidsumly: typ filmu, co masz zrobić "
                                  "(przepis/trening/kroki z mm:ss), najważniejsze, rozdziały, cytaty, szczera ocena, "
                                  "czego nie wiadomo; źródło przy każdej informacji.")
     raise ValueError(f"Nieznane narzędzie: {name}")

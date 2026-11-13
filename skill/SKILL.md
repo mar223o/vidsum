@@ -1,17 +1,17 @@
 ---
 name: analiza-filmu
-description: Analizuje film (MP4/MOV lub link) wrzucony do czatu — mowa, napisy na ekranie i obraz — i zwraca konkretne streszczenie w stylu VidSum: przepis, trening albo kroki z czasem, rozdziały, cytaty, szczera ocena, ze źródłem przy każdej informacji.
+description: Analizuje film (MP4/MOV lub link) wrzucony do czatu — mowa, napisy na ekranie i obraz — i zwraca konkretne streszczenie w stylu Vidsumly: przepis, trening albo kroki z czasem, rozdziały, cytaty, szczera ocena, ze źródłem przy każdej informacji.
 ---
 
-# Analiza filmu (procedura VidSum)
+# Analiza filmu (procedura Vidsumly)
 
 Użyj, gdy użytkownik wrzuca film albo prosi o streszczenie / przepis / ćwiczenia z filmu.
 Odpowiadaj po polsku. **Niczego nie zmyślaj**: czego nie widać ani nie słychać → „brak danych”.
 Przy każdej informacji źródło: [mowa], [obraz], [mowa+obraz] albo [szacunek].
 
-## 0. Najpierw sprawdź, czy jest program VidSum
+## 0. Najpierw sprawdź, czy jest program Vidsumly
 Jeśli pracujesz na komputerze użytkownika (Claude Code / Claude Desktop z dostępem do plików) i istnieje
-`VidSum.exe` albo `VidSum.cmd` — uruchom go: `VidSum.cmd "ŚCIEŻKA" --streszczenie brak`, potem przeczytaj
+`Vidsumly.exe` albo `Vidsumly.cmd` — uruchom go: `Vidsumly.cmd "ŚCIEŻKA" --streszczenie brak`, potem przeczytaj
 `analiza.json` (oś czasu, transkrypcja, napisy OCR, kadry) z folderu wyników i przejdź do kroku 4.
 To najdokładniejsza droga (Whisper large-v3-turbo + OCR + podpowiedzi słów, zmierzony WER: EN ≈1–3%, PL ≈0–1,4%).
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
 Użycie: python mowa.py audio.wav WYNIK.json [--jezyk pl|en] [--podpowiedz "tytuł i napisy z ekranu"]
 Wymaga: pip install faster-whisper (pobiera model z HuggingFace przy pierwszym użyciu).
-Uwaga z pomiarów VidSum: podpowiedź pomaga TYLKO dużym modelom (turbo); małym szkodzi — nie podawaj jej dla small.
+Uwaga z pomiarów Vidsumly: podpowiedź pomaga TYLKO dużym modelom (turbo); małym szkodzi — nie podawaj jej dla small.
 """
 import json
 import sys

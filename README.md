@@ -1,7 +1,7 @@
-# Vidsumly (dawniej VidSum) — prototyp (faza 1)
+# Vidsumly — lokalna analiza filmów i nagrań (mowa + obraz)
 
-Od 0.10.1 program nazywa się **Vidsumly** (w 0.10.0 przez chwilę: Vidsumly). Nazwa techniczna zostaje: polecenie `VidSum`, folder
-`%LOCALAPPDATA%\VidSum`, serwer MCP `vidsum` — stare skróty, ustawienia i wyniki działają dalej.
+Od 0.10.1 program nazywa się **Vidsumly** (w 0.10.0 przez chwilę: Vidsumly). Nazwa techniczna zostaje: polecenie `Vidsumly`, folder
+`%LOCALAPPDATA%\Vidsumly`, serwer MCP `vidsum` — stare skróty, ustawienia i wyniki działają dalej.
 
 Film (plik MP4 albo link) → **mowa** (Whisper) + **obraz** (kadry + lokalny model wizyjny) → oś czasu → **streszczenie**,
 w którym przy każdej informacji jest źródło: `[mowa]`, `[obraz]`, `[szacunek]` albo „brak danych”.
@@ -69,10 +69,10 @@ Szczegółowy przebieg jednej analizy: `przebieg.log` w jej folderze.
 Kilka plików naraz: `python -m vidsum film1.mp4 film2.mp4 ...` — błąd w jednym nie zatrzymuje reszty.
 
 Polecenia jednorazowe:
-- `VidSum --pobierz-cuda` — biblioteki NVIDIA (cuBLAS 12 + cuDNN 9, ok. 1,3 GB do pobrania, 1,7 GB na dysku
-  w `%LOCALAPPDATA%\VidSum\cuda`) dla Whispera na karcie graficznej. Program robi to też sam przy pierwszej analizie,
+- `Vidsumly --pobierz-cuda` — biblioteki NVIDIA (cuBLAS 12 + cuDNN 9, ok. 1,3 GB do pobrania, 1,7 GB na dysku
+  w `%LOCALAPPDATA%\Vidsumly\cuda`) dla Whispera na karcie graficznej. Program robi to też sam przy pierwszej analizie,
   jeśli wykryje kartę NVIDIA. Usunięcie folderu = odinstalowanie.
-- `VidSum --pobierz-model [nazwa]` — model tekstowy do Ollamy (domyślnie `gemma3:4b`).
+- `Vidsumly --pobierz-model [nazwa]` — model tekstowy do Ollamy (domyślnie `gemma3:4b`).
 
 ## Streszczenie przez Claude (dodatek, nieobowiązkowy)
 Program streszcza sam, lokalnym modelem. Claude można użyć zamiast niego:
@@ -89,20 +89,20 @@ python -m pytest -q
 ## Claude: skill i serwer MCP (od 0.6)
 
 **Skill** (`skill/SKILL.md`) — ta sama procedura, gdy wrzucasz film prosto do czatu z Claude: kadry w arkuszach 3×3
-z czasem (Claude sam je ogląda), Whisper, wynik w układzie VidSum. Skrypty są wbudowane w SKILL.md.
+z czasem (Claude sam je ogląda), Whisper, wynik w układzie Vidsumly. Skrypty są wbudowane w SKILL.md.
 
-**Serwer MCP** — Claude Desktop / Claude Code uruchamia VidSum na Twoim komputerze
+**Serwer MCP** — Claude Desktop / Claude Code uruchamia Vidsumly na Twoim komputerze
 („przeanalizuj C:\Users\Jan\Videos\przepis.mp4”). Narzędzia: `analizuj_film`, `lista_analiz`, `pobierz_analize`.
 
 Claude Desktop — dopisz do `%APPDATA%\Claude\claude_desktop_config.json`:
 ```json
-{ "mcpServers": { "vidsum": { "command": "C:\\Users\\Jan\\Programy\\VidSum\\VidSum.cmd", "args": ["--mcp"] } } }
+{ "mcpServers": { "vidsum": { "command": "C:\\Users\\Jan\\Programy\\Vidsumly\\Vidsumly.cmd", "args": ["--mcp"] } } }
 ```
-(ścieżkę dopasuj do miejsca, gdzie rozpakowałeś program; dla wariantu .exe: `VidSum.exe`). Uruchom Claude Desktop ponownie.
+(ścieżkę dopasuj do miejsca, gdzie rozpakowałeś program; dla wariantu .exe: `Vidsumly.exe`). Uruchom Claude Desktop ponownie.
 
 Claude Code (PowerShell):
 ```powershell
-claude mcp add vidsum -- "C:\Users\Jan\Programy\VidSum\VidSum.cmd" --mcp
+claude mcp add vidsum -- "C:\Users\Jan\Programy\Vidsumly\Vidsumly.cmd" --mcp
 ```
 
 ## Pomiar opisu kadrów

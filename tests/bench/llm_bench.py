@@ -1,7 +1,7 @@
 """Pomiar lokalnych modeli tekstowych (Ollama): streszczenie JSON + tłumaczenia.
 
 Uruchomienie:  python tests/bench/llm_bench.py qwen3:8b [--wyniki katalog]
-Dane: prawdziwy film o frytkach (oś czasu z VidSum) i krótkie teksty do tłumaczenia z wzorcami.
+Dane: prawdziwy film o frytkach (oś czasu z Vidsumly) i krótkie teksty do tłumaczenia z wzorcami.
 Ocena streszczenia: fakty z filmu (+1 każdy) i zmyślenia (−2 każde), poprawność JSON, struktura.
 Ocena tłumaczeń: chrF (0–100, podobieństwo znakowe do wzorca), liczba linii, liczby/nazwy zachowane.
 """

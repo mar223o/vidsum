@@ -3,7 +3,7 @@
 CTranslate2 (silnik Whispera) ma kod GPU w sobie, ale potrzebuje bibliotek NVIDIA cuBLAS i cuDNN,
 których sterownik karty nie zawiera. Pobieramy je JEDNORAZOWO z oficjalnych pakietów NVIDIA na PyPI
 (te same, które zaleca dokumentacja faster-whisper), sprawdzamy sumy SHA-256 i rozpakowujemy same pliki
-.dll do %LOCALAPPDATA%\\VidSum\\cuda. Nic nie jest instalowane w systemie; usunięcie folderu = odinstalowanie.
+.dll do %LOCALAPPDATA%\\Vidsumly\\cuda. Nic nie jest instalowane w systemie; usunięcie folderu = odinstalowanie.
 
 Wersje dobrane do CTranslate2 4.8 (zbudowany z CUDA 12.8 i cuDNN 9.10).
 """
@@ -40,8 +40,8 @@ class CudaError(RuntimeError):
 
 
 def default_dir() -> Path:
-    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / ".local" / "share")
-    return Path(base) / "VidSum" / "cuda"
+    from .paths import app_dir
+    return app_dir() / "cuda"
 
 
 def pack_size_gb(pack: list[dict] | None = None) -> float:
@@ -85,7 +85,7 @@ def _download(url: str, dst: Path, size: int, sha: str, log: Log, label: str) ->
     h = hashlib.sha256()
     done, last = 0, -10
     tmp = dst.with_suffix(".part")
-    req = urllib.request.Request(url, headers={"User-Agent": "VidSum"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Vidsumly"})
     with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
         while True:
             chunk = r.read(1 << 20)

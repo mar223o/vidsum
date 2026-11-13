@@ -72,7 +72,7 @@ class WhisperEngine:
         if missing:
             why = f"nie udało się pobrać bibliotek CUDA ({fail})" if fail else f"brak bibliotek CUDA ({', '.join(missing)})"
             return "cpu", (f"Whisper na CPU — {why}. Model obrazu w Ollamie nadal używa GPU. "
-                           "Biblioteki można pobrać poleceniem: VidSum --pobierz-cuda")
+                           "Biblioteki można pobrać poleceniem: Vidsumly --pobierz-cuda")
         return "cuda", None
 
     def transcribe(self, wav: Path, language: str | None = None) -> Transcript:

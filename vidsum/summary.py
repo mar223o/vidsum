@@ -1913,6 +1913,19 @@ def staged_summary(engine, timeline: str, meta: str, duration: float, log=lambda
         if n:
             log(f"        usunięto {n} pozycji będących kopią opisu kadru")
         clean_review(out, source + " " + timeline)
+        # imiona z oryginału także w streszczeniu („Michał” → „Michael”), gdy model je spolszczył
+        from .translate import restore_names
+        src_all = " ".join(ln["tekst"] for ln in lines) if lines else timeline
+
+        def _names(x):
+            if isinstance(x, str):
+                return restore_names(x, src_all)
+            if isinstance(x, list):
+                return [_names(v) for v in x]
+            if isinstance(x, dict):
+                return {k: (_names(v) if k not in ("oryginal", "zrodlo", "typ") else v) for k, v in x.items()}
+            return x
+        out = _names(out)
         out["czas_czytania_s"] = reading_seconds(out)
     return out
 

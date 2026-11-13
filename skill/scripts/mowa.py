@@ -3,7 +3,7 @@
 
 Użycie: python mowa.py audio.wav WYNIK.json [--jezyk pl|en] [--podpowiedz "tytuł i napisy z ekranu"]
 Wymaga: pip install faster-whisper (pobiera model z HuggingFace przy pierwszym użyciu).
-Uwaga z pomiarów VidSum: podpowiedź pomaga TYLKO dużym modelom (turbo); małym szkodzi — nie podawaj jej dla small.
+Uwaga z pomiarów Vidsumly: podpowiedź pomaga TYLKO dużym modelom (turbo); małym szkodzi — nie podawaj jej dla small.
 """
 import json
 import sys

@@ -1,7 +1,7 @@
 # Vidsumly — instrukcja (wersja 0.12.0)
 
 ## 1. Instalacja i pierwsze uruchomienie
-1. Uruchom `VidSum-Setup-<wersja>.exe`. Windows może pokazać ostrzeżenie SmartScreen (program nie jest podpisany):
+1. Uruchom `Vidsumly-Setup-<wersja>.exe`. Windows może pokazać ostrzeżenie SmartScreen (program nie jest podpisany):
    „Więcej informacji” → „Uruchom mimo to”.
 2. Otwórz **Vidsumly** z menu Start. Na stronie startowej pojawi się karta **Pierwsze uruchomienie**:
    - **Zainstaluj Ollamę** — program pobiera oficjalny instalator i otwiera go; w jego oknie kliknij „Install”;
@@ -48,14 +48,14 @@ Odpowiedź o chwili filmu zaczyna się od tego, co słychać, a potem podaje opi
 | Analiza jest wolna | zamknij przeglądarki, Discorda i gry (zajmują pamięć karty); wybierz „Tylko mowa” |
 | W wyniku jest uwaga „model liczony na procesorze” | uruchom ponownie Ollamę (ikona lamy → Quit) i analizę |
 | Link się nie pobiera | serwis mógł zmienić zabezpieczenia — zaktualizuj program; pobrany plik można wrzucić ręcznie |
-| Inny problem | dziennik: `%LOCALAPPDATA%\VidSum\vidsum.log` |
+| Inny problem | dziennik: `%LOCALAPPDATA%\Vidsumly\vidsumly.log` |
 
 ## 8. Wiersz poleceń (dla dociekliwych)
 ```
-VidSum.exe "C:\film.mp4"                       analiza pliku
-VidSum.exe --tryb mowa "C:\nagranie.mp3"       tryb: pelna | szybki | mowa
-VidSum.exe --kontrola "C:\…\folder analizy"    kontrola jakości gotowej analizy
-VidSum.exe --streszcz-ponownie "folder"        nowe streszczenie bez pobierania i opisu kadrów
-VidSum.exe --zestaw "lista.txt"                cały zestaw filmów → jeden plik z czasami i kontrolą
-VidSum.exe --zmierz-czasy "folder"             pomiar etapów (Whisper, kadry, model)
+Vidsumly.exe "C:\film.mp4"                       analiza pliku
+Vidsumly.exe --tryb mowa "C:\nagranie.mp3"       tryb: pelna | szybki | mowa
+Vidsumly.exe --kontrola "C:\…\folder analizy"    kontrola jakości gotowej analizy
+Vidsumly.exe --streszcz-ponownie "folder"        nowe streszczenie bez pobierania i opisu kadrów
+Vidsumly.exe --zestaw "lista.txt"                cały zestaw filmów → jeden plik z czasami i kontrolą
+Vidsumly.exe --zmierz-czasy "folder"             pomiar etapów (Whisper, kadry, model)
 ```

@@ -132,4 +132,4 @@ def test_home_queue_settings_and_language(appsrv, width):
         assert not EN_ONLY.search(page.inner_text("body")), EN_ONLY.findall(page.inner_text("body"))
         b.close()
     assert not errors, errors
-    assert json.loads((Path(os.environ["LOCALAPPDATA"]) / "VidSum" / "ustawienia.json").read_text())["jezyk_ui"] == "pl"
+    assert json.loads((Path(os.environ["LOCALAPPDATA"]) / "Vidsumly" / "ustawienia.json").read_text())["jezyk_ui"] == "pl"

@@ -1,4 +1,4 @@
-"""Pomiar streszczenia etapami na prawdziwej osi czasu (frytki, VidSum 0.7.5 na komputerze testowym): kilka powtórzeń,
+"""Pomiar streszczenia etapami na prawdziwej osi czasu (frytki, Vidsumly 0.7.5 na komputerze testowym): kilka powtórzeń,
 fakty (+1) i zmyślenia (−2) jak w llm_bench.py, czas. Do porównania wersji kodu (stara/nowa) i trybów.
 
 python tests/bench/summary_bench.py gemma3:4b --powtorzen 3 --rownolegle 3 --wyniki wyniki --etykieta nowa

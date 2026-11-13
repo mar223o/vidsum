@@ -73,7 +73,7 @@ def run(args: list[str], *, check: bool = True, input_text: str | None = None,
 
 def disable_power_throttling() -> bool:
     """Windows 11 potrafi spowalniać procesy działające w tle bez okna (EcoQoS / „power throttling”) —
-    a VidSum Start działa właśnie tak. Wyłączamy to dla naszego procesu (dotyczy też wątków OCR/Whisper)."""
+    a Vidsumly Start działa właśnie tak. Wyłączamy to dla naszego procesu (dotyczy też wątków OCR/Whisper)."""
     import os
     if os.name != "nt":
         return False
