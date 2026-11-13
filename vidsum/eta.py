@@ -16,7 +16,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-DEFAULTS = {"pelna": (50.0, 0.35), "mowa": (25.0, 0.12), "szybki": (40.0, 0.20)}
+DEFAULTS = {"pelna": (50.0, 0.35), "mowa": (25.0, 0.12), "szybki": (40.0, 0.20),
+            "transkrypcja": (20.0, 0.05)}   # [szacunek] — bez pomiaru; uczy się z kolejnych analiz
 FILE = "czasy_trybow.json"
 KEEP = 60
 

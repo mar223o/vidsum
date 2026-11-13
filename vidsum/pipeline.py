@@ -125,8 +125,16 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     from .modes import MODE_LABEL, normalize_mode
     mode = normalize_mode(opt.mode)
     from .media import AUDIO_EXT
-    if Path(str(inp).split("?")[0]).suffix.lower() in AUDIO_EXT:
+    if Path(str(inp).split("?")[0]).suffix.lower() in AUDIO_EXT and mode != "transkrypcja":
         mode = "mowa"                               # plik dźwiękowy (mp3, m4a, wav…) — obrazu nie ma, liczy się mowa
+    asked_mode = mode                               # do prognozy czasu i zapisu w analizie (tryb, który naprawdę liczymy)
+    if mode == "transkrypcja":
+        # 0.13.1: sama transkrypcja — jak „tylko mowa”, ale bez streszczenia i wstępnego podglądu (model tekstowy
+        # liczy najwyżej tłumaczenie, jeśli włączone)
+        from dataclasses import replace as _replace0
+        opt = _replace0(opt, summary="brak", preview=False)
+        log("  tryb: Sama transkrypcja")
+        mode = "mowa"
     if opt.vision != "ollama" and mode == "szybki":
         mode = "mowa"                               # „szybki obraz” bez modelu obrazu to po prostu sama mowa
     full_opt = opt                                  # ustawienia użytkownika (model obrazu) — dla drugiej fazy „szybkiego”
@@ -1023,7 +1031,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                    "szerokosc": info.width, "wysokosc": info.height, "audio": info.has_audio, "wideo": info.has_video,
                    "film": film_ref, "opis": src.description, "rozdzialy_autora": src.chapters,
                    "obraz_bez_pasow": (bars_thread.join(timeout=30) or bars.get("r"))},
-        "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets, "tryb": mode,
+        "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets, "tryb": asked_mode,
                        "obraz": f"ollama:{opt.vision_model}" if vision_engine else "brak",
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,
                        "pokrycie_co_s": plan.base_interval, "uwagi_techniczne": tech_notes},
@@ -1062,7 +1070,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     (out / "przebieg.log").write_text("\n".join(trail) + "\n", encoding="utf-8")
     try:                                         # nauka prognozy czasu na tym komputerze (vidsum/eta.py)
         from . import eta
-        eta.record(opt.out_root, mode, info.duration, timings.get("razem_s", 0), __version__)
+        eta.record(opt.out_root, asked_mode, info.duration, timings.get("razem_s", 0), __version__)
     except OSError:
         pass
     try:

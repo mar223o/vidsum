@@ -149,3 +149,44 @@ def test_restore_names_only_when_name_in_source():
     assert restore_names("Jan poszedł do sklepu.", "Jan went to the shop") == "Jan poszedł do sklepu."
     assert restore_names("Pan Jerzy.", "George said") == "Pan George."
     assert restore_names("Kup jerzyny.", "George said") == "Kup jerzyny."
+
+
+def test_mode_transcript_only_no_summary_no_vision(tmp_path, monkeypatch):
+    """0.13.1: tryb „Sama transkrypcja” — tekst z mowy, bez streszczenia i bez obrazu; model nie dostaje żadnego zapytania
+    (tłumaczenie wyłączone)."""
+    import http.server
+    import threading as th
+    from test_vidsum import FILM, FakeOllama
+    from vidsum import pipeline
+    from vidsum.pipeline import Options, analyze
+    subs = tmp_path / "napisy.json"
+    subs.write_text(json.dumps({"language": "pl", "segments": [
+        {"start": 0.5, "end": 6.0, "text": "Najpierw kroimy jedną cebulę w drobną kostkę."},
+        {"start": 8.5, "end": 14.0, "text": "Teraz wlewamy dwieście mililitrów mleka."}]}), encoding="utf-8")
+    FakeOllama.calls, FakeOllama.fail_images = [], set()
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeOllama)
+    th.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setattr(pipeline, "scene_scores", lambda *a, **k: (_ for _ in ()).throw(AssertionError("analiza scen")))
+        logs: list[str] = []
+        opt = Options(out_root=tmp_path / "w", transcript_file=subs, ollama_host=f"http://127.0.0.1:{srv.server_address[1]}",
+                      vision_model="fake-vl", text_model="fake-txt", mode="transkrypcja", translate=[])
+        out = analyze(str(FILM), opt, log=logs.append)
+    finally:
+        srv.shutdown()
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    gen = [c for c in FakeOllama.calls if c.get("messages") or c.get("prompt")]
+    assert gen == [], "żadnego zapytania do modelu (ani streszczenia, ani obrazu)"
+    assert r["ustawienia"]["tryb"] == "transkrypcja" and r["ustawienia"]["obraz"] == "brak"
+    assert r["transkrypcja"]["segmenty"] and not (r.get("streszczenie") or {}).get("dane")
+    assert any("Sama transkrypcja" in x for x in logs)
+    assert (out / "transkrypcja.srt").is_file() and (out / "dla_llm.md").is_file()
+
+
+def test_mode_transcript_in_ui_and_eta():
+    from vidsum import eta
+    from vidsum.modes import MODES, normalize_mode
+    assert "transkrypcja" in MODES and normalize_mode("transkrypcja") == "transkrypcja"
+    assert eta.predict(None, "transkrypcja", 600)["razem_s"] < eta.predict(None, "mowa", 600)["razem_s"]
+    html = (Path(__file__).parents[1] / "vidsum" / "web" / "index.html").read_text(encoding="utf-8")
+    assert 'data-mode="transkrypcja"' in html and html.count("mode_hint_transkrypcja:") == 2

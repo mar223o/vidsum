@@ -3,6 +3,7 @@
 Tryby (przełącznik przy linku):
 - "pelna"  — jak dotąd: opis wybranych kadrów + OCR całego filmu + mowa. Najdokładniejsza dla przepisów i ćwiczeń.
 - "mowa"   — tylko mowa: transkrypcja → cały raport. Bez modelu obrazu i bez OCR (kilka miniatur do podglądu).
+- "transkrypcja" — sama transkrypcja (i tłumaczenie, jeśli włączone): bez streszczenia, modelu obrazu i OCR (0.13.1).
 - "szybki" — mowa + szybki obraz: najpierw raport z mowy, potem opis tylko wybranych kadrów (wskazane mową,
              początki rozdziałów, kilka równo rozłożonych) i napisy z tych kadrów; raport jest UZUPEŁNIANY.
 
@@ -15,8 +16,9 @@ from __future__ import annotations
 
 import re
 
-MODES = ("pelna", "mowa", "szybki")
-MODE_LABEL = {"pelna": "Pełna", "mowa": "Tylko mowa", "szybki": "Mowa + szybki obraz"}
+MODES = ("pelna", "mowa", "szybki", "transkrypcja")
+MODE_LABEL = {"pelna": "Pełna", "mowa": "Tylko mowa", "szybki": "Mowa + szybki obraz",
+              "transkrypcja": "Sama transkrypcja"}   # 0.13.1: bez streszczenia i bez obrazu
 
 _CUE_EN = (r"look(?:ing)? at (?:this|that|these|those|here|the|how|what)|take a (?:close[r]? )?look|(?:as )?you can see|"
            r"can see (?:here|this|that|it)|right here|over here|(?:located|is|are|sits|it's) here\b|this is what|"
