@@ -42,5 +42,5 @@ segmenty, tłumaczenie pl, napisy z ekranu, sceny kadrów.
 - Stare wyniki dokumentu: `streszczenie_kroki.json` w załącznikach rozmowy (nie w repo).
 
 ## Następna wersja (zgłoszenia po 0.12.0)
-- [ ] Opis autora (YouTube, Instagram, TikTok, Facebook) jako źródło [opis]: do streszczenia, czatu i raportu; filtr linków afiliacyjnych, hashtagów i „subskrybuj”. Opis jest już pobierany (`fetch.py`, pole `opis` w analiza.json), ale nieużywany. TikTok/Facebook — do sprawdzenia na linkach użytkownika.
+- [—] Opis autora jako źródło: użytkownik zrezygnował (13.11, 16:37).
 - [ ] Imiona bez spolszczania („Michał” → „Michael”), mniej faktów bez kontekstu, bez krótkich cytatów-pytań, kontrola nazw/liczb spoza transkrypcji (analiza dokumentu z 13.11).
