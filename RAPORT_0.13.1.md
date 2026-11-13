@@ -25,7 +25,7 @@ Zmiany po Twoich prośbach z 13.11 (po 0.13.0). Gałąź robocza: `wip-0.13.1`. 
 
 ## Testy
 - Linux: 234 testy przeszły, 3 pominięte.
-- Windows (GitHub Actions, budowa testowa bez wydania): instalacja i `tests/win_icon_check.py`, który sprawdza:
+- Windows (GitHub Actions, budowa testowa bez wydania, przebieg 43478951518 — zielony): instalacja i `tests/win_icon_check.py`, który sprawdza:
   - właściwości okna;
   - naprawę starego skrótu;
   - naprawę przypięcia samego pythonw.exe;
