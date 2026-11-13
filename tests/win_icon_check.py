@@ -1,7 +1,6 @@
 """Sprawdzenie na prawdziwym Windows (CI): właściwości okna do przypinania i naprawa skrótów .lnk.
 Uruchomienie: python tests/win_icon_check.py <folder instalacji>"""
 import ctypes
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -34,11 +33,23 @@ tmp = Path(tempfile.mkdtemp())
 pyw = app / "python" / "pythonw.exe"
 
 
-def make(name, args, icon):
+def make(name, args, icon, target=pyw):
+    """Skrót tworzony przez COM z Pythona (PowerShell -Command psuje ścieżki z „ąę” na konsoli cp1252)."""
+    c = winicon._com()
+    ct, method = c.ctypes, c.method
+    c.init()
     lnk = tmp / name
-    ps = (f"$l=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}'); $l.TargetPath='{pyw}';"
-          f"$l.Arguments='{args}'; $l.IconLocation='{icon}'; $l.Save()")
-    subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=True)
+    sl = ct.c_void_p()
+    c.ole32.CoCreateInstance(ct.byref(c.guid(winicon.CLSID_ShellLink)), None, 1,
+                             ct.byref(c.guid(winicon.IID_IShellLinkW)), ct.byref(sl))
+    method(sl, 20, ct.c_wchar_p)(str(target))                                   # SetPath
+    method(sl, 11, ct.c_wchar_p)(args)                                          # SetArguments
+    path, _, idx = icon.rpartition(",")
+    method(sl, 17, ct.c_wchar_p, ct.c_int)(path, int(idx))                      # SetIconLocation
+    pf = winicon._qi(sl, winicon.IID_IPersistFile)
+    method(pf, 6, ct.c_wchar_p, ct.c_int)(str(lnk), 1)                          # Save
+    c.release(pf)
+    c.release(sl)
     return lnk
 
 
@@ -56,9 +67,6 @@ for f in (old, bare):
     assert r["cel"].lower() == str(pyw).lower(), r
 # skrót do Pythona spoza instalacji Vidsumly (inny program) — nie ruszamy (skrypt uruchamiany Pythonem z runnera)
 other_py = Path(sys.executable)
-o = make("obcy.lnk", "-c pass", f"{other_py},0")
-subprocess.run(["powershell", "-NoProfile", "-Command",
-                f"$l=(New-Object -ComObject WScript.Shell).CreateShortcut('{o}'); $l.TargetPath='{other_py}'; $l.Save()"],
-               check=True)
+o = make("obcy.lnk", "-c pass", f"{other_py},0", target=other_py)
 assert not winicon.fix_link(o, ico)
 print("ikony i skróty: ok")
