@@ -1054,6 +1054,11 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     for lang, tdata in translations.items():           # napisy w innych językach (pusta linia = brak tłumaczenia)
         (out / f"transkrypcja.{lang}.srt").write_text(_srt(tdata["segmenty"]), encoding="utf-8")
     (out / "raport.md").write_text(_report_md(result), encoding="utf-8")
+    try:                                         # 0.13.0: cała analiza dla innego modelu (NotebookLM, Claude…) — note.llm_text
+        from .note import llm_text
+        (out / "dla_llm.md").write_text(llm_text(result), encoding="utf-8")
+    except Exception as e:
+        log(f"        ! plik dla LLM: {type(e).__name__}: {str(e)[:100]}")
     (out / "przebieg.log").write_text("\n".join(trail) + "\n", encoding="utf-8")
     try:                                         # nauka prognozy czasu na tym komputerze (vidsum/eta.py)
         from . import eta

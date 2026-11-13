@@ -285,6 +285,10 @@ details.kp[open] summary .kt{color:var(--ink)}
 .it .top{display:flex;gap:8px;align-items:center;justify-content:space-between}
 .it .tag{font:500 11px var(--sans);color:var(--muted);background:var(--hl);border:1px solid var(--line);padding:1px 8px;border-radius:99px}
 .it.simple{grid-template-columns:62px 1fr;align-items:baseline}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:12px}
+.card{position:relative;min-height:120px;padding:16px;border-radius:var(--r);border:1px solid var(--line);background:var(--grad-soft);cursor:pointer;text-align:left;font:500 15px/1.5 var(--sans);color:var(--ink)}
+.card .side{display:block}.card .ans{display:none;color:var(--accent);font-weight:650}.card.flip .ans{display:block;margin-top:10px}
+.card .k{position:absolute;right:10px;bottom:8px;font-size:12px;color:var(--muted)}.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .it.simple p{color:var(--ink);font:450 14.5px var(--sans)}
 .it.simple.mom{grid-template-columns:136px 1fr;gap:14px;align-items:center;padding:8px;cursor:pointer}
 .it.simple.mom:hover,.it.simple.mom.now{background:var(--raised)}
@@ -538,7 +542,7 @@ const I18N = {
    quit:"Zamknij program",quit_q:"Zamknąć Vidsumly? Trwająca analiza zostanie zapisana w kolejce i zacznie się od nowa po wznowieniu.",quit_done:"Vidsumly wyłączone. Możesz zamknąć tę kartę.",
    m_video:"Wideo",m_bal:"Zbalansowany",m_read:"Czytaj",summary:"streszczenie",breakdown:"rozbicie",
    t_todo_przepis:"Przepis",t_todo_trening:"Trening",t_todo_sport:"Ćwiczenia i technika",t_todo_poradnik:"Kroki",t_todo_dokument:"Fakty",t_todo_wyklad:"Fakty i wnioski",t_todo_inne:"Wnioski",facts:"Fakty, liczby, osoby, daty",ads:"Reklamy (pominięte w faktach)",shown:"Pokazane na ekranie (gdy mowa wskazuje na obraz)",shown_see:"widać",shown_text:"napisy na ekranie",zmowy_badge:"z mowy — obraz w toku",eta_left:x=>`· zostało ok. ${x}`,eta_soon:"· jeszcze chwila",eta_hint:"Prognoza z poprzednich analiz na tym komputerze — nie obietnica.",mode_label:"Tryb analizy",mode_full:"Pełna",mode_fast:"Mowa + szybki obraz",mode_speech:"Tylko mowa",mode_hint_pelna:"Opis wybranych kadrów, napisy z całego filmu i mowa. Najdokładniejsza — dla przepisów, ćwiczeń i krótkich filmów.",mode_hint_szybki:"Najpierw cały raport z mowy, potem opis tylko wybranych kadrów: tych, na które wskazuje mowa („spójrzcie”, „look at this”), i początków rozdziałów. Dla długich filmów, w których treść niesie mowa.",mode_hint_mowa:"Sam raport z mowy, bez analizy obrazu. Najszybciej — dla podcastów, wykładów i słabszych komputerów.",mode_hw:w=>`${w} Na tym komputerze polecany jest tryb „Tylko mowa”.`,qc:"Kontrola jakości",qc_ok:"bez uwag",qc_n:n=>n===1?"1 uwaga":`uwag: ${n}`,qc_what:"Program sam sprawdza wynik: czy układ pasuje do typu filmu, czy rozdziały obejmują cały film, czy liczby są w mowie albo w napisach, czy w treści nie ma reklam ani obcego języka, czy cytaty padają w filmie i czy tłumaczenie nie zgubiło liczb.",ex_sport:"Ćwiczenia i elementy techniki",fk_liczba:"liczba",fk_osoba:"osoba",fk_data:"data",fk_miejsce:"miejsce",fk_fakt:"fakt",
-   t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",map_key:"Najważniejsze",map_said:"W filmie mówi:",
+   t_key:"Najważniejsze",t_mom:"Momenty",t_quo:"Cytaty",t_cha:"Rozdziały",t_map:"Mapa myśli",t_cards:"Fiszki",cards_hint:"Kliknij fiszkę, żeby zobaczyć odpowiedź. Fiszki powstają z faktów, składników, ćwiczeń i kroków — bez zgadywania.",cards_flip_all:"Pokaż wszystkie odpowiedzi",cards_copy:"Kopiuj do Anki",cards_copied:"Skopiowano fiszki (format Anki: pytanie [tab] odpowiedź)",cards_qty:n=>`Ile: ${n}?`,cards_ex:n=>`${n} — serie × powtórzenia?`,cards_step:n=>`Krok ${n} — co robisz?`,map_key:"Najważniejsze",map_said:"W filmie mówi:",
    map_hint:"Kliknij gałąź: szczegóły i przewinięcie filmu. Powiększanie: przyciski albo Ctrl + kółko myszy (na pełnym ekranie samo kółko), przeciąganie — przesuwanie.",
    map_full:"Pełny ekran",map_reset:"Dopasuj",t_tr:"Transkrypcja",t_fr:"Kadry",t_desc:"Opis",t_com:"Komentarze",desc_h:"Opis od autora",desc_note:"Tekst autora z serwisu, nie wynik analizy.",au_ch:"Rozdziały od autora",model_ch:"Rozdziały z analizy",of_film:p=>`${p}% filmu`,com_h:"Komentarze widzów",com_note:"Opinie widzów z serwisu, nie fakty z filmu.",com_get:"Pobierz komentarze",com_wait:"Pobieram komentarze…",com_none:"Pod filmem nie ma komentarzy albo serwis ich nie udostępnił.",com_from:(n,d)=>`Najpopularniejsze: ${n}, pobrane ${d}`,com_reply:"odpowiedź",likes:"polubień",open_src:s=>`Otwórz film na ${s}`,cinema:"Tryb kinowy",bars_show:"Pokaż cały kadr",bars_hide:"Ukryj czarne pasy",bars_hint:"Program wykrył czarne pasy wpalone w obraz i je ukrywa. Plik filmu się nie zmienia.",cinema_off:"Zamknij tryb kinowy",expand_all:"Rozwiń wszystkie",collapse_all:"Zwiń wszystkie",
    things:n=>`${n} ${n===1?"rzecz":n<5?"rzeczy":"rzeczy"}, które się liczą`,moments:n=>`${n} momentów wartych uwagi`,
@@ -547,7 +551,7 @@ const I18N = {
    mistakes:"Błędy, których unikać",takeaways:"Wnioski",honest:"Szczera ocena",unknown:"Czego nie wiadomo",
    how:"Jak to przeanalizowano",took:"Czas analizy",engines:"Silniki",gaps:"Ograniczenia",parallel:"mowa równolegle z obrazem",
    chat:"zapytaj",chat_hint:"Zapytaj o cokolwiek z tego filmu — znam transkrypcję i kadry.",ask_ph:"Zapytaj o ten film…",
-   thinking:"Myślę…",copy:"Kopiuj prompt",copy_hint:"Surowy prompt z całą osią czasu — do wklejenia w dowolny czat z AI",note:"Kopiuj notatkę",note_hint:"Całe streszczenie, kroki, oś czasu i transkrypcja jako czysty tekst — dla innego LLM, Notatnika albo opisu",note_dl:"Pobierz notatkę (.md)",note_copied:"Notatka skopiowana",sq_przepis:["Jakie składniki są potrzebne?","Przelicz składniki na 4 porcje","Jaki jest skład i ile to ma kalorii?"],sq_trening:["Jakie ćwiczenia, ile serii i powtórzeń?","Na co uważać przy technice?"],sq_sport:["Jak wykonać to krok po kroku?","Jakie błędy są najczęstsze?"],sq_poradnik:["Co jest potrzebne na start?","Który krok jest najtrudniejszy?"],sq_dokument:["Jakie są najważniejsze daty i liczby?","Kim są osoby w filmie?"],sq_wyklad:["Jakie są najważniejsze tezy?","Jakie liczby i nazwiska padają?"],sq_inne:["Jaki jest najważniejszy wniosek?"],copy_tr:"Kopiuj transkrypcję",tr_copied:"Transkrypcja skopiowana",claude:"Podsumuj przez Claude",folder:"Otwórz folder",json:"Pobierz JSON",
+   thinking:"Myślę…",llm:"Kopiuj dla LLM",llm_hint:"Cała analiza dla NotebookLM, Claude lub ChatGPT: fakty z odwołaniem do linii [L12 03:41], legenda źródeł, pełna transkrypcja z tłumaczeniem",llm_dl:"Pobierz plik dla LLM (dla_llm.md)",llm_copied:"Skopiowano plik dla LLM",copy:"Kopiuj prompt",copy_hint:"Surowy prompt z całą osią czasu — do wklejenia w dowolny czat z AI",note:"Kopiuj notatkę",note_hint:"Całe streszczenie, kroki, oś czasu i transkrypcja jako czysty tekst — dla innego LLM, Notatnika albo opisu",note_dl:"Pobierz notatkę (.md)",note_copied:"Notatka skopiowana",sq_przepis:["Jakie składniki są potrzebne?","Przelicz składniki na 4 porcje","Jaki jest skład i ile to ma kalorii?"],sq_trening:["Jakie ćwiczenia, ile serii i powtórzeń?","Na co uważać przy technice?"],sq_sport:["Jak wykonać to krok po kroku?","Jakie błędy są najczęstsze?"],sq_poradnik:["Co jest potrzebne na start?","Który krok jest najtrudniejszy?"],sq_dokument:["Jakie są najważniejsze daty i liczby?","Kim są osoby w filmie?"],sq_wyklad:["Jakie są najważniejsze tezy?","Jakie liczby i nazwiska padają?"],sq_inne:["Jaki jest najważniejszy wniosek?"],copy_tr:"Kopiuj transkrypcję",tr_copied:"Transkrypcja skopiowana",claude:"Podsumuj przez Claude",folder:"Otwórz folder",json:"Pobierz JSON",
    copied:"Prompt skopiowany — wklej do czatu z AI",saved:"Zapisano",claude_wait:"Claude pisze streszczenie…",
    no_film:"Film niedostępny (plik przeniesiony albo usunięty) — czasy nadal działają w kadrach.",
    no_data:"Brak streszczenia — użyj „Kopiuj prompt” i wklej go do czatu z AI.",
@@ -606,7 +610,7 @@ const I18N = {
    quit:"Quit app",quit_q:"Quit Vidsumly? The running analysis is saved in the queue and starts again when you resume it.",quit_done:"Vidsumly stopped. You can close this tab.",
    m_video:"Video",m_bal:"Balanced",m_read:"Read",summary:"the summary",breakdown:"the breakdown",
    t_todo_przepis:"Recipe",t_todo_trening:"Workout",t_todo_sport:"Drills and technique",t_todo_poradnik:"Steps",t_todo_dokument:"Facts",t_todo_wyklad:"Facts and takeaways",t_todo_inne:"Takeaways",facts:"Facts, numbers, people, dates",ads:"Ads (left out of the facts)",shown:"Shown on screen (when the speech points at the picture)",shown_see:"on screen",shown_text:"on-screen text",zmowy_badge:"from speech — picture in progress",eta_left:x=>`· about ${x} left`,eta_soon:"· almost done",eta_hint:"A forecast from earlier analyses on this computer — not a promise.",mode_label:"Analysis mode",mode_full:"Full",mode_fast:"Speech + quick picture",mode_speech:"Speech only",mode_hint_pelna:"Describes selected frames, reads on-screen text from the whole video, and uses the speech. Most accurate — for recipes, workouts and short videos.",mode_hint_szybki:"The whole report from speech first, then only selected frames: the ones the speech points at (“look at this”) and chapter starts. For long videos where the speech carries the content.",mode_hint_mowa:"Report from speech only, no picture analysis. Fastest — for podcasts, lectures and slower computers.",mode_hw:w=>`${w} On this computer “Speech only” is recommended.`,qc:"Quality check",qc_ok:"no issues",qc_n:n=>n===1?"1 issue":`${n} issues`,qc_what:"The app checks its own result: does the layout fit the video type, do chapters cover the whole video, are the numbers in the speech or on-screen text, are there ads or foreign-language leftovers in the content, are the quotes really said, and did the translation keep the numbers.",ex_sport:"Drills and technique",fk_liczba:"number",fk_osoba:"person",fk_data:"date",fk_miejsce:"place",fk_fakt:"fact",
-   t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",map_key:"Key points",map_said:"In the video:",
+   t_key:"Key points",t_mom:"Moments",t_quo:"Quotes",t_cha:"Chapters",t_map:"Mind map",t_cards:"Flashcards",cards_hint:"Click a card to see the answer. Cards are built from facts, ingredients, exercises and steps — no guessing.",cards_flip_all:"Show all answers",cards_copy:"Copy to Anki",cards_copied:"Cards copied (Anki format: question [tab] answer)",cards_qty:n=>`How much: ${n}?`,cards_ex:n=>`${n} — sets × reps?`,cards_step:n=>`Step ${n} — what do you do?`,map_key:"Key points",map_said:"In the video:",
    map_hint:"Click a branch: details and jump in the video. Zoom: buttons or Ctrl + mouse wheel (wheel alone in full screen), drag to pan.",
    map_full:"Full screen",map_reset:"Fit",t_tr:"Transcript",t_fr:"Frames",t_desc:"Description",t_com:"Comments",desc_h:"Description from the author",desc_note:"The author's text from the site, not an analysis result.",au_ch:"Chapters from the author",model_ch:"Chapters from the analysis",of_film:p=>`${p}% of the video`,com_h:"Viewer comments",com_note:"Viewers' opinions from the site, not facts from the video.",com_get:"Load comments",com_wait:"Loading comments…",com_none:"The video has no comments, or the site did not provide them.",com_from:(n,d)=>`Top comments: ${n}, loaded ${d}`,com_reply:"reply",likes:"likes",open_src:s=>`Open the video on ${s}`,cinema:"Cinema mode",bars_show:"Show full frame",bars_hide:"Hide black bars",bars_hint:"Black bars burned into the picture were detected and are hidden. The video file is unchanged.",cinema_off:"Exit cinema mode",expand_all:"Expand all",collapse_all:"Collapse all",
    things:n=>`The ${n} things that mattered`,moments:n=>`${n} moments worth jumping to`,
@@ -615,7 +619,7 @@ const I18N = {
    mistakes:"Mistakes to avoid",takeaways:"Takeaways",honest:"Honest take",unknown:"Unknown",
    how:"How this was analyzed",took:"Analysis time",engines:"Engines",gaps:"Limits",parallel:"speech in parallel with vision",
    chat:"ask",chat_hint:"Ask anything about this video — I've read the transcript and frames.",ask_ph:"Ask about this video…",
-   thinking:"Thinking…",copy:"Copy prompt",copy_hint:"Raw prompt with the whole timeline — paste into any AI chat",note:"Copy note",note_hint:"The whole summary, steps, timeline and transcript as plain text — for another LLM, Notepad or a description",note_dl:"Download note (.md)",note_copied:"Note copied",sq_przepis:["What ingredients do I need?","Scale the ingredients to 4 servings","What is in it and how many calories?"],sq_trening:["Which exercises, how many sets and reps?","What to watch out for in the technique?"],sq_sport:["How do I do it step by step?","What are the most common mistakes?"],sq_poradnik:["What do I need to start?","Which step is the hardest?"],sq_dokument:["What are the key dates and numbers?","Who are the people in the video?"],sq_wyklad:["What are the main points?","Which numbers and names come up?"],sq_inne:["What is the main takeaway?"],copy_tr:"Copy transcript",tr_copied:"Transcript copied",claude:"Summarize with Claude",folder:"Open folder",json:"Download JSON",
+   thinking:"Thinking…",llm:"Copy for LLM",llm_hint:"The whole analysis for NotebookLM, Claude or ChatGPT: facts with line references [L12 03:41], source legend, full transcript with translation",llm_dl:"Download the LLM file (dla_llm.md)",llm_copied:"LLM file copied",copy:"Copy prompt",copy_hint:"Raw prompt with the whole timeline — paste into any AI chat",note:"Copy note",note_hint:"The whole summary, steps, timeline and transcript as plain text — for another LLM, Notepad or a description",note_dl:"Download note (.md)",note_copied:"Note copied",sq_przepis:["What ingredients do I need?","Scale the ingredients to 4 servings","What is in it and how many calories?"],sq_trening:["Which exercises, how many sets and reps?","What to watch out for in the technique?"],sq_sport:["How do I do it step by step?","What are the most common mistakes?"],sq_poradnik:["What do I need to start?","Which step is the hardest?"],sq_dokument:["What are the key dates and numbers?","Who are the people in the video?"],sq_wyklad:["What are the main points?","Which numbers and names come up?"],sq_inne:["What is the main takeaway?"],copy_tr:"Copy transcript",tr_copied:"Transcript copied",claude:"Summarize with Claude",folder:"Open folder",json:"Download JSON",
    copied:"Prompt copied — paste into an AI chat",saved:"Saved",claude_wait:"Claude is writing the summary…",
    no_film:"Video unavailable (file moved or deleted) — timestamps still work in frames.",
    no_data:"No summary — use “Copy prompt” and paste it into an AI chat.",
@@ -1215,6 +1219,7 @@ function tabsFor(d){
     if (d.cytaty.length) tl.push(["quo", t("t_quo")]);
     if (d.rozdzialy.length) tl.push(["cha", t("t_cha")]);
     if (!d.wstepne && (d.rozdzialy.length || d.najwazniejsze.length)) tl.push(["map", t("t_map")]);
+    if (!d.wstepne && flashcards(d).length >= 3) tl.push(["cards", t("t_cards")]);
   }
   tl.push(["tr", t("t_tr")]);
   if (cur?.r?.zrodlo?.wideo !== false) tl.push(["fr", t("t_fr")]);
@@ -1224,6 +1229,7 @@ function tabsFor(d){
   return tl;
 }
 const TAB_ICO = {
+  cards: '<rect x="3" y="6" width="14" height="12" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v10"/>',
   todo: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
   key: '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>',
   mom: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
@@ -1267,6 +1273,23 @@ function suggQ(d){
   const all = [...typed, ...(d.pytania || [])];
   return all.filter((q, i) => q && all.findIndex(x => x.toLowerCase() === q.toLowerCase()) === i).slice(0, 6);
 }
+/* ---------- fiszki (0.13.0) ----------
+   Bez modelu: luka w zdaniu-fakcie (liczba, data albo nazwa → „____”), ilości składników, serie ćwiczeń, kroki po kolei.
+   Odpowiedź zawsze pochodzi z tego samego zdania albo pola — nic nie jest zgadywane. */
+function flashcards(d){
+  if (!d) return [];
+  const c = d.co_masz_zrobic || {}, out = [];
+  for (const f of (c.fakty || [])) {
+    const x = String(f.tekst || "");
+    const m = x.match(/(?<![\w,.])\d+(?:[ \u00a0,]\d{3})*(?:[.,]\d+)?(?![\w])(?:\s?(?:%|(?:proc|mln|mld|miliard|milion|tys|km|metr|kg|lat|roku|funt|dolar|złot|euro|minut|godzin|sekund|stopni)[\wąćęłńóśźż]*))?/)
+      || x.match(/(?<=\S\s)(?:[A-ZŻŹĆŁŚÓ][\w'’-]+)(?:\s+[A-ZŻŹĆŁŚÓ][\w'’-]+){0,3}/);
+    if (m && m[0].trim().length >= 2) out.push({q: x.replace(m[0], "____"), a: m[0].trim(), t: f.t});
+  }
+  for (const s of (c.skladniki || [])) if (s.ilosc && !/brak danych/i.test(s.ilosc)) out.push({q: t("cards_qty", s.nazwa), a: s.ilosc, t: null});
+  for (const e of (c.cwiczenia || [])) if (e.serie || e.powtorzenia) out.push({q: t("cards_ex", e.nazwa), a: `${e.serie || "?"} × ${e.powtorzenia || "?"}`, t: e.t});
+  (c.kroki || []).forEach((k, i) => out.push({q: t("cards_step", i + 1) + (i ? ` (${clip(c.kroki[i-1].tekst, 60)} → ?)` : ""), a: k.tekst, t: k.t}));
+  return out.slice(0, 40);
+}
 function renderTab(d){
   const r = cur.r;
   if (tab === "todo") {
@@ -1294,6 +1317,12 @@ function renderTab(d){
     return `<h3 class="big">${t("chapters")}</h3>` + (au.length ? `<div class="sub">${t("au_ch")}</div>${chapterBlock(au, dur, "au")}<div class="sub" style="margin-top:22px">${t("model_ch")}</div>` : "") + chapterBlock(d.rozdzialy, dur, "");
   }
   if (tab === "map") return mapHtml(d);
+  if (tab === "cards") {
+    const cs = flashcards(d);
+    return `<h3 class="big">${t("t_cards")}</h3><p class="muted">${t("cards_hint")}</p>
+      <div class="actions"><button class="btn" data-a="cards_all">${t("cards_flip_all")}</button><button class="btn" data-a="cards_copy">${t("cards_copy")}</button></div>
+      <div class="cards">${cs.map(c => `<button class="card" data-card><span class="side">${esc(c.q)}</span><span class="ans">${esc(c.a)}</span><span class="k">${c.t != null ? fmt(c.t) : ""}</span></button>`).join("")}</div>`;
+  }
   if (tab === "desc") return descHtml(r.zrodlo?.opis || "");
   if (tab === "com") return comHtml();
   if (tab === "tr") {
@@ -1351,7 +1380,7 @@ function headHtml(r, d){
   const site = /youtu/.test(host) ? "YouTube" : /instagram/.test(host) ? "Instagram" : /tiktok/.test(host) ? "TikTok" : host;
   const link = z.url ? `<a class="srclink" href="${esc(z.url)}" target="_blank" rel="noopener" title="${esc(z.url)}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>${t("open_src", site)}</a>` : "";
   return h + `<div class="meta">${link}<span>${esc(date)}</span><span>${fmt(z.dlugosc_s)} ${t("runtime")}</span>${r.czasy?.razem_s ? `<span>⏱ ${t("analysis")} ${fmt(r.czasy.razem_s)}</span>` : ""}</div>
-    <div class="actions">${rl}<button class="btn" data-a="note" title="${esc(t("note_hint"))}">${t("note")}</button><a class="btn icon" href="/api/zadania/${id}/notatka?pobierz=1&t=${T}" download="notatka.md" title="${esc(t("note_dl"))}" aria-label="${esc(t("note_dl"))}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>
+    <div class="actions">${rl}<button class="btn" data-a="note" title="${esc(t("note_hint"))}">${t("note")}</button><a class="btn icon" href="/api/zadania/${id}/notatka?pobierz=1&t=${T}" download="notatka.md" title="${esc(t("note_dl"))}" aria-label="${esc(t("note_dl"))}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a><button class="btn" data-a="llm" title="${esc(t("llm_hint"))}">${t("llm")}</button><a class="btn icon" href="/api/zadania/${id}/dla_llm?pobierz=1&t=${T}" download="dla_llm.md" title="${esc(t("llm_dl"))}" aria-label="${esc(t("llm_dl"))}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>
       <button class="btn" data-a="copy" title="${esc(t("copy_hint"))}">${t("copy")}</button><button class="btn" data-a="folder">${t("folder")}</button></div>
     ${cur.trBusy ? `<p class="trnote" id="trnote">${esc(cur.trMsg || "")}</p>` : ""}`;
 }
@@ -1516,6 +1545,7 @@ function mapData(d){
   d.rozdzialy.forEach(ch => {
     let kids = kroki.filter(k => k.t >= ch.start && k.t < ch.end).map(k => ({label:k.tekst, t:k.t, info:k.tekst}));
     if (!kids.length) kids = (ch.momenty || []).map(m => ({label:m.tekst, t:m.t, info:m.tekst}));
+    if (!kids.length) kids = ((d.co_masz_zrobic?.fakty) || []).filter(f => f.t >= ch.start && f.t < ch.end).map(f => ({label:f.tekst, t:f.t, info:f.tekst}));
     br.push({label:ch.tytul, t:ch.start, end:ch.end, info:ch.opis, kids:kids.slice(0, 6)});
   });
   if (d.najwazniejsze.length)
@@ -1690,6 +1720,7 @@ $("#app").addEventListener("click", async e => {
   const tlb = e.target.closest("#trl button"); if (tlb) { cur.trLang = tlb.dataset.tl; return stable(() => put("#tabc", renderTab(data()))); }
   const q = e.target.closest("#sugg button"); if (q) return ask(q.dataset.q);
   if (e.target.id === "ocrt") { cur.showOcr = e.target.checked; return stable(() => put("#tabc", renderTab(data()))); }
+  const cd = e.target.closest("[data-card]"); if (cd) { cd.classList.toggle("flip"); return; }
   const ck = e.target.closest(".chk input"); if (ck) { ck.closest(".chk").classList.toggle("done", ck.checked); return; }
   const a = e.target.closest("[data-a]"); if (!a || !cur) return;
   try {
@@ -1710,6 +1741,10 @@ $("#app").addEventListener("click", async e => {
       toast(t("tr_copied")); }
     if (a.dataset.a === "note") { const r = await fetch(`/api/zadania/${cur.id}/notatka?t=${T}`); if (!r.ok) throw new Error(trErr("nie znaleziono"));
       await navigator.clipboard.writeText(await r.text()); toast(t("note_copied")); }
+    if (a.dataset.a === "cards_all") { document.querySelectorAll("#tabc .card").forEach(c => c.classList.add("flip")); return; }
+    if (a.dataset.a === "cards_copy") { await navigator.clipboard.writeText(flashcards(data()).map(c => `${c.q.replace(/\t/g," ")}\t${c.a.replace(/\t/g," ")}`).join("\n") + "\n"); toast(t("cards_copied")); return; }
+    if (a.dataset.a === "llm") { const r = await fetch(`/api/zadania/${cur.id}/dla_llm?t=${T}`); if (!r.ok) throw new Error(trErr("nie znaleziono"));
+      await navigator.clipboard.writeText(await r.text()); toast(t("llm_copied")); }
     if (a.dataset.a === "copy") { const r = await fetch(fileUrl(cur.id, "prompt_dla_claude.md")); await navigator.clipboard.writeText(await r.text()); toast(t("copied")); }
     if (a.dataset.a === "claude") { a.disabled = true; toast(t("claude_wait")); await api(`/api/zadania/${cur.id}/claude`, {method:"POST"});
       setR(await api(`/api/zadania/${cur.id}/plik/analiza.json`)); a.disabled = false; renderResult(); }

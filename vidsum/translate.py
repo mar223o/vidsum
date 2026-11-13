@@ -162,6 +162,54 @@ def translate_lines(engine: Engine, lines: list[str], src: str | None, tgt: str,
     return res
 
 
+# ---------------- imiona bez spolszczania (0.13.0) ----------------
+# Pomiar na Twoim dokumencie (13.11): „Michael wants to bet 420 million pounds” → „Michał chce postawić…”, mimo zasady
+# „nie tłumacz imion” w zapytaniu. Program sam przywraca imię z oryginału, z polską końcówką („Michała” → „Michaela”).
+# Formy: mianownik, dopełniacz, celownik, narzędnik, miejscownik/wołacz.
+_PL_NAMES = {
+    "Michael": ("Michał", "Michała", "Michałowi", "Michałem", "Michale"),
+    "Peter": ("Piotr", "Piotra", "Piotrowi", "Piotrem", "Piotrze"),
+    "John": ("Jan", "Jana", "Janowi", "Janem", "Janie"),
+    "Paul": ("Paweł", "Pawła", "Pawłowi", "Pawłem", "Pawle"),
+    "James": ("Jakub", "Jakuba", "Jakubowi", "Jakubem", "Jakubie"),
+    "Andrew": ("Andrzej", "Andrzeja", "Andrzejowi", "Andrzejem", None),
+    "Thomas": ("Tomasz", "Tomasza", "Tomaszowi", "Tomaszem", "Tomaszu"),
+    "Matthew": ("Mateusz", "Mateusza", "Mateuszowi", "Mateuszem", "Mateuszu"),
+    "Nicholas": ("Mikołaj", "Mikołaja", "Mikołajowi", "Mikołajem", "Mikołaju"),
+    "Joseph": ("Józef", "Józefa", "Józefowi", "Józefem", "Józefie"),
+    "Mark": ("Marek", "Marka", "Markowi", "Markiem", "Marku"),
+    "Luke": ("Łukasz", "Łukasza", "Łukaszowi", "Łukaszem", "Łukaszu"),
+    "Stephen": ("Stefan", "Stefana", "Stefanowi", "Stefanem", "Stefanie"),
+    "Steven": ("Stefan", "Stefana", "Stefanowi", "Stefanem", "Stefanie"),
+    "Henry": ("Henryk", "Henryka", "Henrykowi", "Henrykiem", "Henryku"),
+    "Charles": ("Karol", "Karola", "Karolowi", "Karolem", "Karolu"),
+    "George": ("Jerzy", "Jerzego", "Jerzemu", "Jerzym", None),
+    "Anthony": ("Antoni", "Antoniego", "Antoniemu", "Antonim", None),
+}
+_ENDINGS = ("", "a", "owi", "em", "u")
+_SILENT_E = ("George", "Luke")                      # „George'a”, „Luke'a” — zapis polski dla niemego „e”
+
+
+def _with_ending(name: str, i: int) -> str:
+    if i == 0:
+        return name
+    if name.endswith(_SILENT_E) or name.endswith("y"):
+        return name + "'" + _ENDINGS[i]           # „Henry'ego” byłoby poprawniej, ale „Henry'a” też jest czytelne
+    return name + _ENDINGS[i]
+
+
+def restore_names(text: str, source: str) -> str:
+    """Spolszczone imię → imię z oryginału, tylko gdy to imię (po angielsku) jest w tekście źródłowym."""
+    if not text:
+        return text
+    for orig, forms in _PL_NAMES.items():
+        if not re.search(rf"\b{orig}\b", source) or re.search(rf"\b{re.escape(forms[0])}\b", source):
+            continue
+        for i, f in sorted(((i, f) for i, f in enumerate(forms) if f), key=lambda x: -len(x[1])):
+            text = re.sub(rf"\b{re.escape(f)}\b", _with_ending(orig, i), text)
+    return text
+
+
 def translate_segments(engine: Engine, segments: list[dict], src: str | None, tgt: str,
                        log: Callable[[str], None] = lambda s: None, chunk: int = 20,
                        terms: str = "") -> tuple[list[dict], int]:
@@ -217,6 +265,8 @@ def translate_segments(engine: Engine, segments: list[dict], src: str | None, tg
     if tgt == "pl":                               # baking soda → „soda oczyszczona”, nie „proszek do pieczenia”
         from .summary import fix_terms
         out = [fix_terms(x, s) if x else x for x, s in zip(out, texts)]
+        whole = " ".join(texts)                   # imię mogło paść linię wcześniej („…Michael.” / „Komputer Michała…”)
+        out = [restore_names(x, whole) if x else x for x in out]
     failed = sum(1 for x in out if x is None)
     segs = [{"start": s["start"], "end": s["end"], "text": t} for s, t in zip(segments, out)]
     return segs, failed

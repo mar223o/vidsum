@@ -785,19 +785,22 @@ def make_handler(app: App):
             if m:
                 p = self._job_file(m.group(1), "czat.json")
                 return self._json(json.loads(p.read_text(encoding="utf-8")) if p and p.is_file() else [])
-            m = re.fullmatch(r"/api/zadania/(\w+)/notatka", u.path)
+            m = re.fullmatch(r"/api/zadania/(\w+)/(notatka|dla_llm)", u.path)
             if m:
-                p = self._job_file(m.group(1), "raport.md")
+                kind = m.group(2)
+                p = self._job_file(m.group(1), "raport.md" if kind == "notatka" else "analiza.json")
                 if not p or not p.is_file():
                     return self._json({"error": "nie znaleziono"}, 404)
-                from .note import note_text
-                b = note_text(p.read_text(encoding="utf-8")).encode("utf-8")
+                from .note import llm_text, note_text
+                # dla_llm: zawsze z analiza.json (działa też dla analiz sprzed 0.13.0, bez pliku dla_llm.md)
+                b = (note_text(p.read_text(encoding="utf-8")) if kind == "notatka"
+                     else llm_text(json.loads(p.read_text(encoding="utf-8")))).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/markdown; charset=utf-8")
                 self.send_header("Content-Length", str(len(b)))
                 self.send_header("Cache-Control", "no-store")
                 if qs.get("pobierz"):
-                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''notatka.md")
+                    self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{kind}.md")
                 self.end_headers()
                 self.wfile.write(b)
                 return

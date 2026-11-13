@@ -1,6 +1,8 @@
-"""0.13.0: nazwa „Vidsumly” wszędzie — foldery danych, pliki wydania, klucz w Menedżerze poświadczeń."""
+"""0.13.0: nazwa „Vidsumly” wszędzie, imiona, fakty, cytaty, plik dla LLM, fiszki."""
 import json
 from pathlib import Path
+
+from test_gui import server  # noqa: F401  (fikstura serwera GUI)
 
 
 def test_data_folder_moved_from_old_name(tmp_path, monkeypatch):
@@ -80,3 +82,70 @@ def test_no_old_name_left_in_user_visible_places():
     wf = (root / ".github/workflows/windows.yml").read_text(encoding="utf-8")
     assert '$old = "VidSum-Setup-$ver.exe"' in wf and "$env:SETUP_OLD" in wf, "kopia instalatora dla aktualizacji z 0.12.0"
     assert (root / "packaging" / "Vidsumly.cmd").is_file() and (root / "packaging" / "Vidsumly Start.cmd").is_file()
+
+
+def test_user_run_0120_names_facts_quotes():
+    """Analiza dokumentu na 0.12.0 u użytkownika (13.11): „Michał chce postawić…”, fakt „Praktycznie zdarza się to tylko
+    wtedy…”, cytat „Something like data?”. Te same odpowiedzi modelu, nowy kod."""
+    from test_0120 import replay
+    from vidsum.story import localize
+    from vidsum.translate import restore_names
+    d, s, eng, log = replay("dokument_ambasada_0120")
+    pl = [{**p, "text": restore_names(p["text"], " ".join(x["text"] for x in d["segmenty"]))} for p in d["pl"]]
+    localize(s, d["segmenty"], pl)
+    blob = json.dumps(s, ensure_ascii=False)
+    assert "Michał" not in blob, "imię z oryginału"
+    assert "Michael chce postawić zakład w kwocie 420 milionów funtów" in blob
+    facts = [f["oryginal"] for f in s["co_masz_zrobic"]["fakty"]]
+    assert not any(f.startswith("In practice, that tends") for f in facts)
+    assert any("343 million" in f for f in facts) and any("54 overseas police" in f for f in facts)
+    assert not any(q["tekst"] == "Something like data?" for q in s["cytaty"])
+    assert sum(q["tekst"].rstrip().endswith("?") for q in s["cytaty"]) <= 1
+    assert s["reklamy"] and s["reklamy"][0]["marka"] == "Delete Me"
+
+
+def test_llm_file_has_legend_line_refs_and_numbered_transcript():
+    from vidsum.note import llm_text
+    d = json.loads((Path(__file__).parent / "data" / "frytki_0114" / "analiza.json").read_text(encoding="utf-8"))
+    t = llm_text(d)
+    assert t.startswith("---\ntytul: ") and "## Jak czytać ten plik" in t and "[obraz] = automatyczny opis kadru" in t
+    segs = d["transkrypcja"]["segmenty"]
+    assert f"[L1 00:{int(segs[0]['start']):02d}] {segs[0]['text'].strip()}" in t
+    assert f"[L{len(segs)} " in t, "każda linia transkrypcji ma numer"
+    import re
+    steps = re.findall(r"^\d+\. \[L\d+ \d\d:\d\d\] ", t, re.M)
+    assert len(steps) == len(d["streszczenie"]["dane"]["co_masz_zrobic"]["kroki"]), "każdy krok z odwołaniem do linii"
+    assert "![" not in t and "Zasoby komputera" not in t
+
+
+def test_gui_writes_and_serves_llm_file(server):
+    """Analiza z GUI zapisuje dla_llm.md; endpoint /dla_llm buduje plik z analiza.json (działa też dla starszych analiz)."""
+    from test_gui import DATA, req, wait_done
+    base, app = server
+    _, job = req(base, "/api/link", data=json.dumps({"zrodlo": str(DATA / "bez_audio.mp4")}).encode(), method="POST")
+    assert wait_done(base, job["id"])["status"] == "gotowe"
+    out = app.worker.jobs[job["id"]].out
+    assert (out / "dla_llm.md").is_file()
+    (out / "dla_llm.md").unlink()                      # jak w analizie sprzed 0.13.0
+    st, body = req(base, f"/api/zadania/{job['id']}/dla_llm")
+    assert st == 200 and "## Jak czytać ten plik" in body.decode("utf-8")
+    st, body = req(base, f"/api/zadania/{job['id']}/notatka")
+    assert st == 200 and body.decode("utf-8").startswith("Notatka z analizy")
+
+
+def test_index_has_llm_button_flashcards_and_map_facts():
+    html = (Path(__file__).parents[1] / "vidsum" / "web" / "index.html").read_text(encoding="utf-8")
+    for k in ('data-a="llm"', "/dla_llm?pobierz=1", "function flashcards(d)", 'tl.push(["cards"', 'data-a="cards_copy"',
+              "co_masz_zrobic?.fakty) || []).filter(f => f.t >= ch.start"):
+        assert k in html, k
+    assert html.count("t_cards:") == 2 and html.count("llm_copied:") == 2
+
+
+def test_restore_names_only_when_name_in_source():
+    from vidsum.translate import restore_names
+    src = "Michael wants to bet 420 million pounds. He sends the order to his trader, Nick."
+    assert restore_names("Michał chce postawić. Komputer Michała. Wysyła Michałowi.", src) == \
+        "Michael chce postawić. Komputer Michaela. Wysyła Michaelowi."
+    assert restore_names("Jan poszedł do sklepu.", "Jan went to the shop") == "Jan poszedł do sklepu."
+    assert restore_names("Pan Jerzy.", "George said") == "Pan George."
+    assert restore_names("Kup jerzyny.", "George said") == "Kup jerzyny."

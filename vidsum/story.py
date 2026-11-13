@@ -244,7 +244,13 @@ def info_score(text: str) -> float:
     return sc
 
 
-def pick_facts(part: list[dict], by_n: dict, model_ids: list[int], skip: set[int], k: int = 5) -> list[list[int]]:
+# zdanie, które odsyła do poprzedniego („that”, „it”, „to”, „tego”) — bez liczby i nazwy nie jest samodzielnym faktem
+# (pomiar na dokumencie 13.11: „Praktycznie zdarza się to tylko wtedy, gdy sygnał całkowicie zgaśnie.”)
+_ANAPHOR = re.compile(r"\b(?:this|that|these|those|it|its|they|them|such|to|tego|temu|tym|ten|ta|te|tak)\b", re.I)
+
+
+def pick_facts(part: list[dict], by_n: dict, model_ids: list[int], skip: set[int], k: int = 5,
+               relaxed: bool = False) -> list[list[int]]:
     """Linie-fakty jednej części → lista grup numerów linii (całe zdania), po kolei. Najwyżej k."""
     trusted = set(model_ids) if 0 < len(model_ids) <= 8 else set()
     cands = []
@@ -253,7 +259,10 @@ def pick_facts(part: list[dict], by_n: dict, model_ids: list[int], skip: set[int
         if set(ns) & skip:
             continue
         text = _join(ns, by_n, "tekst")
-        sc = info_score(text) + (3 if set(ns) & trusted else 0)
+        base = info_score(text)
+        if base < 1 and _ANAPHOR.search(text):
+            continue                                  # „In practice, that tends to happen only if…” — bez kontekstu nic nie mówi
+        sc = base + (3 if set(ns) & trusted else 0)
         cands.append((sc, ns))
     cands.sort(key=lambda x: (-x[0], x[1][0]))
     chosen: list[list[int]] = []
@@ -273,12 +282,21 @@ def pick_facts(part: list[dict], by_n: dict, model_ids: list[int], skip: set[int
                 continue
             chosen.append(ns)
             used.update(ns)
+    if not chosen and relaxed:                        # część długiego filmu bez mocnych faktów: zdania z nazwą/liczbą
+        for sc, ns in cands:
+            if len(chosen) >= min(k, 3) or sc < 2:
+                break
+            if set(ns) & used or any(x - 1 in used or x + 1 in used for x in ns):
+                continue
+            chosen.append(ns)
+            used.update(ns)
     if not chosen:                                    # krótki film bez liczb i nazw („Exhibit A. The Henley.”)
         for n in sorted(trusted)[:3]:
             ns = sentence_at(n, by_n)
             while len(_join(ns, by_n, "tekst").split()) < 4 and ns[0] - 1 in by_n and len(ns) < 3:
                 ns.insert(0, ns[0] - 1)
-            if set(ns) & (skip | used) or len(_join(ns, by_n, "tekst").split()) < 3:
+            text = _join(ns, by_n, "tekst")
+            if set(ns) & (skip | used) or len(text.split()) < 3 or (info_score(text) < 1 and _ANAPHOR.search(text)):
                 continue
             chosen.append(ns)
             used.update(ns)
@@ -470,13 +488,16 @@ def story_summary(engine, lines: list[dict], typ: str, meta_line: str, duration:
                          "tytul": title or ("Reklama" if not content else f"Część {i + 1}"),
                          "opis": summ, "reklama": not content, "n": i + 1})
         k = 5 if len(parts) > 1 else max(3, min(6, len(content) // 5))
-        for ns in pick_facts(content, by_n, _ids(d.get("fakty"), valid), ad_lines, k):
+        for ns in pick_facts(content, by_n, _ids(d.get("fakty"), valid), ad_lines, k, relaxed=len(parts) > 1):
             orig = _join(ns, by_n, "tekst")
             facts.append({"t": by_n[ns[0]]["t"], "tekst": _join(ns, by_n, "pl") or orig, "oryginal": orig,
                           "czasy": [by_n[x]["t"] for x in ns], "rodzaj": _kind(orig), "zrodlo": "mowa", "czesc": i + 1})
         ns = find_quote(d.get("cytat"), content, by_n)
         orig = _join(ns, by_n, "tekst") if ns else ""
-        if ns and not set(ns) & ad_lines and len(orig.split()) >= 3 and not _META.search(orig):
+        # cytat: co najmniej 5 słów (w filmie krótszym niż 5 min — 3) i najwyżej jedno pytanie w całym filmie („Something like data?” to nie cytat)
+        question = orig.rstrip().endswith("?")
+        if ns and not set(ns) & ad_lines and len(orig.split()) >= (5 if duration >= 300 else 3) and not _META.search(orig) \
+                and not (question and any(q["tekst"].rstrip().endswith("?") for q in quotes)):
             quotes.append({"t": by_n[ns[0]]["t"], "tekst": orig, "tlumaczenie": _join(ns, by_n, "pl"),
                            "czasy": [by_n[x]["t"] for x in ns]})
 

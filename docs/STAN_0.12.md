@@ -48,3 +48,4 @@ segmenty, tłumaczenie pl, napisy z ekranu, sceny kadrów.
 - [ ] Czat z klikalnymi czasami `mm:ss`.
 - [ ] Fiszki i mapa myśli z faktów (quiz: użytkownik zrezygnował, 13.11, 16:38).
 - [x] Nazwa „Vidsumly” wszędzie (13.11, 16:39): pliki .exe/.cmd, instalator i pliki wydania, folder programu, foldery danych i wyników (przenoszone przy pierwszym uruchomieniu), dziennik, klucz w Menedżerze poświadczeń. Kopia instalatora pod starą nazwą w wydaniu, żeby 0.12.0 umiało się zaktualizować. Bez zmiany: pakiet Pythona `vidsum` i repozytorium `mar223o/vidsum` (niewidoczne dla użytkownika).
+- [x] 0.13.0: imiona bez spolszczania, fakty bez zdań odsyłających, cytaty ≥ 5 słów / jedno pytanie, „Kopiuj dla LLM” + dla_llm.md, fiszki (zakładka, kopia do Anki), fakty w mapie myśli, czasy w czacie (już były). Zobacz RAPORT_0.13.0.md.
