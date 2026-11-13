@@ -10,7 +10,7 @@
 
 [Setup]
 SetupIconFile=..\vidsum\web\vidsum.ico
-UninstallDisplayIcon={app}\vidsum\web\vidsum.ico
+UninstallDisplayIcon={app}\Vidsumly.ico
 AppId={{6B1E2C4A-8F3D-4E7B-9C21-5A0D7F3E9B14}
 AppName=Vidsumly
 AppVersion={#AppVersion}
@@ -55,16 +55,19 @@ Type: files; Name: "{userdesktop}\Vidento.lnk"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; 0.13.1: ikona poza folderem „vidsum” (aktualizacja kodu go podmienia) — skróty i przypięcia jej nie gubią
+Source: "..\vidsum\web\vidsum.ico"; DestDir: "{app}"; DestName: "Vidsumly.ico"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Vidsumly"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\vidsum\web\vidsum.ico"; Comment: "Analiza filmów"
+Name: "{group}\Vidsumly"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\Vidsumly.ico"; AppUserModelID: "Vidsumly.Aplikacja"; Comment: "Analiza filmów"
 Name: "{group}\Odinstaluj Vidsumly"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\Vidsumly"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\vidsum\web\vidsum.ico"; Tasks: desktopicon
+Name: "{userdesktop}\Vidsumly"; Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; IconFilename: "{app}\Vidsumly.ico"; AppUserModelID: "Vidsumly.Aplikacja"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\python\pythonw.exe"; Parameters: "-m vidsum --ui"; WorkingDir: "{app}"; Description: "Uruchom Vidsumly"; Flags: postinstall nowait skipifsilent
 
 [UninstallDelete]
+Type: files; Name: "{app}\Vidsumly.ico"
 Type: filesandordirs; Name: "{app}\vidsum"
 Type: filesandordirs; Name: "{app}\vidsum.stare"
 ; 0.10.0: nowa nazwa — stare skróty „VidSum” usuwane

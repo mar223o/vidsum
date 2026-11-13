@@ -1,21 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <!-- Vidsumly: kadr filmu, dwie linie streszczenia, „play” i iskra — ewolucja ikony 0.8.1: jedna barwa (lazur),
-       grubsze kreski i mniej elementów, żeby była czytelna także w 16 px -->
+  <!-- Vidsumly 0.13.1: bursztynowy „play” przechodzi w trzy linie streszczenia (film → tekst) na ciemnym fiolecie.
+       Ciepły kolor na ciemnym tle wyróżnia się na pasku zadań, gdzie większość ikon jest niebieska. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3D7BFF"/>
-      <stop offset="1" stop-color="#22B8F0"/>
+      <stop offset="0" stop-color="#40208F"/>
+      <stop offset="1" stop-color="#170D3A"/>
     </linearGradient>
-    <linearGradient id="hi" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity=".22"/>
-      <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+    <linearGradient id="am" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD45E"/>
+      <stop offset="1" stop-color="#FF9A1F"/>
     </linearGradient>
   </defs>
-  <rect width="256" height="256" rx="60" fill="url(#bg)"/>
-  <rect width="256" height="256" rx="60" fill="url(#hi)"/>
-  <rect x="40" y="70" width="164" height="124" rx="28" fill="none" stroke="#fff" stroke-width="18"/>
-  <rect x="70" y="104" width="76" height="17" rx="8.5" fill="#fff"/>
-  <rect x="70" y="138" width="54" height="17" rx="8.5" fill="#fff" opacity=".8"/>
-  <path d="M150 124 L180 140 L150 156 Z" fill="#fff" stroke="#fff" stroke-width="10" stroke-linejoin="round"/>
-  <path d="M206 30 C209 48 216 55 234 58 C216 61 209 68 206 86 C203 68 196 61 178 58 C196 55 203 48 206 30 Z" fill="#fff"/>
+  <rect width="256" height="256" rx="58" fill="url(#bg)"/>
+  <path d="M40 76 Q40 56 58 66 L126 110 Q140 128 126 146 L58 190 Q40 200 40 180 Z" fill="url(#am)"/>
+  <rect x="146" y="80" width="74" height="24" rx="12" fill="#FFFFFF"/>
+  <rect x="146" y="116" width="58" height="24" rx="12" fill="#FFFFFF" opacity=".85"/>
+  <rect x="146" y="152" width="40" height="24" rx="12" fill="#FFFFFF" opacity=".7"/>
 </svg>

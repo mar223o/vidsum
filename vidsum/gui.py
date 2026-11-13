@@ -1064,30 +1064,21 @@ def open_window(url: str) -> None:
 
 
 def fix_shortcut_icons() -> None:
-    """Skróty z instalatora < 0.8.1 mają ikonę Pythona; aktualizacja samego kodu ich nie zmienia — poprawiamy je raz."""
+    """Skróty Vidsumly (Menu Start, pulpit, przypięte na pasku zadań) → stała ikona poza folderem „vidsum”
+    i ten sam AppUserModelID co okno (0.13.1; wcześniej przypięta ikona zmieniała się w logo Pythona).
+    Raz na zmianę ikony lub sposobu naprawy — znacznik w app_dir()/ikony_skrotow.txt."""
     if os.name != "nt":
         return
-    ico = Path(__file__).parent / "web" / "vidsum.ico"
-    mark = app_dir() / "ikony_skrotow.txt"
-    # znacznik = ścieżka + rozmiar ikony: nowa ikona (0.10.0) → skróty odświeżane jeszcze raz
-    sig = f"{ico}|{ico.stat().st_size}" if ico.exists() else ""
-    if not ico.exists() or (mark.exists() and mark.read_text(encoding="utf-8").strip() == sig):
-        return
-    ps = ("$s=New-Object -ComObject WScript.Shell;"
-          "$p=@(\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidsumly\\Vidsumly.lnk\","
-          "\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidento\\Vidento.lnk\","
-          "\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Vidsumly\\Vidsumly.lnk\","
-          "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidento.lnk'),"
-          "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidsumly.lnk'),"
-          "(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Vidsumly.lnk'));"
-          "foreach($f in $p){ if(Test-Path $f){ $l=$s.CreateShortcut($f);"
-          f" if($l.Arguments -like '*vidsum*'){{ $l.IconLocation='{ico},0'; $l.Save() }} }} }}")
+    from . import winicon
     try:
-        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], timeout=30,
-                       capture_output=True, creationflags=0x08000000)
-        mark.parent.mkdir(parents=True, exist_ok=True)
+        ico = winicon.stable_icon()
+        mark = app_dir() / "ikony_skrotow.txt"
+        sig = f"v2|{ico}|{ico.stat().st_size}"
+        if mark.exists() and mark.read_text(encoding="utf-8").strip() == sig:
+            return
+        winicon.fix_all(ico)
         mark.write_text(sig, encoding="utf-8")
-    except (OSError, subprocess.SubprocessError):
+    except Exception:
         pass
 
 
@@ -1097,7 +1088,9 @@ def _set_window_icon(title: str) -> None:
         return
     try:
         import ctypes
-        ico = str(Path(__file__).parent / "web" / "vidsum.ico")
+        from . import winicon
+        ico_path = winicon.stable_icon()
+        ico = str(ico_path)
         u = ctypes.windll.user32
         for _ in range(50):                             # okno pojawia się chwilę po starcie
             hwnd = u.FindWindowW(None, title)
@@ -1110,6 +1103,10 @@ def _set_window_icon(title: str) -> None:
             h = u.LoadImageW(None, ico, 1, size, size, 0x10)   # IMAGE_ICON, LR_LOADFROMFILE
             if h:
                 u.SendMessageW(hwnd, 0x0080, which, h)  # WM_SETICON
+        try:                                            # przypięcie do paska: nasza ikona i polecenie, nie pythonw.exe
+            winicon.set_window_props(hwnd, ico_path)
+        except Exception:
+            pass
         style_title_bar(hwnd)
     except Exception:
         pass
@@ -1160,7 +1157,8 @@ def run_window(url: str, app: "App | None" = None) -> bool:
     if os.name == "nt":
         try:                                            # osobna pozycja na pasku zadań (nie „Python”)
             import ctypes
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Vidsumly.Aplikacja")
+            from .winicon import APP_ID
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
         except Exception:
             pass
     try:

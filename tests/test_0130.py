@@ -65,7 +65,7 @@ def test_update_finds_new_and_old_release_file_names():
 
 def test_no_old_name_left_in_user_visible_places():
     root = Path(__file__).parents[1]
-    allowed = {"vidsum/paths.py", "vidsum/update.py", "packaging/vidsum.iss", "vidsum/gui.py", "vidsum/web/index.html",
+    allowed = {"vidsum/paths.py", "vidsum/update.py", "vidsum/winicon.py", "packaging/vidsum.iss", "vidsum/gui.py", "vidsum/web/index.html",
                ".github/workflows/windows.yml", "tests/test_0130.py"}
     hits = []
     for p in [*root.glob("vidsum/**/*.py"), *root.glob("vidsum/web/*.html"), *root.glob("packaging/*"), *root.glob("docs/*.md"),

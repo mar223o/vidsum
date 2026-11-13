@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Vidsumly 0.13.1: bursztynowy „play” przechodzi w trzy linie streszczenia (film → tekst) na ciemnym fiolecie.
+       Ciepły kolor na ciemnym tle wyróżnia się na pasku zadań, gdzie większość ikon jest niebieska. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#40208F"/>
+      <stop offset="1" stop-color="#170D3A"/>
+    </linearGradient>
+    <linearGradient id="am" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD45E"/>
+      <stop offset="1" stop-color="#FF9A1F"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+  <path d="M30 64 Q30 42 50 54 L130 108 Q146 128 130 148 L50 202 Q30 214 30 192 Z" fill="url(#am)"/>
+  <rect x="152" y="76" width="76" height="36" rx="18" fill="#FFFFFF"/>
+  <rect x="152" y="144" width="52" height="36" rx="18" fill="#FFFFFF"/>
+</svg>
