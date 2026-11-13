@@ -31,8 +31,11 @@ jobs:
         run: |
           ver=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' vidsum/__init__.py)
           echo "ver=$ver" >> "$GITHUB_OUTPUT"
+          # ręczna budowa na innej gałęzi niż main = zawsze budowa i testy (bez wydania)
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "need=true" >> "$GITHUB_OUTPUT"; echo "budowa testowa z $GITHUB_REF (bez wydania)"
           # wydanie już kompletne (jest instalator) — nic nie budujemy
-          if gh release view "v$ver" --json assets -q '.assets[].name' 2>/dev/null | grep -qx "Vidsumly-Setup-$ver.exe"; then
+          elif gh release view "v$ver" --json assets -q '.assets[].name' 2>/dev/null | grep -qx "Vidsumly-Setup-$ver.exe"; then
             echo "need=false" >> "$GITHUB_OUTPUT"; echo "v$ver już wydane"
           else
             echo "need=true" >> "$GITHUB_OUTPUT"; echo "buduję v$ver"
