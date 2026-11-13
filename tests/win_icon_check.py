@@ -6,6 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # konsola CI: cp1252
 app = Path(sys.argv[1])
 sys.path.insert(0, str(app))
 from vidsum import winicon  # noqa: E402
