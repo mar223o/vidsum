@@ -44,3 +44,6 @@ segmenty, tłumaczenie pl, napisy z ekranu, sceny kadrów.
 ## Następna wersja (zgłoszenia po 0.12.0)
 - [—] Opis autora jako źródło: użytkownik zrezygnował (13.11, 16:37).
 - [ ] Imiona bez spolszczania („Michał” → „Michael”), mniej faktów bez kontekstu, bez krótkich cytatów-pytań, kontrola nazw/liczb spoza transkrypcji (analiza dokumentu z 13.11).
+- [ ] Plik `dla_llm.md` + przycisk „Kopiuj dla LLM” (ponumerowane linie, legenda źródeł, fakty z odwołaniem do linii).
+- [ ] Czat z klikalnymi czasami `mm:ss`.
+- [ ] Fiszki i mapa myśli z faktów (quiz: użytkownik zrezygnował, 13.11, 16:38).
