@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <!-- Vidsumly 0.13.2: kadr taśmy filmowej (perforacja), w nim „play” i linie streszczenia, iskra w rogu.
-       Kolory z palety użytkownika: czerń, krem #F5EFE6, błękit #38BDF8, lawenda #C4B5FD. -->
+  <!-- Vidsumly 0.13.3: kadr taśmy filmowej (cienka kremowa ramka z perforacją), w nim kremowy „play” i linie
+       streszczenia, lawendowa iskra w rogu. Paleta użytkownika: czerń, krem #F5EFE6, lawenda #C4B5FD. -->
   <rect width="256" height="256" rx="48" fill="#000"/>
-  <rect x="24" y="52" width="178" height="164" rx="28" fill="#F5EFE6"/>
-  <rect x="48" y="84" width="130" height="100" rx="10" fill="#000"/>
-  <path d="M78 104 Q78 94 87 99 L131 126 Q139 134 131 142 L87 169 Q78 174 78 164 Z" fill="#38BDF8"/>
+  <rect x="24" y="52" width="178" height="164" rx="26" fill="#F5EFE6"/>
+  <rect x="40" y="70" width="146" height="128" rx="12" fill="#000"/>
+  <path d="M80 104 Q80 94 89 99 L135 127 Q143 134 135 141 L89 169 Q80 174 80 164 Z" fill="#F5EFE6"/>
   <path d="M206 4 Q216.12 39.88 252 50 Q216.12 60.12 206 96 Q195.88 60.12 160 50 Q195.88 39.88 206 4 Z" fill="#C4B5FD" stroke="#000" stroke-width="14" paint-order="stroke"/>
 </svg>

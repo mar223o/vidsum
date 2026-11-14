@@ -14,8 +14,10 @@ def test_ico_has_all_sizes_and_small_variant():
     sizes = {s[0] for s in ico.sizes()}
     assert {16, 20, 24, 32, 40, 48, 64, 96, 128, 256} <= sizes
     big = ico.getimage((256, 256)).convert("RGBA")
-    # 0.13.2: czarne tło, kremowa taśma, błękitny „play”, lawendowa iskra (paleta użytkownika)
-    assert big.getpixel((80, 128)) == (0x38, 0xBD, 0xF8, 255)      # play #38BDF8
+    # 0.13.3: czarne tło, cienka kremowa taśma, kremowy „play” (jak ramka), lawendowa iskra (prośba użytkownika)
+    assert big.getpixel((80, 130)) == (0xF5, 0xEF, 0xE6, 255)      # play w kolorze ramki
+    assert big.getpixel((38, 130)) == (0xF5, 0xEF, 0xE6, 255)      # bok ramki: 8 px (34–42)…
+    assert big.getpixel((46, 130)) == (0, 0, 0, 255)                # …dalej już okno kadru
     assert big.getpixel((20, 230)) == (0, 0, 0, 255)                # tło
     assert big.getpixel((204, 56)) == (0xC4, 0xB5, 0xFD, 255)       # iskra #C4B5FD
     assert big.getpixel((100, 60)) == (0xF5, 0xEF, 0xE6, 255)       # taśma #F5EFE6
@@ -27,8 +29,9 @@ def test_ico_has_all_sizes_and_small_variant():
 
 def test_svg_matches_ico_palette():
     svg = (ROOT / "vidsum/web/icon.svg").read_text(encoding="utf-8")
-    for c in ("#38BDF8", "#C4B5FD", "#F5EFE6"):
+    for c in ("#C4B5FD", "#F5EFE6"):
         assert c in svg
+    assert "#38BDF8" not in svg                                     # 0.13.3: play już nie błękitny
 
 
 def test_stable_icon_copies_and_refreshes(tmp_path):
