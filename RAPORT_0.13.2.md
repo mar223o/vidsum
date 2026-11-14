@@ -57,7 +57,7 @@ Zmiany po Twoich prośbach z 14.11.2026.
   - prawdziwy przebieg analizy, w którym postęp idzie tylko do przodu i kończy się na 100%;
   - czyszczenie biblioteki wraz z odmowami;
   - przeglądarka (Playwright): pasek, licznik i czyszczenie z zaznaczaniem.
-- Windows (GitHub Actions, budowa testowa bez wydania): `tests/win_trash_check.py` sprawdza, że folder ląduje w Koszu systemu.
+- Windows (GitHub Actions, budowa testowa bez wydania, przebieg 43596845945: zielony): wszystkie testy pytest na Windows i `tests/win_trash_check.py`, który sprawdza, że folder ląduje w Koszu systemu.
 
 ## Czego nie przetestowałem
 - Dokładności licznika „zostało” na Twoim komputerze z prawdziwymi modelami. Pierwsze analizy w trybach innych niż „Pełna” startują z szacunku, a każda kolejna poprawia udziały.
