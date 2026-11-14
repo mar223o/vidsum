@@ -339,9 +339,11 @@ def test_ui_live_progress_per_mode(ui):
     pct = int(pg.locator(".ppct").inner_text().rstrip("%"))
     assert 0 < pct < 100 and pg.locator(".pgbar").get_attribute("aria-valuenow") == str(pct)
     left = pg.locator(".pleft").inner_text()
-    assert re.fullmatch(r"zostało \d+:\d\d", left), left
-    pg.wait_for_timeout(2200)                                     # licznik odlicza co sekundę
-    assert pg.locator(".pleft").inner_text() != left or "jeszcze" in left
+    assert re.fullmatch(r"szacowany czas: ~\d+:\d\d", left), left      # 0.13.4: „~” i „szacowany”
+    # licznik: m:ss z „~”; odliczanie co sekundę (sprawdzane na stałym końcu — wartość z serwera się wygładza)
+    assert pg.evaluate("leftText(Date.now()/1000 + 125.4)") == "szacowany czas: ~2:05"
+    assert pg.evaluate("leftText(Date.now()/1000 + 3725)") == "szacowany czas: ~1:02:05"
+    assert pg.evaluate("leftText(Date.now()/1000 + 0.5)") == "jeszcze chwila"
     # „Sama transkrypcja”: bez kadrów i obrazu, nawet gdy w logu była linia [2/4] i [3/4]
     pg.goto(base + "/?t=tok#/wynik/livetran")
     pg.reload()
@@ -359,23 +361,39 @@ def test_ui_live_progress_per_mode(ui):
     assert "rozpoznaję mowę" in row and "kadr" not in row and "etap 2/4" not in row
 
 
-def test_ui_clear_library_keeps_marked(ui):
+def test_ui_clear_library_pick_which_to_delete(ui):
+    """0.13.4: „Wyczyść bibliotekę” → „Usuń wszystkie” albo „Zaznacz, które usunąć” (zaznacza się te do usunięcia)."""
     base, app, res, jobs, pg = ui
     pg.goto(base + "/?t=tok#/biblioteka")
     pg.reload()
     pg.wait_for_selector(".vcard")
     assert pg.locator(".vcard").count() == 3
     pg.click("#libclear")
-    keep_title = pg.locator(".vcard h3").nth(1).inner_text()
-    pg.locator(".vcard").nth(1).click()                          # zaznacz: zostaje
-    assert pg.locator(".vcard.kept").count() == 1 and pg.url.endswith("#/biblioteka")
-    assert "Zostaje: 1" in pg.locator(".selbar").inner_text() and "Do Kosza: 2" in pg.locator(".selbar").inner_text()
+    assert "Usuń wszystkie (3)" in pg.locator(".selbar").inner_text()
+    pg.click("[data-sel=pick]")
+    gone = pg.locator(".vcard h3").nth(1).inner_text()
+    pg.locator(".vcard").nth(1).click()                          # zaznacz: do usunięcia
+    assert pg.locator(".vcard.marked").count() == 1 and pg.url.endswith("#/biblioteka")
+    assert "Do Kosza: 1" in pg.locator(".selbar").inner_text()
     pg.click("[data-sel=go]")                                     # pierwsze kliknięcie — tylko pytanie
     assert "Na pewno?" in pg.locator("[data-sel=go]").inner_text() and len(list(res.iterdir())) == 3
     pg.click("[data-sel=go]")
-    pg.wait_for_function("document.querySelectorAll('.vcard').length === 1")
-    assert pg.locator(".vcard h3").inner_text() == keep_title
-    assert len(list(res.iterdir())) == 1 and not pg.locator(".selbar").count()
+    pg.wait_for_function("document.querySelectorAll('.vcard').length === 2")
+    assert gone not in pg.locator("#libc").inner_text()
+    assert len(list(res.iterdir())) == 2 and not pg.locator(".selbar").count()
+
+
+def test_ui_clear_library_delete_all(ui):
+    base, app, res, jobs, pg = ui
+    pg.goto(base + "/?t=tok#/biblioteka")
+    pg.reload()
+    pg.wait_for_selector(".vcard")
+    pg.click("#libclear")
+    pg.click("[data-sel=all]")
+    assert "Na pewno?" in pg.locator("[data-sel=all]").inner_text() and len(list(res.iterdir())) == 3
+    pg.click("[data-sel=all]")
+    pg.wait_for_selector(".empty")
+    assert list(res.iterdir()) == []
 
 
 def test_ci_checks_recycle_bin_on_windows():

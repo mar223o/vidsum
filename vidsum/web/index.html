@@ -188,12 +188,9 @@ pre.log.full{max-height:340px}
 .selcount{font-size:13.5px;color:var(--muted);margin-right:4px}.selcount b{color:var(--ink);font-weight:600}
 .selgo{display:flex;gap:8px;margin-left:auto}
 .cards.selecting .vcard{position:relative}
-.cards.selecting .vcard:not(.kept){opacity:.55;filter:saturate(.4)}
-.cards.selecting .vcard:not(.kept):hover{opacity:.8}
-.cards.selecting .vcard.kept{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--shadow)}
-.keeptag{position:absolute;top:10px;left:10px;z-index:2;font:600 12px var(--sans);padding:3px 10px;border-radius:99px;
-  background:color-mix(in srgb,var(--bg) 80%,transparent);border:1px solid var(--line2);color:var(--muted);backdrop-filter:blur(6px)}
-.vcard.kept .keeptag{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.cards.selecting .vcard.marked{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad),var(--shadow)}
+.cards.selecting .vcard.marked .th{opacity:.55;filter:saturate(.3)}
+.deltag{position:absolute;top:10px;left:10px;z-index:2;font:600 12px var(--sans);padding:3px 10px;border-radius:99px;background:var(--bad);color:var(--bg)}
 
 /* ---------- wynik ---------- */
 #res{position:relative;overflow-anchor:auto}
@@ -578,7 +575,7 @@ const I18N = {
    s_vis_on:"Analiza obrazu",s_vision:"Model obrazu (Ollama)",s_summary:"Streszczenie",s_frames:"Maks. kadrów",
    s_cookies:"Ciasteczka z przeglądarki (IG/TikTok)",s_out:"Folder wyników",save:"Zapisz ustawienia",upd:"Aktualizacje",upd_key:"Klucz GitHub (niepotrzebny — repozytorium jest publiczne; zostaw puste)",upd_key_ph:"wklej klucz github_pat_…",upd_key_save:"Zapisz klucz",upd_key_ok:"Klucz zapisany w Menedżerze poświadczeń Windows",upd_key_have:"klucz zapisany",upd_check:"Sprawdź aktualizacje",upd_none:"Masz najnowszą wersję",upd_new:"Dostępna wersja",upd_go:"Aktualizuj",upd_kod:"pobierze tylko kod",upd_pelna:"pobierze pełny instalator",upd_done:"Zaktualizowano — program uruchamia się ponownie…",upd_setup:"Uruchomiono instalator — dokończ instalację w jego oknie.",none:"brak",
    queue:"W toku",recent:"Ostatnio",all:"Wszystko",no_jobs:"Brak analiz. Wrzuć film powyżej.",lib_title:"Twoja biblioteka",
-   lib_sub:"Wszystkie analizy z tego komputera.",lib_clear:"Wyczyść bibliotekę",lib_sel_h:"Kliknij filmy, które chcesz zostawić. Pozostałe trafią do Kosza — stamtąd można je przywrócić.",lib_keep_tag:"Zostaje",lib_keep_n:n=>`Zostaje: ${n}`,lib_del_n:n=>`Do Kosza: ${n}`,lib_keep_all:"Zostaw wszystkie",lib_keep_none:"Odznacz wszystkie",lib_cancel:"Anuluj",lib_go:n=>`Przenieś ${n} do Kosza`,lib_sure:n=>`Na pewno? Przenieś ${n} do Kosza`,lib_done:n=>n===1?"Przeniesiono 1 analizę do Kosza":`Przeniesiono do Kosza: ${n}`,lib_done_own:"(dysk bez Kosza — w folderze „kosz” w danych Vidsumly)",lib_filter_note:"Działa na filmach widocznych teraz (wg wyszukiwania i typu).",search:"Szukaj w tytułach i tezach…",lib_empty:"Biblioteka jest pusta.",
+   lib_sub:"Wszystkie analizy z tego komputera.",lib_clear:"Wyczyść bibliotekę",lib_menu_h:"Co usunąć? Analizy trafią do Kosza — stamtąd można je przywrócić.",lib_all:n=>`Usuń wszystkie (${n})`,lib_all_sure:n=>`Na pewno? Usuń wszystkie (${n})`,lib_pick:"Zaznacz, które usunąć",lib_pick_h:"Kliknij filmy, które chcesz usunąć.",lib_del_tag:"Do usunięcia",lib_del_n:n=>`Do Kosza: ${n}`,lib_mark_all:"Zaznacz wszystkie",lib_mark_none:"Odznacz wszystkie",lib_cancel:"Anuluj",lib_go:n=>`Przenieś ${n} do Kosza`,lib_sure:n=>`Na pewno? Przenieś ${n} do Kosza`,lib_done:n=>n===1?"Przeniesiono 1 analizę do Kosza":`Przeniesiono do Kosza: ${n}`,lib_done_own:"(dysk bez Kosza — w folderze „kosz” w danych Vidsumly)",lib_filter_note:"Działa na filmach widocznych teraz (wg wyszukiwania i typu).",search:"Szukaj w tytułach i tezach…",lib_empty:"Biblioteka jest pusta.",
    w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",uploading:"Wysyłanie",open:"Otwórz",
    stage_0:"start · napisy (OCR)",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",
    part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
@@ -617,7 +614,7 @@ const I18N = {
    pv:"Szybki podgląd",pv_tip:"Wstępne streszczenie z samej mowy zaraz po transkrypcji, potem pełne (z obrazem i krokami). Cała analiza trwa przez to o kilkanaście sekund dłużej.",
    pv_badge:"wstępne",pv_note:"Wstępne — z samej mowy. Pełne streszczenie (z obrazem i krokami) zastąpi je za chwilę.",
    pv_done:(a,b)=>`wstępne po ${a} → pełne po ${b}`,
-   stage_dl:"pobieranie",ps_start:"Przygotowanie",ps_mowa:"Mowa",ps_kadry:"Kadry",ps_obraz:"Opis obrazu",ps_obraz_szybki:"Szybki obraz",ps_streszczenie:"Streszczenie",ps_tlumaczenie:"Tłumaczenie",pn_start:"Pobieram i przygotowuję film",pn_mowa:"Rozpoznaję mowę",pn_kadry:"Wybieram kadry",pn_obraz:"Opisuję kadry",pn_streszczenie:"Piszę streszczenie",pn_tlumaczenie:"Tłumaczę transkrypcję",pn_gotowe:"Zapisuję wynik",pn_frames:(a,b)=>`${a} z ${b} kadrów`,p_step:(n,z)=>`etap ${n} z ${z}`,p_left:x=>`zostało ${x}`,p_soon:"jeszcze chwila",p_calc:"liczę, ile zostało…",p_hint:"Liczone z tempa tej analizy i z poprzednich analiz na tym komputerze.",p_wait:"Czeka w kolejce",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
+   stage_dl:"pobieranie",ps_start:"Przygotowanie",ps_mowa:"Mowa",ps_kadry:"Kadry",ps_obraz:"Opis obrazu",ps_obraz_szybki:"Szybki obraz",ps_streszczenie:"Streszczenie",ps_tlumaczenie:"Tłumaczenie",pn_start:"Pobieram i przygotowuję film",pn_mowa:"Rozpoznaję mowę",pn_kadry:"Wybieram kadry",pn_obraz:"Opisuję kadry",pn_streszczenie:"Piszę streszczenie",pn_tlumaczenie:"Tłumaczę transkrypcję",pn_gotowe:"Zapisuję wynik",pn_frames:(a,b)=>`${a} z ${b} kadrów`,p_step:(n,z)=>`etap ${n} z ${z}`,p_left:x=>`szacowany czas: ~${x}`,p_soon:"jeszcze chwila",p_calc:"liczę, ile zostało…",p_hint:"Liczone z tempa tej analizy i z poprzednich analiz na tym komputerze.",p_wait:"Czeka w kolejce",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
    live_no_sum:"W trybie „Sama transkrypcja” nie ma streszczenia — sam tekst mowy (i tłumaczenie) w kolumnie obok.",live_wait_sum:"Streszczenie pojawi się tutaj na końcu analizy. W tym czasie możesz czytać transkrypcję — nic Ci jej nie przesunie.",
    live_steps_ready:"Kroki są już gotowe w zakładce obok. Opis całości jeszcze powstaje…",
    live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
@@ -646,7 +643,7 @@ const I18N = {
    s_vis_on:"Image analysis",s_vision:"Vision model (Ollama)",s_summary:"Summary",s_frames:"Max frames",
    s_cookies:"Browser cookies (IG/TikTok)",s_out:"Results folder",save:"Save settings",upd:"Updates",upd_key:"GitHub key (not needed — the repository is public; leave empty)",upd_key_ph:"paste github_pat_… key",upd_key_save:"Save key",upd_key_ok:"Key saved in Windows Credential Manager",upd_key_have:"key saved",upd_check:"Check for updates",upd_none:"You have the latest version",upd_new:"Available version",upd_go:"Update",upd_kod:"downloads code only",upd_pelna:"downloads the full installer",upd_done:"Updated — restarting…",upd_setup:"Installer started — finish it in its window.",none:"none",
    queue:"In progress",recent:"Recent",all:"All",no_jobs:"No analyses yet. Drop a video above.",lib_title:"Your library",
-   lib_sub:"Every analysis on this computer.",lib_clear:"Clear library",lib_sel_h:"Click the videos you want to keep. The rest go to the Recycle Bin — you can restore them from there.",lib_keep_tag:"Keep",lib_keep_n:n=>`Keeping: ${n}`,lib_del_n:n=>`To Recycle Bin: ${n}`,lib_keep_all:"Keep all",lib_keep_none:"Unselect all",lib_cancel:"Cancel",lib_go:n=>`Move ${n} to Recycle Bin`,lib_sure:n=>`Sure? Move ${n} to Recycle Bin`,lib_done:n=>n===1?"Moved 1 analysis to the Recycle Bin":`Moved to the Recycle Bin: ${n}`,lib_done_own:"(drive without a Recycle Bin — in the “kosz” folder in Vidsumly’s data)",lib_filter_note:"Applies to the videos shown now (search and type filter).",search:"Search titles and theses…",lib_empty:"Library is empty.",
+   lib_sub:"Every analysis on this computer.",lib_clear:"Clear library",lib_menu_h:"What should go? Analyses go to the Recycle Bin — you can restore them from there.",lib_all:n=>`Delete all (${n})`,lib_all_sure:n=>`Sure? Delete all (${n})`,lib_pick:"Choose which to delete",lib_pick_h:"Click the videos you want to delete.",lib_del_tag:"Delete",lib_del_n:n=>`To Recycle Bin: ${n}`,lib_mark_all:"Select all",lib_mark_none:"Unselect all",lib_cancel:"Cancel",lib_go:n=>`Move ${n} to Recycle Bin`,lib_sure:n=>`Sure? Move ${n} to Recycle Bin`,lib_done:n=>n===1?"Moved 1 analysis to the Recycle Bin":`Moved to the Recycle Bin: ${n}`,lib_done_own:"(drive without a Recycle Bin — in the “kosz” folder in Vidsumly’s data)",lib_filter_note:"Applies to the videos shown now (search and type filter).",search:"Search titles and theses…",lib_empty:"Library is empty.",
    w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",uploading:"Uploading",open:"Open",
    stage_0:"start · on-screen text",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",
    part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
@@ -685,7 +682,7 @@ const I18N = {
    pv:"Quick preview",pv_tip:"A preliminary summary from speech alone right after the transcript, then the full one (with picture and steps). Makes the whole analysis some 10–20 seconds longer.",
    pv_badge:"preliminary",pv_note:"Preliminary — from speech only. The full summary (with picture and steps) will replace it shortly.",
    pv_done:(a,b)=>`preliminary after ${a} → full after ${b}`,
-   stage_dl:"download",ps_start:"Preparing",ps_mowa:"Speech",ps_kadry:"Frames",ps_obraz:"Vision",ps_obraz_szybki:"Quick picture",ps_streszczenie:"Summary",ps_tlumaczenie:"Translation",pn_start:"Downloading and preparing the video",pn_mowa:"Recognising speech",pn_kadry:"Picking frames",pn_obraz:"Describing frames",pn_streszczenie:"Writing the summary",pn_tlumaczenie:"Translating the transcript",pn_gotowe:"Saving the result",pn_frames:(a,b)=>`${a} of ${b} frames`,p_step:(n,z)=>`step ${n} of ${z}`,p_left:x=>`${x} left`,p_soon:"almost done",p_calc:"working out the time left…",p_hint:"Based on this analysis’s pace and on earlier analyses on this computer.",p_wait:"Waiting in the queue",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
+   stage_dl:"download",ps_start:"Preparing",ps_mowa:"Speech",ps_kadry:"Frames",ps_obraz:"Vision",ps_obraz_szybki:"Quick picture",ps_streszczenie:"Summary",ps_tlumaczenie:"Translation",pn_start:"Downloading and preparing the video",pn_mowa:"Recognising speech",pn_kadry:"Picking frames",pn_obraz:"Describing frames",pn_streszczenie:"Writing the summary",pn_tlumaczenie:"Translating the transcript",pn_gotowe:"Saving the result",pn_frames:(a,b)=>`${a} of ${b} frames`,p_step:(n,z)=>`step ${n} of ${z}`,p_left:x=>`estimated: ~${x} left`,p_soon:"almost done",p_calc:"working out the time left…",p_hint:"Based on this analysis’s pace and on earlier analyses on this computer.",p_wait:"Waiting in the queue",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
    live_no_sum:"“Transcript only” has no summary — just the text of the speech (and the translation) in the next column.",live_wait_sum:"The summary appears here at the end of the analysis. Meanwhile, read the transcript — nothing will move it under you.",
    live_steps_ready:"The steps are ready in the tab next to this. The full summary is still being written…",
    live_video:"The video will be playable once the analysis is done",live_tr_note:"preliminary — will be refined",
@@ -707,7 +704,7 @@ function setCinema(on){
   cinemaBtn(); if (on) $("#cplayer")?.scrollIntoView({block:"start", behavior:"smooth"});
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape" && cinema && $("#res")) setCinema(false); });
-let L = "pl", settings = {}, jobs = [], uploads = {}, cur = null, mode = "video", tab = null, lib = {q:"", typ:"", sel:false, keep:new Set(), sure:false};
+let L = "pl", settings = {}, jobs = [], uploads = {}, cur = null, mode = "video", tab = null, lib = {q:"", typ:"", sel:false, pick:false, del:new Set(), sure:""};
 const $ = s => document.querySelector(s);
 const t = (k, ...a) => { const v = (I18N[L] && I18N[L][k]) ?? I18N.pl[k] ?? k; return typeof v === "function" ? v(...a) : v; };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1039,8 +1036,8 @@ $("#inbrowser").addEventListener("click", async () => {
 });
 function card(j){
   const c = j.card || {};
-  const kept = lib.sel && lib.keep.has(j.id);
-  return `<div class="vcard${kept ? " kept" : ""}" data-open="${j.id}"${lib.sel ? ` role="checkbox" aria-checked="${kept}" tabindex="0"` : ""}>${lib.sel ? `<span class="keeptag">${kept ? "✓ " : ""}${t("lib_keep_tag")}</span>` : ""}
+  const pick = lib.sel && lib.pick, marked = pick && lib.del.has(j.id);
+  return `<div class="vcard${marked ? " marked" : ""}" data-open="${j.id}"${pick ? ` role="checkbox" aria-checked="${marked}" tabindex="0"` : ""}>${marked ? `<span class="deltag">✓ ${t("lib_del_tag")}</span>` : ""}
     <div class="th" style="background-image:url('${c.miniatura ? fileUrl(j.id, c.miniatura) : ""}')">${c.dlugosc ? `<span class="dur">${fmt(c.dlugosc)}</span>` : ""}</div>
     <div class="bd">${c.typ ? `<span class="pill">${t("typ_"+c.typ)}</span>` : ""}
       <h3>${esc(c.tytul || j.label)}${c.akcent ? ` <i>${esc(c.akcent)}</i>` : ""}</h3>
@@ -1183,48 +1180,55 @@ function renderLib(){
       <div id="libsel"></div><div id="libc"></div>`;
     $("#libq").oninput = e => { lib.q = e.target.value; lib.sure = false; renderLib(); };
     $("#libt").onclick = e => { const b = e.target.closest("button"); if (b){ lib.typ = b.dataset.typ; lib.sure = false; renderLib(); } };
-    $("#libclear").onclick = () => { lib.sel = !lib.sel; lib.keep = new Set(); lib.sure = false; renderLib(); };
+    $("#libclear").onclick = () => { lib.sel = !lib.sel; lib.pick = false; lib.del = new Set(); lib.sure = ""; renderLib(); };
   }
   document.querySelectorAll("#libt button").forEach(b => b.classList.toggle("on", b.dataset.typ === lib.typ));
   $("#libclear").classList.toggle("on", lib.sel); $("#libclear").hidden = !jobs.some(j => j.status === "gotowe");
-  const ids = new Set(done.map(j => j.id));
-  lib.keep = new Set([...lib.keep].filter(id => jobs.some(j => j.id === id)));
-  const keepN = done.filter(j => lib.keep.has(j.id)).length, delN = done.length - keepN;
-  $("#libsel").innerHTML = lib.sel ? `<div class="selbar" role="region" aria-label="${esc(t("lib_clear"))}">
-      <p>${t("lib_sel_h")}${lib.q || lib.typ ? ` ${t("lib_filter_note")}` : ""}</p>
-      <div class="selrow"><span class="selcount"><b>${t("lib_keep_n", keepN)}</b> · ${t("lib_del_n", delN)}</span>
-        <button class="btn sm" data-sel="all">${t("lib_keep_all")}</button><button class="btn sm" data-sel="none">${t("lib_keep_none")}</button>
+  lib.del = new Set([...lib.del].filter(id => done.some(j => j.id === id)));
+  const delN = lib.del.size, note = lib.q || lib.typ ? ` ${t("lib_filter_note")}` : "";
+  $("#libsel").innerHTML = !lib.sel ? "" : `<div class="selbar" role="region" aria-label="${esc(t("lib_clear"))}">${lib.pick
+    ? `<p>${t("lib_pick_h")}${note}</p>
+      <div class="selrow"><span class="selcount"><b>${t("lib_del_n", delN)}</b></span>
+        <button class="btn sm" data-sel="mark">${t("lib_mark_all")}</button><button class="btn sm" data-sel="unmark">${t("lib_mark_none")}</button>
         <span class="selgo"><button class="btn" data-sel="cancel">${t("lib_cancel")}</button>
-        <button class="btn danger${lib.sure ? " sure" : ""}" data-sel="go" ${delN ? "" : "disabled"}>${t(lib.sure ? "lib_sure" : "lib_go", delN)}</button></span></div></div>` : "";
-  $("#libc").innerHTML = done.length ? `<div class="cards${lib.sel ? " selecting" : ""}">${done.map(card).join("")}</div>` : `<p class="empty">${t("lib_empty")}</p>`;
-  void ids;
+        <button class="btn danger${lib.sure === "go" ? " sure" : ""}" data-sel="go" ${delN ? "" : "disabled"}>${t(lib.sure === "go" ? "lib_sure" : "lib_go", delN)}</button></span></div>`
+    : `<p>${t("lib_menu_h")}${note}</p>
+      <div class="selrow"><button class="btn danger${lib.sure === "all" ? " sure" : ""}" data-sel="all">${t(lib.sure === "all" ? "lib_all_sure" : "lib_all", done.length)}</button>
+        <button class="btn" data-sel="pick">${t("lib_pick")}</button>
+        <span class="selgo"><button class="btn" data-sel="cancel">${t("lib_cancel")}</button></span></div>`}</div>`;
+  $("#libc").innerHTML = done.length ? `<div class="cards${lib.sel && lib.pick ? " selecting" : ""}">${done.map(card).join("")}</div>` : `<p class="empty">${t("lib_empty")}</p>`;
+}
+async function libDelete(usun, btn){
+  btn.disabled = true;
+  try {
+    const r = await api("/api/biblioteka/wyczysc", {method:"POST", body:JSON.stringify({usun, potwierdz:true})});
+    toast(t("lib_done", r.usuniete.length) + (r.gdzie.includes("kosz_vidsumly") ? " " + t("lib_done_own") : "")
+      + (r.bledy.length ? ` · ${r.bledy.length}× ${r.bledy[0].blad}` : ""));
+    jobs = jobs.filter(j => !r.usuniete.includes(j.id));
+    lib.sel = false; lib.pick = false; lib.del = new Set();
+  } catch(err){ toast(err.message); }
+  lib.sure = "";
+  poll();
 }
 $("#app").addEventListener("click", async e => {
   const sb = e.target.closest("[data-sel]");
   if (sb) {
     const a = sb.dataset.sel, vis = libVisible();
-    if (a === "all") vis.forEach(j => lib.keep.add(j.id));
-    if (a === "none") vis.forEach(j => lib.keep.delete(j.id));
-    if (a === "cancel") { lib.sel = false; lib.keep = new Set(); }
-    if (a === "go") {
-      if (!lib.sure) { lib.sure = true; return renderLib(); }
-      const usun = vis.filter(j => !lib.keep.has(j.id)).map(j => j.id);
-      sb.disabled = true;
-      try {
-        const r = await api("/api/biblioteka/wyczysc", {method:"POST", body:JSON.stringify({usun, potwierdz:true})});
-        toast(t("lib_done", r.usuniete.length) + (r.gdzie.includes("kosz_vidsumly") ? " " + t("lib_done_own") : "")
-          + (r.bledy.length ? ` · ${r.bledy.length}× ${r.bledy[0].blad}` : ""));
-        jobs = jobs.filter(j => !r.usuniete.includes(j.id));
-        lib.sel = false; lib.keep = new Set();
-      } catch(err){ toast(err.message); }
-      poll();
+    if (a === "mark") vis.forEach(j => lib.del.add(j.id));
+    if (a === "unmark") vis.forEach(j => lib.del.delete(j.id));
+    if (a === "pick") lib.pick = true;
+    if (a === "cancel") { lib.sel = false; lib.pick = false; lib.del = new Set(); }
+    if (a === "all" || a === "go") {                       // dwa kliknięcia: najpierw pytanie „Na pewno?”
+      if (lib.sure !== a) { lib.sure = a; return renderLib(); }
+      await libDelete(a === "all" ? vis.map(j => j.id) : vis.filter(j => lib.del.has(j.id)).map(j => j.id), sb);
+      return renderLib();
     }
-    lib.sure = a === "go" ? lib.sure : false;
+    lib.sure = "";
     return renderLib();
   }
   const c = e.target.closest("[data-open]"); if (!c) return;
-  if (lib.sel && c.closest(".cards.selecting")) {
-    const id = c.dataset.open; lib.keep.has(id) ? lib.keep.delete(id) : lib.keep.add(id); lib.sure = false; return renderLib();
+  if (lib.sel && lib.pick && c.closest(".cards.selecting")) {
+    const id = c.dataset.open; lib.del.has(id) ? lib.del.delete(id) : lib.del.add(id); lib.sure = ""; return renderLib();
   }
   location.hash = "#/wynik/" + c.dataset.open;
 });
