@@ -175,7 +175,9 @@ def test_pipeline_records_step_times_and_progress_reaches_100(tmp_path, monkeypa
 # ---------------------------------------------------------------- serwer: postęp w zadaniu, czyszczenie biblioteki
 
 def _app(tmp_path, monkeypatch, n=3):
-    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))
+    from vidsum import trash
+    monkeypatch.setattr(trash, "_has_recycle_bin", lambda p: False)   # testy: zawsze kosz Vidsumly (Kosz systemu —
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))    # tests/win_trash_check.py w CI na Windows)
     monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
     from vidsum.gui import App
     res = tmp_path / "wyniki"
@@ -282,6 +284,7 @@ def test_palette_from_user_in_both_themes():
 
 def test_wrapper_trash_module_on_linux(tmp_path, monkeypatch):
     from vidsum import trash
+    monkeypatch.setattr(trash, "_has_recycle_bin", lambda p: False)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))
     d = tmp_path / "a b ąę"
     d.mkdir()
