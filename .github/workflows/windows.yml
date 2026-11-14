@@ -310,6 +310,9 @@ jobs:
           # 0.13.1: właściwości okna do przypinania + naprawa skrótów (COM) na prawdziwym Windows
           python tests\win_icon_check.py "$dir"
           if ($LASTEXITCODE -ne 0) { throw "ikony/skróty: test nie przeszedł" }
+          # 0.13.2: „Wyczyść bibliotekę” — folder do Kosza systemu (SHFileOperationW, FOF_ALLOWUNDO)
+          python tests\win_trash_check.py "$dir"
+          if ($LASTEXITCODE -ne 0) { throw "kosz: test nie przeszedł" }
           $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Vidsumly\Vidsumly.lnk"
           if (Test-Path $lnk) {
             $ic = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).IconLocation

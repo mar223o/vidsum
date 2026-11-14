@@ -1070,7 +1070,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     (out / "przebieg.log").write_text("\n".join(trail) + "\n", encoding="utf-8")
     try:                                         # nauka prognozy czasu na tym komputerze (vidsum/eta.py)
         from . import eta
-        eta.record(opt.out_root, asked_mode, info.duration, timings.get("razem_s", 0), __version__)
+        from .progress import step_times
+        st = step_times(trail + [f"[{time.time() - t0:6.1f} s] ✔ gotowe"], asked_mode, summary_mode != "brak",
+                        opt.vision != "brak" or light, bool(opt.translate))
+        eta.record(opt.out_root, asked_mode, info.duration, timings.get("razem_s", 0), __version__, st)
     except OSError:
         pass
     try:

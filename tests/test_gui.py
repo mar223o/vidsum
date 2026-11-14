@@ -382,9 +382,9 @@ def test_icon_served_without_token(server):
 def test_title_bar_colors_match_palette():
     """Pasek tytułu okna (0.10.0): kolory z palety jako COLORREF (0x00BBGGRR) — tło #0d111a, tekst #e9edf5, ramka #3d7bff."""
     from vidsum.gui import TITLE_BAR, _colorref
-    assert _colorref(TITLE_BAR["tlo"]) == 0x001A110D
-    assert _colorref(TITLE_BAR["tekst"]) == 0x00F5EDE9
-    assert _colorref(TITLE_BAR["ramka"]) == 0x00FF7B3D
+    assert _colorref(TITLE_BAR["tlo"]) == 0x00000000
+    assert _colorref(TITLE_BAR["tekst"]) == 0x00E6EFF5
+    assert _colorref(TITLE_BAR["ramka"]) == 0x00F8BD38
 
 
 def test_comments_endpoint_only_for_links_and_cached(server, monkeypatch):

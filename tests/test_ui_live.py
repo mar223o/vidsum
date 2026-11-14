@@ -45,6 +45,9 @@ def live(tmp_path, monkeypatch):
     job.partial.update({"meta": {"tytul": "The Perfect French Fry", "autor": "Fallow", "dlugosc_s": 238.0,
                                  "szerokosc": 360, "wysokosc": 640},
                         "transkrypcja": {"jezyk": "en", "segmenty": segs}})
+    job.start_tracking()                              # 0.13.2: postęp na żywo z logu
+    for line in job.log:
+        job.feed(line)
     app.worker.jobs[job.id] = job
     srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
@@ -91,7 +94,7 @@ def test_live_result_page_keeps_reading_position(live, width):
         # od razu: tytuł, pasek etapów, transkrypcja (zakładka domyślna podczas analizy), szkielet streszczenia
         page.wait_for_selector("#tabc .tr-line")
         assert "The Perfect French Fry" in page.inner_text("#rhead")
-        assert page.locator(".lstep.now").count() == 1
+        assert page.locator(".psteps li.now").count() == 1 and page.locator(".psteps li.now").inner_text() == "Mowa"
         assert page.locator("#csum .skel").count() == 1
         assert page.locator("#tabc .tr-line").count() == len(segs)
         shots = Path(os.environ.get("VIDSUM_SHOTS") or out)

@@ -7,20 +7,22 @@
 <meta name="application-name" content="Vidsumly"><!-- nazwa techniczna: Vidsumly -->
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <style>
-/* Vidsumly 0.10.x (dawniej VidSum) — grafitowy granat i jeden akcent (lazur); wcześniej: kolory marki z ikony,
-   jedna rzecz zapada w pamięć: poświata z samego filmu za odtwarzaczem i nagłówkiem wyniku. Reszta cicha. */
+/* Vidsumly 0.13.2 — głównie czerń (ciemny) albo krem (jasny); akcent: błękit #38BDF8, drugi: lawenda #C4B5FD,
+   tekst kremowy #F5EFE6 na czerni. Paleta od użytkownika (14.11.2026). Jedna rzecz zapada w pamięć: poświata z samego
+   filmu za odtwarzaczem i nagłówkiem wyniku; pasek postępu i przyciski główne w gradiencie błękit → lawenda. */
 :root{
-  /* 0.10.0 — jeden akcent: lazur (niebieski → błękit tylko w obrębie tej samej barwy). Tło: grafitowy granat. */
-  --bg:#090c12; --bg2:#0d111a; --panel:#121722; --card:#171d2a; --raised:#1e2535;
-  --ink:#e9edf5; --ink2:#c3cad8; --muted:#8b94a9; --faint:#5c6479;
-  --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.12); --hl:rgba(255,255,255,.045);
-  --accent:#5b9bff; --accent-2:#38c4ff; --accent-ink:#fff; --accent-soft:rgba(91,155,255,.14); --glow:rgba(61,123,255,.55);
-  --ok:#3dd9a0; --bad:#ff7a85; --warn:#f2b84b;
-  --speech:#7fb0ff; --vision:#9fd8ff; --est:#f2b84b; --none:#7c8196;
-  --grad:linear-gradient(120deg,#3d7bff 0%,#38c4ff 100%);
-  --grad-soft:linear-gradient(120deg,rgba(61,123,255,.18),rgba(56,196,255,.10));
-  --shadow:0 1px 0 var(--hl) inset,0 1px 2px rgba(0,0,0,.4),0 12px 32px -12px rgba(0,0,0,.6);
-  --shadow-lg:0 1px 0 var(--hl) inset,0 2px 6px rgba(0,0,0,.35),0 30px 80px -24px rgba(0,0,0,.75);
+  --bg:#000000; --bg2:#0a0a0a; --panel:#0f0f10; --card:#151516; --raised:#1c1c1e;
+  --ink:#F5EFE6; --ink2:#d9d2c6; --muted:#9a948a; --faint:#615c55;
+  --line:rgba(245,239,230,.08); --line2:rgba(245,239,230,.15); --hl:rgba(245,239,230,.045);
+  --accent:#38BDF8; --accent-2:#C4B5FD; --accent-ink:#000; --accent-soft:rgba(56,189,248,.14); --glow:rgba(56,189,248,.38);
+  --btn-bg:linear-gradient(110deg,#38BDF8 0%,#C4B5FD 100%); --btn-ink:#000;
+  --ok:#5fd4a0; --bad:#ff8a8a; --warn:#f5c46b;
+  --speech:#7dd3fc; --vision:#C4B5FD; --est:#f5c46b; --none:#8a857d;
+  --grad:linear-gradient(110deg,#38BDF8 0%,#C4B5FD 100%);
+  --grad-soft:linear-gradient(110deg,rgba(56,189,248,.14),rgba(196,181,253,.10));
+  --amb1:rgba(56,189,248,.10); --amb2:rgba(196,181,253,.08);
+  --shadow:0 1px 0 var(--hl) inset,0 1px 2px rgba(0,0,0,.5),0 12px 32px -12px rgba(0,0,0,.7);
+  --shadow-lg:0 1px 0 var(--hl) inset,0 2px 6px rgba(0,0,0,.4),0 30px 80px -24px rgba(0,0,0,.8);
   --display:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
   --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
   --mono:"Cascadia Mono",ui-monospace,Consolas,monospace;
@@ -28,37 +30,44 @@
   --r-lg:22px; --r:16px; --r-sm:12px; color-scheme:dark;
 }
 :root[data-theme="light"]{
-  --bg:#f3f5f9; --bg2:#edf0f6; --panel:#ffffff; --card:#f6f8fc; --raised:#ffffff;
-  --ink:#121826; --ink2:#2c3446; --muted:#5f6880; --faint:#98a0b4;
-  --line:rgba(18,24,38,.08); --line2:rgba(18,24,38,.14); --hl:rgba(255,255,255,.9);
-  --accent:#2f6bff; --accent-2:#0ea5e9; --accent-soft:rgba(47,107,255,.09); --glow:rgba(47,107,255,.35);
-  --ok:#0f9f6e; --bad:#e0314f; --warn:#b7791f;
-  --speech:#2f5fd0; --vision:#0b7ec2; --est:#b7791f; --none:#6b7186;
-  --shadow:0 1px 2px rgba(18,24,38,.06),0 10px 30px -14px rgba(18,24,38,.18);
-  --shadow-lg:0 2px 6px rgba(18,24,38,.06),0 30px 70px -28px rgba(18,24,38,.28); color-scheme:light;
+  --bg:#F5EFE6; --bg2:#EEE6D9; --panel:#FBF8F3; --card:#F6F0E6; --raised:#FFFFFF;
+  --ink:#0A0A0A; --ink2:#2b2824; --muted:#6b645a; --faint:#a59d91;
+  --line:rgba(10,10,10,.09); --line2:rgba(10,10,10,.16); --hl:rgba(10,10,10,.035);
+  --accent:#0369A1; --accent-2:#6D5BD0; --accent-ink:#F5EFE6; --accent-soft:rgba(3,105,161,.10); --glow:rgba(56,189,248,.30);
+  --btn-bg:#0A0A0A; --btn-ink:#F5EFE6;
+  --ok:#15803d; --bad:#c2253f; --warn:#a16207;
+  --speech:#0369A1; --vision:#6D5BD0; --est:#a16207; --none:#6b6560;
+  --grad:linear-gradient(110deg,#38BDF8 0%,#C4B5FD 100%);
+  --grad-soft:linear-gradient(110deg,rgba(56,189,248,.16),rgba(196,181,253,.16));
+  --amb1:rgba(56,189,248,.12); --amb2:rgba(196,181,253,.14);
+  --shadow:0 1px 2px rgba(10,10,10,.05),0 10px 30px -14px rgba(10,10,10,.16);
+  --shadow-lg:0 2px 6px rgba(10,10,10,.05),0 30px 70px -28px rgba(10,10,10,.24); color-scheme:light;
 }
 @media (prefers-color-scheme: light){
   :root[data-theme="system"]{
-    --bg:#f3f5f9; --bg2:#edf0f6; --panel:#ffffff; --card:#f6f8fc; --raised:#ffffff;
-    --ink:#121826; --ink2:#2c3446; --muted:#5f6880; --faint:#98a0b4;
-    --line:rgba(18,24,38,.08); --line2:rgba(18,24,38,.14); --hl:rgba(255,255,255,.9);
-    --accent:#2f6bff; --accent-2:#0ea5e9; --accent-soft:rgba(47,107,255,.09); --glow:rgba(47,107,255,.35);
-    --ok:#0f9f6e; --bad:#e0314f; --warn:#b7791f;
-    --speech:#2f5fd0; --vision:#0b7ec2; --est:#b7791f; --none:#6b7186;
-    --shadow:0 1px 2px rgba(18,24,38,.06),0 10px 30px -14px rgba(18,24,38,.18);
-    --shadow-lg:0 2px 6px rgba(18,24,38,.06),0 30px 70px -28px rgba(18,24,38,.28); color-scheme:light; }
+    --bg:#F5EFE6; --bg2:#EEE6D9; --panel:#FBF8F3; --card:#F6F0E6; --raised:#FFFFFF;
+    --ink:#0A0A0A; --ink2:#2b2824; --muted:#6b645a; --faint:#a59d91;
+    --line:rgba(10,10,10,.09); --line2:rgba(10,10,10,.16); --hl:rgba(10,10,10,.035);
+    --accent:#0369A1; --accent-2:#6D5BD0; --accent-ink:#F5EFE6; --accent-soft:rgba(3,105,161,.10); --glow:rgba(56,189,248,.30);
+    --btn-bg:#0A0A0A; --btn-ink:#F5EFE6;
+    --ok:#15803d; --bad:#c2253f; --warn:#a16207;
+    --speech:#0369A1; --vision:#6D5BD0; --est:#a16207; --none:#6b6560;
+    --grad:linear-gradient(110deg,#38BDF8 0%,#C4B5FD 100%);
+    --grad-soft:linear-gradient(110deg,rgba(56,189,248,.16),rgba(196,181,253,.16));
+    --amb1:rgba(56,189,248,.12); --amb2:rgba(196,181,253,.14);
+    --shadow:0 1px 2px rgba(10,10,10,.05),0 10px 30px -14px rgba(10,10,10,.16);
+    --shadow-lg:0 2px 6px rgba(10,10,10,.05),0 30px 70px -28px rgba(10,10,10,.24); color-scheme:light; }
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;color:var(--ink);font:15px/1.6 var(--sans);font-feature-settings:"ss01";-webkit-font-smoothing:antialiased;
   background:var(--bg);
-  background-image:radial-gradient(1200px 520px at 50% -180px,rgba(61,123,255,.16),transparent 70%),
-                   radial-gradient(700px 400px at 100% 0,rgba(61,107,255,.08),transparent 70%);
+  background-image:radial-gradient(1200px 520px at 50% -200px,var(--amb1),transparent 70%),
+                   radial-gradient(700px 420px at 100% 0,var(--amb2),transparent 70%);
   background-attachment:fixed;min-height:100vh}
-:root[data-theme="light"] body{background-image:radial-gradient(1200px 520px at 50% -200px,rgba(61,123,255,.10),transparent 70%)}
 button{font:inherit;color:inherit}
 a{color:var(--accent)}
-::selection{background:rgba(61,123,255,.35)}
+::selection{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .num,.timer,.tsb,.tval,.dur,.tr-line code{font-variant-numeric:tabular-nums}
 
@@ -79,6 +88,8 @@ nav a.on{background:var(--raised);color:var(--ink);box-shadow:var(--shadow)}
 .chip.ok::before{background:var(--ok);box-shadow:0 0 8px var(--ok)}.chip.bad{color:var(--bad)}.chip.bad::before{background:var(--bad)}
 .seg{display:inline-flex;background:var(--hl);border:1px solid var(--line);border-radius:99px;padding:3px;gap:2px}
 .seg button{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:5px 13px;border-radius:99px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--muted);white-space:nowrap;transition:.15s}
+.seg{max-width:100%;flex-wrap:wrap}.pvrow .seg{border-radius:18px}
+#libt{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}#libt::-webkit-scrollbar{display:none}
 .seg button:hover{color:var(--ink)}
 .seg button.on{background:var(--raised);color:var(--ink);box-shadow:var(--shadow)}
 main{max-width:1320px;margin:0 auto;padding:36px 24px 100px}
@@ -92,13 +103,16 @@ main{max-width:1320px;margin:0 auto;padding:36px 24px 100px}
 .muted{color:var(--muted)}
 .small{font-size:13px}
 .btn.icon{padding:7px 10px;text-decoration:none;color:inherit;display:inline-flex;align-items:center}
-.btn{border:1px solid var(--line2);background:var(--hl);border-radius:99px;padding:7px 15px;font-size:13px;font-weight:500;cursor:pointer;
+.btn{text-decoration:none;border:1px solid var(--line2);background:var(--hl);border-radius:99px;padding:7px 15px;font-size:13px;font-weight:500;cursor:pointer;
   transition:border-color .15s,background .15s,color .15s,transform .1s;color:var(--ink2)}
 .btn:hover{border-color:color-mix(in srgb,var(--accent) 60%,transparent);color:var(--ink);background:var(--accent-soft)}
 .btn:active{transform:scale(.97)}
-.btn.primary{background:var(--grad);border-color:transparent;color:#fff;font-weight:600;
-  box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 8px 24px -8px var(--glow)}
-.btn.primary:hover{filter:brightness(1.08);color:#fff}
+.btn.primary{background:var(--btn-bg);border-color:transparent;color:var(--btn-ink);font-weight:650;
+  box-shadow:0 8px 24px -10px var(--glow)}
+.btn.primary:hover{filter:brightness(1.07);color:var(--btn-ink);background:var(--btn-bg)}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+.btn.danger:hover{background:color-mix(in srgb,var(--bad) 12%,transparent);border-color:var(--bad);color:var(--bad)}
+.btn.danger.sure{background:var(--bad);color:var(--bg);border-color:transparent}
 .btn:disabled{opacity:.45;cursor:default}
 .btn.ico{padding:6px 11px}
 .btn.sm{padding:4px 10px;font-size:12.5px;min-width:30px}
@@ -106,7 +120,7 @@ main{max-width:1320px;margin:0 auto;padding:36px 24px 100px}
 /* ---------- strona główna ---------- */
 .hero{padding:26px 0 8px;max-width:820px}
 .hero .eyebrow{display:none}
-.hero h1{font:700 clamp(34px,5.2vw,60px)/1.02 var(--display);margin:0 0 14px;letter-spacing:-.035em;
+.hero h1{font:700 clamp(32px,4.6vw,54px)/1.04 var(--display);margin:0 0 14px;letter-spacing:-.035em;
   background:linear-gradient(180deg,var(--ink) 30%,color-mix(in srgb,var(--ink) 55%,transparent));-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero h1 i{font-style:normal}
 .hero p{color:var(--muted);margin:0 0 28px;font-size:17px;max-width:62ch}
@@ -165,6 +179,21 @@ pre.log.full{max-height:340px}
 .vcard p{margin:0;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pill{display:inline-block;font:600 11px var(--sans);padding:2px 9px;border-radius:99px;background:var(--accent-soft);color:var(--accent);width:max-content}
 .empty{color:var(--muted);font-size:14px;padding:18px 0}
+/* 0.13.2: czyszczenie biblioteki — zaznaczone karty zostają, reszta do Kosza */
+#libclear.on{border-color:var(--bad);color:var(--bad)}
+.selbar{position:sticky;top:64px;z-index:15;margin:-4px 0 18px;padding:14px 16px;border-radius:var(--r);border:1px solid color-mix(in srgb,var(--bad) 35%,var(--line2));
+  background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(14px);box-shadow:var(--shadow-lg);display:grid;gap:10px}
+.selbar p{margin:0;font-size:13.5px;color:var(--ink2)}
+.selrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.selcount{font-size:13.5px;color:var(--muted);margin-right:4px}.selcount b{color:var(--ink);font-weight:600}
+.selgo{display:flex;gap:8px;margin-left:auto}
+.cards.selecting .vcard{position:relative}
+.cards.selecting .vcard:not(.kept){opacity:.55;filter:saturate(.4)}
+.cards.selecting .vcard:not(.kept):hover{opacity:.8}
+.cards.selecting .vcard.kept{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--shadow)}
+.keeptag{position:absolute;top:10px;left:10px;z-index:2;font:600 12px var(--sans);padding:3px 10px;border-radius:99px;
+  background:color-mix(in srgb,var(--bg) 80%,transparent);border:1px solid var(--line2);color:var(--muted);backdrop-filter:blur(6px)}
+.vcard.kept .keeptag{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 
 /* ---------- wynik ---------- */
 #res{position:relative;overflow-anchor:auto}
@@ -205,14 +234,14 @@ blockquote.pull::before{content:"";position:absolute;left:0;top:14px;bottom:14px
 .note ul{margin:4px 0;padding-left:18px}
 /* odtwarzacz */
 .player{border-radius:var(--r-lg);overflow:hidden;background:#000;position:relative;
-  box-shadow:0 0 0 1px var(--line2),0 40px 100px -30px rgba(0,0,0,.85),0 0 120px -40px rgba(61,123,255,.4)}
+  box-shadow:0 0 0 1px var(--line2),0 40px 100px -30px rgba(0,0,0,.85),0 0 120px -40px var(--glow)}
 .player video{display:block;width:100%;max-height:72vh;background:#000}
 .player.audio video{height:64px;max-height:64px;background:var(--panel)}
 .player .nofilm{aspect-ratio:16/9;width:100%;max-height:72vh;display:grid;place-items:center;color:#ddd;background:#111 center/cover no-repeat;font-size:13px}
 .m-read .player video{max-height:42vh}
 .ph{background:rgba(7,8,12,.7);backdrop-filter:blur(8px);color:#fff;padding:7px 13px;border-radius:10px;font-size:13px;text-align:center;margin:12px}
 .tsb{font:600 12px var(--mono);color:var(--ink);background:var(--hl);border:1px solid var(--line2);border-radius:99px;padding:1px 8px;cursor:pointer;white-space:nowrap;transition:.15s}
-.tsb:hover{background:var(--grad);border-color:transparent;color:#fff}
+.tsb:hover{background:var(--grad);border-color:transparent;color:#0A0A0A}
 /* czat */
 .chatbox{margin-top:20px;background:color-mix(in srgb,var(--panel) 82%,transparent);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow)}
 .chatbox:empty{display:none}
@@ -222,14 +251,14 @@ blockquote.pull::before{content:"";position:absolute;left:0;top:14px;bottom:14px
 .sugg button:hover{border-color:var(--line2);color:var(--ink);background:var(--accent-soft)}
 .msgs{display:grid;gap:10px;margin-bottom:12px}
 .msg{padding:10px 14px;border-radius:14px;font-size:14px}
-.msg.user{background:var(--grad);color:#fff;justify-self:end;max-width:85%;border-bottom-right-radius:5px}
+.msg.user{background:var(--grad);color:#0A0A0A;justify-self:end;max-width:85%;border-bottom-right-radius:5px}
 .msg.bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px}
 .msg.bot p{margin:0 0 6px}.msg.bot p:last-child{margin:0}
 .ask{display:flex;gap:8px;background:var(--bg2);border:1px solid var(--line2);border-radius:99px;padding:5px 5px 5px 16px;transition:.15s}
 .ask:focus-within{border-color:color-mix(in srgb,var(--accent) 70%,transparent);box-shadow:0 0 0 4px var(--accent-soft)}
 .ask input{flex:1;border:0;background:none;padding:6px 0;outline:none;box-shadow:none}
 .ask input:focus{box-shadow:none}
-.ask button{border:0;background:var(--grad);color:#fff;border-radius:99px;width:36px;height:36px;cursor:pointer;font-size:16px}
+.ask button{border:0;background:var(--grad);color:#0A0A0A;border-radius:99px;width:36px;height:36px;cursor:pointer;font-size:16px}
 /* rozbicie (prawa kolumna) */
 .tabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 18px}
 .tabs button{flex:0 1 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--hl);padding:6px 11px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;white-space:nowrap;border-radius:10px;transition:color .15s,background .15s,border-color .15s;min-width:0}
@@ -244,7 +273,7 @@ blockquote.pull::before{content:"";position:absolute;left:0;top:14px;bottom:14px
 #res.cinema .layout{grid-template-columns:minmax(0,1fr)!important}
 #res.cinema .col-mid{grid-column:1/-1;order:-1}
 #res.cinema .player video{max-height:84vh}
-#res.cinema .player{box-shadow:0 0 0 1px var(--line2),0 60px 160px -40px rgba(0,0,0,.95),0 0 220px -30px rgba(61,123,255,.5)}
+#res.cinema .player{box-shadow:0 0 0 1px var(--line2),0 60px 160px -40px rgba(0,0,0,.95),0 0 220px -30px var(--glow)}
 #res.cinema .r-head,#res.cinema .modebar,#res.cinema .col-sum,#res.cinema .col-break{opacity:.4;transition:opacity .3s}
 #res.cinema .col-sum:hover,#res.cinema .col-break:hover,#res.cinema .r-head:hover,#res.cinema .modebar:hover{opacity:1}
 #res.cinema .chatbox{max-width:900px}
@@ -283,7 +312,7 @@ details.kp[open] summary .kt{color:var(--ink)}
 .it{display:grid;grid-template-columns:24px 1fr;gap:6px 10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;transition:border-color .2s,background .2s}
 .it:hover{border-color:var(--line2)}
 .it.now{border-color:color-mix(in srgb,var(--accent) 55%,transparent);background:var(--accent-soft);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 25%,transparent),0 10px 30px -14px var(--glow)}
-.it .n{font:700 17px/1.3 var(--display);background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
+.it .n{font:700 17px/1.3 var(--display);color:var(--accent);font-variant-numeric:tabular-nums}
 .it h4{margin:2px 0 3px;font:600 15.5px/1.3 var(--display);letter-spacing:-.01em}
 .it p{margin:0;font-size:13.5px;color:var(--muted)}
 .it .top{display:flex;gap:8px;align-items:center;justify-content:space-between}
@@ -355,14 +384,24 @@ details.kp[open] summary .kt{color:var(--ink)}
 .rlang .seg button.busy{color:var(--accent)}
 .trnote{font-size:12.5px;color:var(--muted);margin:10px 0 0}
 /* ---------- na żywo ---------- */
-.livebar{margin-top:16px;display:grid;gap:9px}
+.livebar{margin-top:16px;display:grid;gap:8px;max-width:760px}
 .livebar.err{color:var(--bad);font-size:14px}
-.lsteps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px}
-.lstep{color:var(--muted);padding:3px 11px;border-radius:99px;background:var(--hl);border:1px solid var(--line)}
-.lstep.done{color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,transparent);border-color:transparent}
-.lstep.now{color:#fff;background:var(--grad);border-color:transparent;box-shadow:0 6px 20px -6px var(--glow);animation:pulse 1.8s ease-in-out infinite}
-.lsep{width:12px;height:1px;background:var(--line2)}
-.lnow{display:flex;gap:10px;align-items:baseline;font-size:12.5px;min-width:0}.lnow .muted{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 0.13.2: postęp — co teraz + procent, pasek, zostało, etapy trybu */
+.prog{display:grid;gap:7px;margin-top:4px}
+.ptop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.pnow{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;color:var(--ink2)}.pnow b{font-weight:600;color:var(--ink)}
+.ppct{font:700 15px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.prog.full .ppct{font-size:22px;letter-spacing:-.02em}
+.pgbar{height:6px;border-radius:99px;background:var(--line2);overflow:hidden}
+.pgbar span{display:block;height:100%;border-radius:inherit;background:var(--grad);transition:width .9s cubic-bezier(.2,.7,.2,1)}
+.prog.full .pgbar{height:8px}
+.pfoot{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline;font-size:12.5px;color:var(--muted)}
+.pleft{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.psteps{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--faint)}
+.psteps li{display:inline-flex;align-items:center;gap:7px}
+.psteps li::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;box-sizing:border-box}
+.psteps li.done{color:var(--muted)}.psteps li.done::before{background:currentColor}
+.psteps li.now{color:var(--ink);font-weight:600}.psteps li.now::before{border-color:var(--accent);background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 @keyframes pulse{50%{box-shadow:0 6px 26px -4px var(--glow)}}
 .skel{display:grid;gap:10px;margin:6px 0 14px}
 .skel i{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--line) 0%,var(--line2) 50%,var(--line) 100%);background-size:200% 100%;animation:sh 1.4s linear infinite}
@@ -370,7 +409,7 @@ details.kp[open] summary .kt{color:var(--ink)}
 /* jedyny „moment”: wynik zapala się jak ekran */
 .appear{animation:fi .5s cubic-bezier(.2,.7,.2,1) both}
 @keyframes fi{from{opacity:0;filter:brightness(1.6) blur(2px)}to{opacity:1;filter:none}}
-@media (prefers-reduced-motion:reduce){.appear,.skel i,.lstep.now{animation:none}*{transition:none!important;scroll-behavior:auto!important}}
+@media (prefers-reduced-motion:reduce){.appear,.skel i,*{transition:none!important;scroll-behavior:auto!important}}
 @media (max-width:1100px){ .m-bal .layout{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)} .m-bal .col-sum{grid-column:1/-1;order:3} }
 @media (max-width:760px){
   header{padding:10px 16px;gap:10px} main{padding:22px 16px 80px}
@@ -539,7 +578,7 @@ const I18N = {
    s_vis_on:"Analiza obrazu",s_vision:"Model obrazu (Ollama)",s_summary:"Streszczenie",s_frames:"Maks. kadrów",
    s_cookies:"Ciasteczka z przeglądarki (IG/TikTok)",s_out:"Folder wyników",save:"Zapisz ustawienia",upd:"Aktualizacje",upd_key:"Klucz GitHub (niepotrzebny — repozytorium jest publiczne; zostaw puste)",upd_key_ph:"wklej klucz github_pat_…",upd_key_save:"Zapisz klucz",upd_key_ok:"Klucz zapisany w Menedżerze poświadczeń Windows",upd_key_have:"klucz zapisany",upd_check:"Sprawdź aktualizacje",upd_none:"Masz najnowszą wersję",upd_new:"Dostępna wersja",upd_go:"Aktualizuj",upd_kod:"pobierze tylko kod",upd_pelna:"pobierze pełny instalator",upd_done:"Zaktualizowano — program uruchamia się ponownie…",upd_setup:"Uruchomiono instalator — dokończ instalację w jego oknie.",none:"brak",
    queue:"W toku",recent:"Ostatnio",all:"Wszystko",no_jobs:"Brak analiz. Wrzuć film powyżej.",lib_title:"Twoja biblioteka",
-   lib_sub:"Wszystkie analizy z tego komputera.",search:"Szukaj w tytułach i tezach…",lib_empty:"Biblioteka jest pusta.",
+   lib_sub:"Wszystkie analizy z tego komputera.",lib_clear:"Wyczyść bibliotekę",lib_sel_h:"Kliknij filmy, które chcesz zostawić. Pozostałe trafią do Kosza — stamtąd można je przywrócić.",lib_keep_tag:"Zostaje",lib_keep_n:n=>`Zostaje: ${n}`,lib_del_n:n=>`Do Kosza: ${n}`,lib_keep_all:"Zostaw wszystkie",lib_keep_none:"Odznacz wszystkie",lib_cancel:"Anuluj",lib_go:n=>`Przenieś ${n} do Kosza`,lib_sure:n=>`Na pewno? Przenieś ${n} do Kosza`,lib_done:n=>n===1?"Przeniesiono 1 analizę do Kosza":`Przeniesiono do Kosza: ${n}`,lib_done_own:"(dysk bez Kosza — w folderze „kosz” w danych Vidsumly)",lib_filter_note:"Działa na filmach widocznych teraz (wg wyszukiwania i typu).",search:"Szukaj w tytułach i tezach…",lib_empty:"Biblioteka jest pusta.",
    w_kolejce:"w kolejce",trwa:"trwa",gotowe:"gotowe",blad:"błąd",uploading:"Wysyłanie",open:"Otwórz",
    stage_0:"start · napisy (OCR)",stage_1:"mowa",stage_2:"kadry",stage_3:"opis obrazu",stage_4:"streszczenie",
    part_transkrypcja:"Pokaż transkrypcję",part_napisy:"Pokaż napisy z ekranu",part_kadry:"Pokaż opisy kadrów",part_tl:"Pokaż tłumaczenie",part_log:"Na żywo: co teraz analizuje",
@@ -578,8 +617,8 @@ const I18N = {
    pv:"Szybki podgląd",pv_tip:"Wstępne streszczenie z samej mowy zaraz po transkrypcji, potem pełne (z obrazem i krokami). Cała analiza trwa przez to o kilkanaście sekund dłużej.",
    pv_badge:"wstępne",pv_note:"Wstępne — z samej mowy. Pełne streszczenie (z obrazem i krokami) zastąpi je za chwilę.",
    pv_done:(a,b)=>`wstępne po ${a} → pełne po ${b}`,
-   stage_dl:"pobieranie",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
-   live_wait_sum:"Streszczenie pojawi się tutaj na końcu analizy (etap 4/4). W tym czasie możesz czytać transkrypcję — nic Ci jej nie przesunie.",
+   stage_dl:"pobieranie",ps_start:"Przygotowanie",ps_mowa:"Mowa",ps_kadry:"Kadry",ps_obraz:"Opis obrazu",ps_obraz_szybki:"Szybki obraz",ps_streszczenie:"Streszczenie",ps_tlumaczenie:"Tłumaczenie",pn_start:"Pobieram i przygotowuję film",pn_mowa:"Rozpoznaję mowę",pn_kadry:"Wybieram kadry",pn_obraz:"Opisuję kadry",pn_streszczenie:"Piszę streszczenie",pn_tlumaczenie:"Tłumaczę transkrypcję",pn_gotowe:"Zapisuję wynik",pn_frames:(a,b)=>`${a} z ${b} kadrów`,p_step:(n,z)=>`etap ${n} z ${z}`,p_left:x=>`zostało ${x}`,p_soon:"jeszcze chwila",p_calc:"liczę, ile zostało…",p_hint:"Liczone z tempa tej analizy i z poprzednich analiz na tym komputerze.",p_wait:"Czeka w kolejce",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
+   live_no_sum:"W trybie „Sama transkrypcja” nie ma streszczenia — sam tekst mowy (i tłumaczenie) w kolumnie obok.",live_wait_sum:"Streszczenie pojawi się tutaj na końcu analizy. W tym czasie możesz czytać transkrypcję — nic Ci jej nie przesunie.",
    live_steps_ready:"Kroki są już gotowe w zakładce obok. Opis całości jeszcze powstaje…",
    live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
    live_wait_tr:"Transkrypcja pojawi się tutaj, gdy tylko mowa zostanie rozpoznana.",live_wait_fr:"Kadry pojawią się po ich wycięciu z filmu.",
@@ -607,7 +646,7 @@ const I18N = {
    s_vis_on:"Image analysis",s_vision:"Vision model (Ollama)",s_summary:"Summary",s_frames:"Max frames",
    s_cookies:"Browser cookies (IG/TikTok)",s_out:"Results folder",save:"Save settings",upd:"Updates",upd_key:"GitHub key (not needed — the repository is public; leave empty)",upd_key_ph:"paste github_pat_… key",upd_key_save:"Save key",upd_key_ok:"Key saved in Windows Credential Manager",upd_key_have:"key saved",upd_check:"Check for updates",upd_none:"You have the latest version",upd_new:"Available version",upd_go:"Update",upd_kod:"downloads code only",upd_pelna:"downloads the full installer",upd_done:"Updated — restarting…",upd_setup:"Installer started — finish it in its window.",none:"none",
    queue:"In progress",recent:"Recent",all:"All",no_jobs:"No analyses yet. Drop a video above.",lib_title:"Your library",
-   lib_sub:"Every analysis on this computer.",search:"Search titles and theses…",lib_empty:"Library is empty.",
+   lib_sub:"Every analysis on this computer.",lib_clear:"Clear library",lib_sel_h:"Click the videos you want to keep. The rest go to the Recycle Bin — you can restore them from there.",lib_keep_tag:"Keep",lib_keep_n:n=>`Keeping: ${n}`,lib_del_n:n=>`To Recycle Bin: ${n}`,lib_keep_all:"Keep all",lib_keep_none:"Unselect all",lib_cancel:"Cancel",lib_go:n=>`Move ${n} to Recycle Bin`,lib_sure:n=>`Sure? Move ${n} to Recycle Bin`,lib_done:n=>n===1?"Moved 1 analysis to the Recycle Bin":`Moved to the Recycle Bin: ${n}`,lib_done_own:"(drive without a Recycle Bin — in the “kosz” folder in Vidsumly’s data)",lib_filter_note:"Applies to the videos shown now (search and type filter).",search:"Search titles and theses…",lib_empty:"Library is empty.",
    w_kolejce:"queued",trwa:"running",gotowe:"done",blad:"error",uploading:"Uploading",open:"Open",
    stage_0:"start · on-screen text",stage_1:"speech",stage_2:"frames",stage_3:"vision",stage_4:"summary",
    part_transkrypcja:"Show transcript",part_napisy:"Show on-screen text",part_kadry:"Show frame notes",part_tl:"Show translation",part_log:"Live: what it is doing now",
@@ -646,8 +685,8 @@ const I18N = {
    pv:"Quick preview",pv_tip:"A preliminary summary from speech alone right after the transcript, then the full one (with picture and steps). Makes the whole analysis some 10–20 seconds longer.",
    pv_badge:"preliminary",pv_note:"Preliminary — from speech only. The full summary (with picture and steps) will replace it shortly.",
    pv_done:(a,b)=>`preliminary after ${a} → full after ${b}`,
-   stage_dl:"download",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
-   live_wait_sum:"The summary appears here at the end of the analysis (step 4/4). Meanwhile, read the transcript — nothing will move it under you.",
+   stage_dl:"download",ps_start:"Preparing",ps_mowa:"Speech",ps_kadry:"Frames",ps_obraz:"Vision",ps_obraz_szybki:"Quick picture",ps_streszczenie:"Summary",ps_tlumaczenie:"Translation",pn_start:"Downloading and preparing the video",pn_mowa:"Recognising speech",pn_kadry:"Picking frames",pn_obraz:"Describing frames",pn_streszczenie:"Writing the summary",pn_tlumaczenie:"Translating the transcript",pn_gotowe:"Saving the result",pn_frames:(a,b)=>`${a} of ${b} frames`,p_step:(n,z)=>`step ${n} of ${z}`,p_left:x=>`${x} left`,p_soon:"almost done",p_calc:"working out the time left…",p_hint:"Based on this analysis’s pace and on earlier analyses on this computer.",p_wait:"Waiting in the queue",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
+   live_no_sum:"“Transcript only” has no summary — just the text of the speech (and the translation) in the next column.",live_wait_sum:"The summary appears here at the end of the analysis. Meanwhile, read the transcript — nothing will move it under you.",
    live_steps_ready:"The steps are ready in the tab next to this. The full summary is still being written…",
    live_video:"The video will be playable once the analysis is done",live_tr_note:"preliminary — will be refined",
    live_wait_tr:"The transcript appears here as soon as speech is recognised.",live_wait_fr:"Frames appear once they are extracted.",
@@ -668,7 +707,7 @@ function setCinema(on){
   cinemaBtn(); if (on) $("#cplayer")?.scrollIntoView({block:"start", behavior:"smooth"});
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape" && cinema && $("#res")) setCinema(false); });
-let L = "pl", settings = {}, jobs = [], uploads = {}, cur = null, mode = "video", tab = null, lib = {q:"", typ:""};
+let L = "pl", settings = {}, jobs = [], uploads = {}, cur = null, mode = "video", tab = null, lib = {q:"", typ:"", sel:false, keep:new Set(), sure:false};
 const $ = s => document.querySelector(s);
 const t = (k, ...a) => { const v = (I18N[L] && I18N[L][k]) ?? I18N.pl[k] ?? k; return typeof v === "function" ? v(...a) : v; };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -869,20 +908,41 @@ function qThumb(j){
   const f = j.card?.miniatura;
   return f ? `<span class="qth" style="background-image:url('${fileUrl(j.id, f)}')"></span>` : `<span class="qth">${ic("film")}</span>`;
 }
-/* 0.12.0: przewidywany czas do końca (prognoza z historii analiz na tym komputerze — vidsum/eta.py) */
-function etaText(left){
-  if (left <= 0) return t("eta_soon");
-  return t("eta_left", left >= 90 ? `${Math.round(left / 60)} min` : `${Math.max(10, Math.round(left / 10) * 10)} s`);
+/* 0.13.2: postęp na żywo — etapy według trybu, procent, co program robi teraz i ile zostało (vidsum/progress.py) */
+const pShown = {}, pEnd = {};
+function fmtLeft(s){ s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`; }
+function leftText(end){ if (end == null || end === "") return t("p_calc"); const s = Number(end) - Date.now()/1000; return s < 1.5 ? t("p_soon") : t("p_left", fmtLeft(s)); }
+function stepName(k, mode){ return t(k === "obraz" && mode === "szybki" ? "ps_obraz_szybki" : "ps_" + k); }
+function progState(j){
+  const p = j.postep; if (!p) return null;
+  const key = j.id + ":" + p.tryb, prev = pShown[key] || 0;
+  const pct = (p.proc || 0) < prev - 30 ? (p.proc || 0) : Math.max(prev, p.proc || 0);   // nie cofa się (chyba że nowy start)
+  pShown[key] = pct;
+  if (p.zostalo_s != null) {                      // wygładzone: liczba nie skacze przy każdym odświeżeniu
+    const target = Date.now()/1000 + p.zostalo_s, old = pEnd[j.id];
+    pEnd[j.id] = old == null || Math.abs(target - old) > 20 ? target : Math.abs(target - old) < 3 ? old : old + (target - old) * 0.4;
+  }
+  return {p, pct, end: pEnd[j.id] ?? null};
 }
-function etaHtml(j){
-  if (j.status !== "trwa" || !j.eta_s || j.elapsed == null) return "";
-  const end = Date.now()/1000 - j.elapsed + j.eta_s;
-  return ` <span class="eta muted" data-end="${end}" title="${esc(t("eta_hint"))}">${etaText(end - Date.now()/1000)}</span>`;
+function progHtml(j, full){
+  const s = progState(j); if (!s) return "";
+  const {p, pct, end} = s;
+  const det = p.szczegol ? ` · ${t("pn_frames", p.szczegol[0], p.szczegol[1])}` : "";
+  const steps = p.kroki.map((k, i) => { const c = p.teraz === "gotowe" || i < p.nr - 1 ? "done" : i === p.nr - 1 ? "now" : "";
+    return `<li class="${c}">${esc(stepName(k, p.tryb))}</li>`; }).join("");
+  const start = j.elapsed != null ? Date.now()/1000 - j.elapsed : "";
+  return `<div class="prog${full ? " full" : ""}">
+    <div class="ptop"><span class="pnow"><b>${esc(t("pn_" + p.teraz))}</b><span>${esc(det)}</span></span><span class="ppct">${pct}%</span></div>
+    <div class="pgbar" role="progressbar" aria-label="${esc(t("pn_" + p.teraz))}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+    <div class="pfoot"><span class="pleft" data-end="${end ?? ""}" title="${esc(t("p_hint"))}">${leftText(end)}</span><span class="timer" data-start="${start}">⏱ ${fmt(j.elapsed || 0)}</span><span>${t("p_step", p.nr, p.z)}</span></div>
+    ${full ? `<ol class="psteps">${steps}</ol>` : ""}</div>`;
 }
 function qRow(j, idx, n){
   const st = j.status, pend = st === "w_kolejce";
-  const stage = j.etap_po ? t("q_translating") : st === "trwa" ? (j.stage ? `${t("stage_of", j.stage)} · ${t("stage_"+j.stage)}` : t("stage_0")) : "";
-  const timer = (j.elapsed != null ? `<span class="timer" data-start="${st==="trwa" ? Date.now()/1000 - j.elapsed : ""}">${fmt(j.elapsed)}</span>` : "") + etaHtml(j);
+  const prog = st === "trwa" ? progHtml(j, false) : "";
+  const stage = j.etap_po ? t("q_translating") : "";
+  const timer = !prog && j.elapsed != null ? `<span class="timer" data-start="${st==="trwa" ? Date.now()/1000 - j.elapsed : ""}">${fmt(j.elapsed)}</span>` : "";
   const acts = [];
   if (pend) {
     if (idx > 0) acts.push(`<button class="iconbtn" data-q="przesun" data-id="${j.id}" data-pos="${idx-1}" title="${esc(t("q_up"))}" aria-label="${esc(t("q_up"))}">${ic("up")}</button>`);
@@ -893,11 +953,11 @@ function qRow(j, idx, n){
   if (st === "trwa") acts.push(`<a class="btn sm" href="#/wynik/${j.id}">${t("live_open")}</a>`);
   if (st === "gotowe") acts.push(`<a class="btn sm" href="#/wynik/${j.id}">${t("open")}</a>`);
   const logOpen = openParts.has(j.id+":log");
-  const body = st === "trwa" ? partsHtml(j) + (logOpen ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>` : "")
+  const body = st === "trwa" ? prog + partsHtml(j) + (logOpen ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>` : "")
     : (st === "blad" || st === "przerwane") ? `<div class="qerr">${esc(j.error || "")}</div>` : (pend && j.log.length ? `<div class="qnote">${esc(j.log[0])}</div>` : "");
   return `<li class="qi ${st}${st==="trwa" ? " now" : ""}">${qThumb(j)}
     <div class="qmain"><div class="qtop"><span class="name" title="${esc(j.label)}">${esc(j.card?.tytul || j.label)}</span></div>
-      <div class="qmeta"><span class="st ${st}">${t(st)}</span>${pend ? `<span>${t("q_pos", idx+1)}</span>` : ""}${stage ? `<span>${stage}</span>` : ""}${timer}</div>${body}</div>
+      ${st === "trwa" && prog ? "" : `<div class="qmeta"><span class="st ${st}">${t(st)}</span>${pend ? `<span>${t("q_pos", idx+1)}</span>` : ""}${stage ? `<span>${stage}</span>` : ""}${timer}</div>`}${body}</div>
     <div class="qacts">${acts.join("")}</div></li>`;
 }
 function renderQueue(){
@@ -979,7 +1039,8 @@ $("#inbrowser").addEventListener("click", async () => {
 });
 function card(j){
   const c = j.card || {};
-  return `<div class="vcard" data-open="${j.id}">
+  const kept = lib.sel && lib.keep.has(j.id);
+  return `<div class="vcard${kept ? " kept" : ""}" data-open="${j.id}"${lib.sel ? ` role="checkbox" aria-checked="${kept}" tabindex="0"` : ""}>${lib.sel ? `<span class="keeptag">${kept ? "✓ " : ""}${t("lib_keep_tag")}</span>` : ""}
     <div class="th" style="background-image:url('${c.miniatura ? fileUrl(j.id, c.miniatura) : ""}')">${c.dlugosc ? `<span class="dur">${fmt(c.dlugosc)}</span>` : ""}</div>
     <div class="bd">${c.typ ? `<span class="pill">${t("typ_"+c.typ)}</span>` : ""}
       <h3>${esc(c.tytul || j.label)}${c.akcent ? ` <i>${esc(c.akcent)}</i>` : ""}</h3>
@@ -1106,23 +1167,69 @@ function upload(file){
   };
   x.send(file);
 }
-function renderLib(){
-  const done = jobs.filter(j => j.status === "gotowe").filter(j => {
+function libVisible(){
+  return jobs.filter(j => j.status === "gotowe").filter(j => {
     const c = j.card || {}, hay = `${c.tytul||""} ${c.akcent||""} ${c.teza||""} ${j.label}`.toLowerCase();
     return (!lib.q || hay.includes(lib.q.toLowerCase())) && (!lib.typ || c.typ === lib.typ); });
+}
+function renderLib(){
+  const done = libVisible();
   const types = ["", "przepis", "trening", "sport", "poradnik", "wyklad", "dokument", "inne"];
   if (!$("#libq")) {
     $("#app").innerHTML = `<section class="hero"><div class="eyebrow">${t("nav_lib")}</div><h1>${t("lib_title")}</h1><p>${t("lib_sub")}</p></section>
       <div class="lib-tools"><input id="libq" placeholder="${esc(t("search"))}" value="${esc(lib.q)}">
-      <div class="seg" id="libt">${types.map(x => `<button data-typ="${x}">${x ? t("typ_"+x) : t("all")}</button>`).join("")}</div></div><div id="libc"></div>`;
-    $("#libq").oninput = e => { lib.q = e.target.value; renderLib(); };
-    $("#libt").onclick = e => { const b = e.target.closest("button"); if (b){ lib.typ = b.dataset.typ; renderLib(); } };
+      <div class="seg" id="libt">${types.map(x => `<button data-typ="${x}">${x ? t("typ_"+x) : t("all")}</button>`).join("")}</div>
+      <button class="btn" id="libclear"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>${t("lib_clear")}</button></div>
+      <div id="libsel"></div><div id="libc"></div>`;
+    $("#libq").oninput = e => { lib.q = e.target.value; lib.sure = false; renderLib(); };
+    $("#libt").onclick = e => { const b = e.target.closest("button"); if (b){ lib.typ = b.dataset.typ; lib.sure = false; renderLib(); } };
+    $("#libclear").onclick = () => { lib.sel = !lib.sel; lib.keep = new Set(); lib.sure = false; renderLib(); };
   }
   document.querySelectorAll("#libt button").forEach(b => b.classList.toggle("on", b.dataset.typ === lib.typ));
-  $("#libc").innerHTML = done.length ? `<div class="cards">${done.map(card).join("")}</div>` : `<p class="empty">${t("lib_empty")}</p>`;
+  $("#libclear").classList.toggle("on", lib.sel); $("#libclear").hidden = !jobs.some(j => j.status === "gotowe");
+  const ids = new Set(done.map(j => j.id));
+  lib.keep = new Set([...lib.keep].filter(id => jobs.some(j => j.id === id)));
+  const keepN = done.filter(j => lib.keep.has(j.id)).length, delN = done.length - keepN;
+  $("#libsel").innerHTML = lib.sel ? `<div class="selbar" role="region" aria-label="${esc(t("lib_clear"))}">
+      <p>${t("lib_sel_h")}${lib.q || lib.typ ? ` ${t("lib_filter_note")}` : ""}</p>
+      <div class="selrow"><span class="selcount"><b>${t("lib_keep_n", keepN)}</b> · ${t("lib_del_n", delN)}</span>
+        <button class="btn sm" data-sel="all">${t("lib_keep_all")}</button><button class="btn sm" data-sel="none">${t("lib_keep_none")}</button>
+        <span class="selgo"><button class="btn" data-sel="cancel">${t("lib_cancel")}</button>
+        <button class="btn danger${lib.sure ? " sure" : ""}" data-sel="go" ${delN ? "" : "disabled"}>${t(lib.sure ? "lib_sure" : "lib_go", delN)}</button></span></div></div>` : "";
+  $("#libc").innerHTML = done.length ? `<div class="cards${lib.sel ? " selecting" : ""}">${done.map(card).join("")}</div>` : `<p class="empty">${t("lib_empty")}</p>`;
+  void ids;
 }
-$("#app").addEventListener("click", e => {
-  const c = e.target.closest("[data-open]"); if (c) location.hash = "#/wynik/" + c.dataset.open;
+$("#app").addEventListener("click", async e => {
+  const sb = e.target.closest("[data-sel]");
+  if (sb) {
+    const a = sb.dataset.sel, vis = libVisible();
+    if (a === "all") vis.forEach(j => lib.keep.add(j.id));
+    if (a === "none") vis.forEach(j => lib.keep.delete(j.id));
+    if (a === "cancel") { lib.sel = false; lib.keep = new Set(); }
+    if (a === "go") {
+      if (!lib.sure) { lib.sure = true; return renderLib(); }
+      const usun = vis.filter(j => !lib.keep.has(j.id)).map(j => j.id);
+      sb.disabled = true;
+      try {
+        const r = await api("/api/biblioteka/wyczysc", {method:"POST", body:JSON.stringify({usun, potwierdz:true})});
+        toast(t("lib_done", r.usuniete.length) + (r.gdzie.includes("kosz_vidsumly") ? " " + t("lib_done_own") : "")
+          + (r.bledy.length ? ` · ${r.bledy.length}× ${r.bledy[0].blad}` : ""));
+        jobs = jobs.filter(j => !r.usuniete.includes(j.id));
+        lib.sel = false; lib.keep = new Set();
+      } catch(err){ toast(err.message); }
+      poll();
+    }
+    lib.sure = a === "go" ? lib.sure : false;
+    return renderLib();
+  }
+  const c = e.target.closest("[data-open]"); if (!c) return;
+  if (lib.sel && c.closest(".cards.selecting")) {
+    const id = c.dataset.open; lib.keep.has(id) ? lib.keep.delete(id) : lib.keep.add(id); lib.sure = false; return renderLib();
+  }
+  location.hash = "#/wynik/" + c.dataset.open;
+});
+$("#app").addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches?.(".cards.selecting [data-open]")) { e.preventDefault(); e.target.click(); }
 });
 
 /* ---------- wynik ---------- */
@@ -1358,19 +1465,11 @@ function timingHtml(c){
   return `<div class="timing"><div>⏱ ${t("took")}: <b>${fmt(c.razem_s)}</b>${c.mowa_rownolegle ? ` <span class="muted">· ${t("parallel")}</span>` : ""}</div>
     ${keys.map(k => `<div class="trow"><span>${t("t_"+k)}</span><span class="tbar"><i style="width:${Math.max(2,100*c[k]/max)}%"></i></span><span class="tval">${c[k] < 60 ? c[k].toFixed(1)+" s" : fmt(c[k])}</span></div>`).join("")}</div>`;
 }
-const STAGES = [["0","stage_dl"],["1","stage_1"],["2","stage_2"],["3","stage_3"],["4","stage_4"]];
 function liveBar(j){
   if (!j) return "";
   if (j.status === "blad") return `<div class="livebar err">✕ ${esc(j.error || t("blad"))}</div>`;
-  const st = Number(j.stage || 0);
-  const steps = STAGES.map(([k, lab], i) => {
-    const s = i < st ? "done" : i === st ? "now" : "";
-    return `<span class="lstep ${s}">${s === "done" ? "✓ " : ""}${t(lab)}</span>`;
-  }).join(`<span class="lsep"></span>`);
-  const last = (j.log || []).filter(x => x.trim()).slice(-1)[0] || "";
-  return `<div class="livebar"><div class="lsteps">${steps}</div>
-    <div class="lnow"><span class="timer" data-start="${j.elapsed != null ? Date.now()/1000 - j.elapsed : ""}">⏱ ${fmt(j.elapsed || 0)}</span>${etaHtml(j)}
-    <span class="muted">${esc(last.trim().slice(0, 140))}</span></div></div>`;
+  if (j.status === "w_kolejce") return `<div class="livebar"><p class="muted small">${t("p_wait")}</p></div>`;
+  return `<div class="livebar">${progHtml(j, true) || `<span class="timer" data-start="${j.elapsed != null ? Date.now()/1000 - j.elapsed : ""}">⏱ ${fmt(j.elapsed || 0)}</span>`}</div>`;
 }
 function headHtml(r, d){
   const z = r.zrodlo, title = d?.tytul || z.tytul || z.plik || "…", accent = d?.tytul_akcent || "";
@@ -1406,6 +1505,7 @@ function sumHtml(r, d){
     : (r.podglad?.po_s && r.czasy?.razem_s ? `<span class="pvtag done">${t("pv_done", fmt(r.podglad.po_s), fmt(r.czasy.razem_s))}</span>` : "");
   const top = `<div class="hand">~ ${t("summary")} ~</div><div class="label">${t("summary")} ${d && d.streszczenie.length ? readTime(d) : ""}${pvTag}</div><hr class="rule">`;
   if (!d || !d.streszczenie.length) {
+    if (cur.live && (cur.job?.tryb === "transkrypcja" || cur.job?.postep?.tryb === "transkrypcja")) return top + `<p class="muted small">${t("live_no_sum")}</p>`;
     if (cur.live) return top + `<div class="skel"><i></i><i></i><i></i><i></i><i style="width:55%"></i></div>
       <p class="muted small">${t(d?.partial ? "live_steps_ready" : "live_wait_sum")}</p>`;
     return top + (r.streszczenie ? `<div class="md">${md(r.streszczenie.markdown)}</div>` : `<p class="muted">${t("no_data")}</p>`);
@@ -1541,7 +1641,7 @@ function highlight(){
 /* ---------- mapa myśli (0.8.2) ----------
    Środek: temat filmu. Gałęzie: rozdziały (liście: kroki z danego rozdziału albo momenty rozdziału) i „Najważniejsze”.
    Każdy węzeł ma czas — kliknięcie pokazuje opis i zdanie z transkrypcji z tej chwili oraz przewija film. */
-const MAPC = ["#5b9bff","#38c4ff","#8b9dff","#45d0c0","#7fb3ff","#2fb8e8","#a8b8ff","#5fd4e8"];   // chłodne odcienie jednej palety
+const MAPC = ["#38BDF8","#C4B5FD","#7dd3fc","#a78bfa","#0ea5e9","#ddd6fe","#67e8f9","#8b5cf6"];   // 0.13.2: błękit i lawenda
 const clip = (x, n) => { x = String(x || "").trim(); return x.length > n ? x.slice(0, n - 1).trimEnd() + "…" : x; };
 function mapData(d){
   const r = cur.r, kroki = (d.co_masz_zrobic?.kroki) || [], br = [];
@@ -1767,7 +1867,7 @@ async function poll(){
   if (h === "#/" || h === "") renderHome(); else if (h.startsWith("#/biblioteka") && !document.activeElement?.matches("#libq")) renderLib();
 }
 setInterval(() => { document.querySelectorAll(".timer[data-start]").forEach(el => { if (el.dataset.start) el.textContent = "⏱ " + fmt(Date.now()/1000 - Number(el.dataset.start)); });
-  document.querySelectorAll(".eta[data-end]").forEach(el => { el.textContent = etaText(Number(el.dataset.end) - Date.now()/1000); }); }, 1000);
+  document.querySelectorAll(".pleft[data-end]").forEach(el => { el.textContent = leftText(el.dataset.end); }); }, 1000);
 (async () => {
   try { mode = localStorage.getItem("vs_mode") || "video"; } catch {}
   try { settings = await api("/api/ustawienia"); L = settings.jezyk_ui || "pl"; } catch {}

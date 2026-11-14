@@ -60,6 +60,7 @@ class Job:
         self.stage_extra = ""           # po analizie: "tlumaczenie" (wynik już gotowy)
         self.partial: dict = {}         # gotowe etapy w trakcie analizy (podgląd): transkrypcja, napisy, kadry…
         self.settings: dict = {}        # ustawienia w chwili dodania (do zapisu kolejki i ponowienia)
+        self.tracker = None             # 0.13.2: postęp na żywo (vidsum/progress.py) — od startu analizy
 
     def card(self) -> dict:
         """Dane do karty w Bibliotece (z analiza.json, w pamięci podręcznej)."""
@@ -86,16 +87,44 @@ class Job:
         if getattr(self, "_eta", None) is None:
             try:
                 from . import eta
-                self._eta = eta.predict(self.opt.out_root, getattr(self.opt, "mode", "pelna"), float(dur))["razem_s"]
+                mode = self.tracker.mode if self.tracker else getattr(self.opt, "mode", "pelna")
+                self._eta = eta.predict(self.opt.out_root, mode, float(dur))["razem_s"]
             except Exception:
                 self._eta = 0.0
         return self._eta or None
+
+    def start_tracking(self) -> None:
+        """Postęp na żywo od startu analizy: etapy według trybu i udziały etapów z historii tego komputera."""
+        from . import eta
+        from .modes import normalize_mode
+        from .progress import Tracker
+        o = self.opt
+        self.tracker = Tracker(normalize_mode(getattr(o, "mode", "pelna")), getattr(o, "summary", "auto") != "brak",
+                               getattr(o, "vision", "ollama") != "brak", bool(getattr(o, "translate", None)))
+        try:
+            self.tracker.set_shares(eta.shares(o.out_root, self.tracker.mode))
+        except Exception:
+            pass
+
+    def feed(self, line: str) -> None:
+        if self.tracker is None:
+            return
+        mode = self.tracker.mode
+        self.tracker.feed(line)
+        if self.tracker.mode != mode:                   # np. plik mp3 w trybie „Pełna” → „Tylko mowa”
+            self._eta = None
+            try:
+                from . import eta
+                self.tracker.set_shares(eta.shares(self.opt.out_root, self.tracker.mode))
+            except Exception:
+                pass
 
     def to_dict(self) -> dict:
         end = self.finished or time.time()
         return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-400:], "eta_s": self.eta(),
                 "tryb": getattr(self.opt, "mode", "pelna"),
                 "error": self.error, "out": str(self.out) if self.out else None, "created": self.created,
+                "postep": self.tracker.to_dict(self.eta()) if self.tracker and self.status == "trwa" else None,
                 "stage": self.stage, "etap_po": self.stage_extra, "czesciowe": list(self.partial) if self.status == "trwa" else [],
                 "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card()}
 
@@ -255,6 +284,11 @@ class Worker:
                 self.current = job
                 job.status = "trwa"
                 job.started = time.time()
+                job._eta = None
+                try:
+                    job.start_tracking()
+                except Exception:
+                    job.tracker = None
                 self._save(include_current=False)
             job.opt.on_partial = job.partial.__setitem__
 
@@ -263,6 +297,7 @@ class Worker:
                     job.log.append(line)
                     if line.strip().startswith("wyniki:"):
                         job.out = Path(line.split("wyniki:", 1)[1].strip())
+                    job.feed(line)
                     m = re.match(r"\s*\[(\d)/4\]\s*(\S+)", line)
                     if m and int(m.group(1)) > int(job.stage or 0):     # etap tylko do przodu ([0/4] OCR, druga [1/4])
                         job.stage = m.group(1)
@@ -355,6 +390,35 @@ class App:
                     pass
                 job.label = job.card().get("tytul") or d.name
                 self.worker.jobs[jid] = job
+    def clear_library(self, ids: list[str]) -> dict:
+        """Wybrane analizy z Biblioteki → Kosz (0.13.2, vidsum/trash.py). Tylko gotowe analizy z folderu wyników
+        (z plikiem analiza.json) — nic spoza folderów wyników i nic, co właśnie się liczy."""
+        from .trash import to_trash
+        roots = {Path(self.settings.get("wyniki") or self.results).resolve(), Path(self.results).resolve()}
+        done, errors, where = [], [], set()
+        for jid in dict.fromkeys(str(x) for x in ids):
+            job = self.worker.jobs.get(jid)
+            if not job or job.status != "gotowe" or not job.out:
+                errors.append({"id": jid, "blad": "nie ma takiej gotowej analizy"})
+                continue
+            out = Path(job.out)
+            try:
+                inside = out.resolve().parent in roots and (out / "analiza.json").is_file()
+            except OSError:
+                inside = False
+            if not inside:
+                errors.append({"id": jid, "blad": "folder poza folderem wyników — pominięty"})
+                continue
+            try:
+                where.add(to_trash(out))
+            except OSError as e:
+                errors.append({"id": jid, "blad": str(e)[:200]})
+                continue
+            with self.worker.cv:
+                self.worker.jobs.pop(jid, None)
+            done.append(jid)
+        return {"usuniete": done, "bledy": errors, "gdzie": sorted(where)}
+
     def _load_settings(self) -> dict:
         d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
              "streszczenie": "auto", "model_tekstowy": DEFAULT_TEXT_MODEL, "tlumaczenia": "pl,en", "gpu_pobieranie": True,
@@ -918,6 +982,12 @@ def make_handler(app: App):
                 except RuntimeError as e:
                     return self._json({"error": str(e)}, 409)
                 return self._json({**job.to_dict(), "duplikat": bool(dup)})
+            if u.path == "/api/biblioteka/wyczysc":       # 0.13.2: wybrane analizy do Kosza
+                b = self._body()
+                ids = b.get("usun")
+                if not isinstance(ids, list) or not ids or not b.get("potwierdz"):
+                    return self._json({"error": "brak listy analiz albo potwierdzenia"}, 400)
+                return self._json(app.clear_library(ids))
             if u.path == "/api/kolejka":
                 b = self._body()
                 act, jid = b.get("akcja"), str(b.get("id") or "")
@@ -1114,7 +1184,8 @@ def _set_window_icon(title: str) -> None:
 
 # pasek tytułu w kolorach programu (0.10.0): systemowo przez DWM, więc przeciąganie, dociąganie do krawędzi
 # i zmiana rozmiaru działają jak w każdym oknie. Kolory jako COLORREF (0x00BBGGRR). Windows 10 zna tylko tryb ciemny.
-TITLE_BAR = {"tlo": (13, 17, 26), "tekst": (233, 237, 245), "ramka": (61, 123, 255)}
+# 0.13.2: czerń, krem #F5EFE6, ramka błękit #38BDF8 (paleta użytkownika)
+TITLE_BAR = {"tlo": (0, 0, 0), "tekst": (245, 239, 230), "ramka": (56, 189, 248)}
 
 
 def _colorref(rgb: tuple[int, int, int]) -> int:

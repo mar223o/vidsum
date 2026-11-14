@@ -30,12 +30,14 @@ def _load(root: Path) -> list[dict]:
         return []
 
 
-def record(root: Path, mode: str, duration: float, total: float, version: str = "") -> None:
-    """Dopisuje pomiar po udanej analizie (najwyżej KEEP ostatnich)."""
+def record(root: Path, mode: str, duration: float, total: float, version: str = "", steps: dict | None = None) -> None:
+    """Dopisuje pomiar po udanej analizie (najwyżej KEEP ostatnich). 0.13.2: także czasy etapów (vidsum/progress.py)."""
     if not (duration and total and duration > 0 and total > 0):
         return
-    rows = _load(root) + [{"tryb": mode, "dlugosc_s": round(float(duration), 1), "razem_s": round(float(total), 1),
-                           "wersja": version}]
+    row = {"tryb": mode, "dlugosc_s": round(float(duration), 1), "razem_s": round(float(total), 1), "wersja": version}
+    if steps:
+        row["etapy"] = {k: round(float(v), 1) for k, v in steps.items()}
+    rows = _load(root) + [row]
     Path(root).mkdir(parents=True, exist_ok=True)
     (Path(root) / FILE).write_text(json.dumps(rows[-KEEP:], ensure_ascii=False), encoding="utf-8")
 
@@ -69,3 +71,17 @@ def predict(root: Path | None, mode: str, duration: float) -> dict:
                if isinstance(x.get("dlugosc_s"), (int, float)) and isinstance(x.get("razem_s"), (int, float))]
     a, b = fit(samples, DEFAULTS[mode])
     return {"razem_s": round(max(10.0, a + b * max(0.0, float(duration))), 1), "z_pomiarow": len(samples)}
+
+
+def shares(root: Path | None, mode: str, last: int = 10) -> dict | None:
+    """Średni udział każdego etapu w czasie analizy (ostatnie `last` analiz w tym trybie, 0.13.2) albo None."""
+    rows = [x for x in (_load(root) if root else []) if x.get("tryb") == mode and isinstance(x.get("etapy"), dict)][-last:]
+    acc: dict[str, list[float]] = {}
+    for x in rows:
+        tot = sum(float(v) for v in x["etapy"].values() if isinstance(v, (int, float)))
+        if tot <= 0:
+            continue
+        for k, v in x["etapy"].items():
+            if isinstance(v, (int, float)):
+                acc.setdefault(k, []).append(float(v) / tot)
+    return {k: sum(v) / len(v) for k, v in acc.items()} if acc else None

@@ -73,7 +73,8 @@ def test_home_queue_settings_and_language(appsrv, width):
         assert page.locator('nav a[data-nav="set"]').is_visible()
         assert page.locator("#queue .qi").count() == 3
         assert "1 w toku" in page.inner_text("#queue") and "2 czeka" in page.inner_text("#queue")
-        assert "Etap 2/4" in page.inner_text("#queue .qi.now")
+        now = page.inner_text("#queue .qi.now")             # 0.13.2: co teraz + procent + etap z liczby etapów trybu
+        assert re.search(r"\d+%", now) and re.search(r"etap \d z 5", now) and page.locator("#queue .qi.now .pgbar").count() == 1
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
         page.screenshot(path=str(shots / f"start_{width}.png"), full_page=True)
         # 0.11.5: tryb wstępnego streszczenia wybiera się przy linku (nie w Ustawieniach) i zapamiętuje
