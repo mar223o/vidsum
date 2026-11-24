@@ -176,6 +176,9 @@ def test_upload_converts_in_queue_and_stays_out_of_library(tmp_path, monkeypatch
         j = _wait(app, d["id"])
         assert j.status == "gotowe", j.error
         assert j.out.parent == tmp_path / "wyniki" / "Konwersje" and j.out.suffix == ".mp3"
+        t0 = time.time()                                                 # kopia znika chwilę po „gotowe” (ten sam wątek)
+        while j.upload.parent.exists() and time.time() - t0 < 10:
+            time.sleep(0.1)
         assert not j.upload.parent.exists()                            # wysłana kopia usunięta
         dd = j.to_dict()
         assert dd["konwersja"]["plik"] == j.out.name and dd["card"] == {} and dd["postep"] is None
