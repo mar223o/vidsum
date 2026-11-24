@@ -61,9 +61,13 @@ class Job:
         self.partial: dict = {}         # gotowe etapy w trakcie analizy (podgląd): transkrypcja, napisy, kadry…
         self.settings: dict = {}        # ustawienia w chwili dodania (do zapisu kolejki i ponowienia)
         self.tracker = None             # 0.13.2: postęp na żywo (vidsum/progress.py) — od startu analizy
+        self.conv: dict | None = None   # 0.14.0: tryb „Konwersja” — {"format": "mp4"|"mp3", "folder": str}
+        self.conv_state: dict = {}      # {"etap": "pobieranie"|"konwersja", "frac": 0–1}
 
     def card(self) -> dict:
         """Dane do karty w Bibliotece (z analiza.json, w pamięci podręcznej)."""
+        if self.conv:
+            return {}
         if getattr(self, "_card", None) is not None or self.status != "gotowe" or not self.out:
             return getattr(self, "_card", None) or {}
         try:
@@ -119,12 +123,29 @@ class Job:
             except Exception:
                 pass
 
+    def conv_progress(self) -> dict:
+        """Postęp konwersji w tym samym kształcie co analiza (vidsum/progress.py): pobieranie (link) → konwersja."""
+        from .fetch import is_url
+        steps = (["pobieranie"] if is_url(self.source) else []) + ["konwersja"]
+        st = self.conv_state
+        cur = st.get("etap") if st.get("etap") in steps else steps[0]
+        i = steps.index(cur)
+        w = {"pobieranie": 0.7, "konwersja": 0.3} if len(steps) == 2 else {"konwersja": 1.0}   # [szacunek]
+        p = sum(w[x] for x in steps[:i]) + w[cur] * float(st.get("frac") or 0)
+        p = max(0.0, min(0.99, p))
+        el = time.time() - self.started if self.started else 0
+        left = el * (1 - p) / p if p >= 0.05 and el >= 2 else None
+        return {"tryb": "konwersja", "kroki": steps, "teraz": cur, "nr": i + 1, "z": len(steps), "proc": round(100 * p),
+                "szczegol": None, "zostalo_s": None if left is None else round(left, 1)}
+
     def to_dict(self) -> dict:
         end = self.finished or time.time()
         return {"id": self.id, "label": self.label, "status": self.status, "log": self.log[-400:], "eta_s": self.eta(),
                 "tryb": getattr(self.opt, "mode", "pelna"),
                 "error": self.error, "out": str(self.out) if self.out else None, "created": self.created,
-                "postep": self.tracker.to_dict(self.eta()) if self.tracker and self.status == "trwa" else None,
+                "postep": (self.conv_progress() if self.conv else self.tracker.to_dict(self.eta()) if self.tracker else None)
+                if self.status == "trwa" else None,
+                "konwersja": {**self.conv, "plik": self.out.name if self.out else None} if self.conv else None,
                 "stage": self.stage, "etap_po": self.stage_extra, "czesciowe": list(self.partial) if self.status == "trwa" else [],
                 "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card()}
 
@@ -153,11 +174,12 @@ class Worker:
         threading.Thread(target=self._loop, daemon=True).start()
 
     # --- operacje ---
-    def find_duplicate(self, source: str) -> Job | None:
+    def find_duplicate(self, source: str, conv: str | None = None) -> Job | None:
+        """Ten sam film w tym samym rodzaju zadania (analiza albo konwersja do tego samego formatu)."""
         key = _source_key(source)
         with self.cv:
             for j in ([self.current] if self.current else []) + self.pending:
-                if _source_key(j.source) == key:
+                if _source_key(j.source) == key and (j.conv or {}).get("format") == conv:
                     return j
         return None
 
@@ -165,7 +187,7 @@ class Worker:
         """Dodaje film na koniec kolejki. Ten sam film już czeka albo trwa → zwraca tamto zadanie (bez dubla)."""
         if not self.accepting:
             raise RuntimeError("Program się zamyka — nie przyjmuję nowych filmów.")
-        dup = self.find_duplicate(job.source)
+        dup = self.find_duplicate(job.source, (job.conv or {}).get("format"))
         if dup:
             return dup
         with self.cv:
@@ -211,7 +233,7 @@ class Worker:
                 return None
             job.status, job.error, job.log, job.partial = "w_kolejce", None, [], {}
             job.started = job.finished = None
-            job.stage, job.out = "", None
+            job.stage, job.out, job.conv_state = "", None, {}
             self.pending.append(job)
             self._save()
             self.cv.notify_all()
@@ -244,7 +266,7 @@ class Worker:
         data = {"wersja": 1, "wstrzymana": self.paused or (include_current and bool(self.current)),
                 "zadania": [{"id": j.id, "zrodlo": j.source, "nazwa": j.label,
                              "wyslany": str(j.upload) if j.upload else None, "ustawienia": j.settings,
-                             "przerwane": j is self.current} for j in items]}
+                             "konwersja": j.conv, "przerwane": j is self.current} for j in items]}
         try:
             tmp = self.state_file.with_suffix(".tmp")
             tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -267,6 +289,7 @@ class Worker:
                 opt.move_source = True
             job = Job(it.get("id") or secrets.token_hex(4), it["zrodlo"], it.get("nazwa") or it["zrodlo"], opt, up)
             job.settings = sett
+            job.conv = it.get("konwersja") or None
             if it.get("przerwane"):
                 job.log = ["↻ Analiza została przerwana przy zamykaniu programu — zacznie się od nowa po wznowieniu."]
             self.jobs[job.id] = job
@@ -286,9 +309,11 @@ class Worker:
                 job.started = time.time()
                 job._eta = None
                 try:
-                    job.start_tracking()
+                    if not job.conv:
+                        job.start_tracking()
                 except Exception:
                     job.tracker = None
+                job.conv_state = {}
                 self._save(include_current=False)
             job.opt.on_partial = job.partial.__setitem__
 
@@ -302,11 +327,17 @@ class Worker:
                     if m and int(m.group(1)) > int(job.stage or 0):     # etap tylko do przodu ([0/4] OCR, druga [1/4])
                         job.stage = m.group(1)
             try:
-                job.out = analyze(job.source, job.opt, log)
+                if job.conv:                                # 0.14.0: tryb „Konwersja” — bez modeli
+                    from .convert import convert
+                    job.out = convert(job.source, job.conv["format"], Path(job.conv["folder"]),
+                                      getattr(job.opt, "cookies_from_browser", None), log,
+                                      lambda etap, frac, job=job: job.conv_state.update(etap=etap, frac=frac))
+                else:
+                    job.out = analyze(job.source, job.opt, log)
                 job.status = "gotowe"
                 with self.cv:
                     self.current = None                     # film gotowy — przy zamykaniu nie wraca do kolejki
-                if self.after and self.accepting:
+                if self.after and self.accepting and not job.conv:
                     try:
                         self.after(job)
                     except Exception:
@@ -390,6 +421,23 @@ class App:
                     pass
                 job.label = job.card().get("tytul") or d.name
                 self.worker.jobs[jid] = job
+    def conv_folder(self) -> Path:
+        """0.14.0: gdzie trafiają pliki z trybu „Konwersja” (domyślnie <folder wyników>\\Konwersje)."""
+        f = str(self.settings.get("folder_konwersji") or "").strip()
+        return Path(f) if f else Path(self.settings.get("wyniki") or self.results) / "Konwersje"
+
+    def conv_job(self, src: str, label: str, fmt: str, upload: Path | None = None) -> Job:
+        from .convert import FORMATS
+        if fmt not in FORMATS:
+            raise ValueError("format musi być mp4 albo mp3")
+        if fmt != self.settings.get("format_konwersji"):
+            self.save_settings({"format_konwersji": fmt})
+        sett = dict(self.settings)
+        job = Job(secrets.token_hex(4), src, label, self.options(sett), upload)
+        job.settings = sett
+        job.conv = {"format": fmt, "folder": str(self.conv_folder())}
+        return job
+
     def clear_library(self, ids: list[str]) -> dict:
         """Wybrane analizy z Biblioteki → Kosz (0.13.2, vidsum/trash.py). Tylko gotowe analizy z folderu wyników
         (z plikiem analiza.json) — nic spoza folderów wyników i nic, co właśnie się liczy."""
@@ -423,7 +471,10 @@ class App:
         d = {"jezyk_ui": "pl", "jezyk": "auto", "whisper": "large-v3-turbo", "ocr": True, "obraz": "ollama", "model_obrazu": "qwen3-vl:4b-instruct",
              "streszczenie": "auto", "model_tekstowy": DEFAULT_TEXT_MODEL, "tlumaczenia": "pl,en", "gpu_pobieranie": True,
              "max_kadrow": None, "ciasteczka_z": "", "wyniki": str(self.results),
-             "podglad": False, "tlumacz_wynik": True, "tryb_podgladu": "zawsze", "tryb": "pelna"}
+             "podglad": False, "tlumacz_wynik": True, "tryb_podgladu": "zawsze", "tryb": "pelna",
+             # 0.14.0: tryb aplikacji (analiza / konwersja), format konwersji, folder konwersji („” = <wyniki>\Konwersje),
+             # sprawdzanie aktualizacji przy starcie
+             "tryb_aplikacji": "analiza", "format_konwersji": "mp4", "folder_konwersji": "", "sprawdzaj_aktualizacje": True}
         try:
             saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
             if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":
@@ -573,6 +624,7 @@ class App:
         except ToolError:
             st["ffmpeg"] = False
         st["folder_danych"] = str(app_dir())
+        st["folder_konwersji"] = str(self.conv_folder())
         model = self.settings.get("model_obrazu") or "qwen3-vl:4b-instruct"
         try:
             Ollama(model).check()
@@ -814,11 +866,19 @@ def make_handler(app: App):
             if u.path == "/api/status":
                 return self._json(app.status())
             if u.path == "/api/aktualizacja":
+                # 0.14.0: ?auto=1 — sprawdzenie przy starcie (pasek na stronie głównej): wynik pamiętany 6 h,
+                # wyłączane w ustawieniach; bez sieci po cichu nic (błąd nie przeszkadza w pracy)
                 from .update import UpdateError, check
-                try:
-                    app.update_info = check()
-                except UpdateError as e:
-                    return self._json({"error": str(e)}, 400)
+                auto = bool(qs.get("auto"))
+                if auto and not app.settings.get("sprawdzaj_aktualizacje", True):
+                    return self._json({"wylaczone": True})
+                fresh = getattr(app, "update_at", 0) and time.time() - app.update_at < 6 * 3600
+                if not (auto and fresh and getattr(app, "update_info", None)):
+                    try:
+                        app.update_info = check()
+                        app.update_at = time.time()
+                    except (UpdateError, OSError, ValueError) as e:
+                        return self._json({"error": str(e)[:300]}, 400 if not auto else 200)
                 return self._json({k: v for k, v in app.update_info.items() if not k.startswith("_")})
             if u.path == "/api/ustawienia":
                 return self._json(app.settings)
@@ -925,6 +985,23 @@ def make_handler(app: App):
                     restart_ui()
                     threading.Timer(0.5, lambda: os._exit(0)).start()
                 return
+            m = re.fullmatch(r"/api/zadania/(\w+)/pokaz", u.path)
+            if m or u.path == "/api/otworz-konwersje":   # 0.14.0: plik z konwersji w Eksploratorze / folder konwersji
+                job = app.worker.jobs.get(m.group(1)) if m else None
+                if m and not (job and job.conv and job.out and Path(job.out).is_file()):
+                    return self._json({"error": "nie ma takiego pliku"}, 404)
+                target = Path(job.out) if job else app.conv_folder()
+                if not job:
+                    target.mkdir(parents=True, exist_ok=True)
+                try:
+                    if os.name == "nt":
+                        from .procs import popen_detached
+                        popen_detached(f'explorer /select,"{target}"' if job else f'explorer "{target}"')
+                    else:
+                        subprocess.Popen(["xdg-open", str(target.parent if job else target)])
+                except OSError as e:
+                    return self._json({"error": str(e)}, 500)
+                return self._json({"ok": True, "sciezka": str(target)})
             if u.path == "/api/otworz-wyniki":
                 p = Path(app.settings.get("wyniki") or app.results)
                 p.mkdir(parents=True, exist_ok=True)
@@ -958,11 +1035,19 @@ def make_handler(app: App):
                             break
                         f.write(chunk)
                         left -= len(chunk)
-                sett = app.job_settings(self.headers.get("X-Preview"), self.headers.get("X-Mode"))
-                opt = app.options(sett)
-                opt.move_source = True          # film zostaje w folderze wyników — do odtwarzacza
-                job = Job(secrets.token_hex(4), str(dst), name, opt, dst)
-                job.settings = sett
+                conv = (self.headers.get("X-Convert") or "").lower()
+                if conv:                        # 0.14.0: plik → MP4/MP3 (wysłana kopia znika po konwersji)
+                    try:
+                        job = app.conv_job(str(dst), name, conv, dst)
+                    except ValueError as e:
+                        shutil.rmtree(d, ignore_errors=True)
+                        return self._json({"error": str(e)}, 400)
+                else:
+                    sett = app.job_settings(self.headers.get("X-Preview"), self.headers.get("X-Mode"))
+                    opt = app.options(sett)
+                    opt.move_source = True          # film zostaje w folderze wyników — do odtwarzacza
+                    job = Job(secrets.token_hex(4), str(dst), name, opt, dst)
+                    job.settings = sett
                 try:
                     job = app.worker.submit(job)
                 except RuntimeError as e:
@@ -973,11 +1058,18 @@ def make_handler(app: App):
                 src = (b.get("zrodlo") or "").strip().strip('"')
                 if not src:
                     return self._json({"error": "pusty link"}, 400)
-                sett = app.job_settings(b.get("tryb_podgladu"), b.get("tryb"))
-                job = Job(secrets.token_hex(4), src, src, app.options(sett), None)
-                job.settings = sett
+                conv = str(b.get("konwersja") or "").lower()
+                if conv:                                  # 0.14.0: link → MP4/MP3
+                    try:
+                        job = app.conv_job(src, src, conv)
+                    except ValueError as e:
+                        return self._json({"error": str(e)}, 400)
+                else:
+                    sett = app.job_settings(b.get("tryb_podgladu"), b.get("tryb"))
+                    job = Job(secrets.token_hex(4), src, src, app.options(sett), None)
+                    job.settings = sett
                 try:
-                    dup = app.worker.find_duplicate(src)
+                    dup = app.worker.find_duplicate(src, conv or None)
                     job = app.worker.submit(job)
                 except RuntimeError as e:
                     return self._json({"error": str(e)}, 409)

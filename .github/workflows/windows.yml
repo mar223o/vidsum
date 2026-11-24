@@ -313,6 +313,9 @@ jobs:
           # 0.13.2: „Wyczyść bibliotekę” — folder do Kosza systemu (SHFileOperationW, FOF_ALLOWUNDO)
           python tests\win_trash_check.py "$dir"
           if ($LASTEXITCODE -ne 0) { throw "kosz: test nie przeszedł" }
+          # 0.14.0: tryb „Konwersja” z ffmpeg z instalatora (kodery LGPL) — Python z instalacji (yt-dlp itd.)
+          & "$dir\python\python.exe" tests\win_convert_check.py "$dir" "tests\data\Filmy testowe ąęś\przepis żółć test.mp4"
+          if ($LASTEXITCODE -ne 0) { throw "konwersja: test nie przeszedł" }
           $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Vidsumly\Vidsumly.lnk"
           if (Test-Path $lnk) {
             $ic = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).IconLocation

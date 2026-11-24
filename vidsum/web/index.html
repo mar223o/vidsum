@@ -179,6 +179,18 @@ pre.log.full{max-height:340px}
 .vcard p{margin:0;font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pill{display:inline-block;font:600 11px var(--sans);padding:2px 9px;border-radius:99px;background:var(--accent-soft);color:var(--accent);width:max-content}
 .empty{color:var(--muted);font-size:14px;padding:18px 0}
+/* 0.14.0: tryb aplikacji, konwersja, pasek aktualizacji */
+.appmode{display:flex;justify-content:center;margin:0 0 14px}
+.pvrow[hidden],.convfoot[hidden],#setup[hidden],.startfoot[hidden]{display:none}
+.appmode .seg button{padding:8px 18px;font-size:14px}
+.convfoot{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:12.5px;margin-top:10px}
+.convfoot .linkbtn{font-size:12.5px}
+.fmtb{flex:none;font:700 10.5px var(--mono);letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:var(--accent-soft);color:var(--accent);margin-right:8px}
+.updbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 18px;padding:12px 16px;border-radius:var(--r);
+  border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line2));background:var(--grad-soft);font-size:14px}
+.updbar>.ic{color:var(--accent);flex:none}
+.updacts{display:flex;align-items:center;gap:8px;margin-left:auto}
+.updmsg:empty{display:none}.updmsg{flex-basis:100%;font-size:13px}
 /* 0.13.2: czyszczenie biblioteki — zaznaczone karty zostają, reszta do Kosza */
 #libclear.on{border-color:var(--bad);color:var(--bad)}
 .selbar{position:sticky;top:64px;z-index:15;margin:-4px 0 18px;padding:14px 16px;border-radius:var(--r);border:1px solid color-mix(in srgb,var(--bad) 35%,var(--line2));
@@ -614,7 +626,7 @@ const I18N = {
    pv:"Szybki podgląd",pv_tip:"Wstępne streszczenie z samej mowy zaraz po transkrypcji, potem pełne (z obrazem i krokami). Cała analiza trwa przez to o kilkanaście sekund dłużej.",
    pv_badge:"wstępne",pv_note:"Wstępne — z samej mowy. Pełne streszczenie (z obrazem i krokami) zastąpi je za chwilę.",
    pv_done:(a,b)=>`wstępne po ${a} → pełne po ${b}`,
-   stage_dl:"pobieranie",ps_start:"Przygotowanie",ps_mowa:"Mowa",ps_kadry:"Kadry",ps_obraz:"Opis obrazu",ps_obraz_szybki:"Szybki obraz",ps_streszczenie:"Streszczenie",ps_tlumaczenie:"Tłumaczenie",pn_start:"Pobieram i przygotowuję film",pn_mowa:"Rozpoznaję mowę",pn_kadry:"Wybieram kadry",pn_obraz:"Opisuję kadry",pn_streszczenie:"Piszę streszczenie",pn_tlumaczenie:"Tłumaczę transkrypcję",pn_gotowe:"Zapisuję wynik",pn_frames:(a,b)=>`${a} z ${b} kadrów`,p_step:(n,z)=>`etap ${n} z ${z}`,p_left:x=>`szacowany czas: ~${x}`,p_soon:"jeszcze chwila",p_calc:"liczę, ile zostało…",p_hint:"Liczone z tempa tej analizy i z poprzednich analiz na tym komputerze.",p_wait:"Czeka w kolejce",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
+   stage_dl:"pobieranie",app_label:"Co chcesz zrobić",app_an:"Analiza filmu",app_conv:"Konwersja MP4 / MP3",conv_mp4:"MP4 — film",conv_mp3:"MP3 — dźwięk",conv_fmt:"Format",conv_go:"Konwertuj",conv_drop:"Upuść film albo piosenkę",conv_drop_sub:"albo kliknij, żeby wybrać plik — albo wklej link niżej",conv_links_ph:"Wklej link do filmu albo piosenki (YouTube, Instagram, TikTok…) — jeden w linii",conv_hint_mp4:"Film w MP4 (H.264 + AAC) — otworzy go każdy odtwarzacz.",conv_hint_mp3:"Sam dźwięk w MP3 (ok. 190 kb/s), z tytułem i autorem.",conv_folder:p=>`Zapis do: ${p}`,conv_open:"Otwórz folder",conv_show:"Pokaż w folderze",conv_note:"Pobieraj tylko to, do czego masz prawo — na własny użytek.",conv_added:n=>n===1?"Dodano do kolejki konwersji":`Dodano do kolejki: ${n}`,conv_done:f=>`Gotowe: ${f}`,ps_pobieranie:"Pobieranie",ps_konwersja:"Konwersja",pn_pobieranie:"Pobieram z linku",pn_konwersja:"Konwertuję",upd_bar:(n,c)=>`Dostępna nowa wersja Vidsumly: ${n} (masz ${c}).`,upd_now:"Zaktualizuj teraz",upd_notes:"Co nowego",upd_later:"Później",s_auto_upd:"Sprawdzaj aktualizacje przy uruchomieniu",s_conv_dir:"Folder konwersji MP4 / MP3",s_conv_dir_hint:"Puste = folder wyników\\Konwersje.",ps_start:"Przygotowanie",ps_mowa:"Mowa",ps_kadry:"Kadry",ps_obraz:"Opis obrazu",ps_obraz_szybki:"Szybki obraz",ps_streszczenie:"Streszczenie",ps_tlumaczenie:"Tłumaczenie",pn_start:"Pobieram i przygotowuję film",pn_mowa:"Rozpoznaję mowę",pn_kadry:"Wybieram kadry",pn_obraz:"Opisuję kadry",pn_streszczenie:"Piszę streszczenie",pn_tlumaczenie:"Tłumaczę transkrypcję",pn_gotowe:"Zapisuję wynik",pn_frames:(a,b)=>`${a} z ${b} kadrów`,p_step:(n,z)=>`etap ${n} z ${z}`,p_left:x=>`szacowany czas: ~${x}`,p_soon:"jeszcze chwila",p_calc:"liczę, ile zostało…",p_hint:"Liczone z tempa tej analizy i z poprzednich analiz na tym komputerze.",p_wait:"Czeka w kolejce",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
    live_no_sum:"W trybie „Sama transkrypcja” nie ma streszczenia — sam tekst mowy (i tłumaczenie) w kolumnie obok.",live_wait_sum:"Streszczenie pojawi się tutaj na końcu analizy. W tym czasie możesz czytać transkrypcję — nic Ci jej nie przesunie.",
    live_steps_ready:"Kroki są już gotowe w zakładce obok. Opis całości jeszcze powstaje…",
    live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
@@ -682,7 +694,7 @@ const I18N = {
    pv:"Quick preview",pv_tip:"A preliminary summary from speech alone right after the transcript, then the full one (with picture and steps). Makes the whole analysis some 10–20 seconds longer.",
    pv_badge:"preliminary",pv_note:"Preliminary — from speech only. The full summary (with picture and steps) will replace it shortly.",
    pv_done:(a,b)=>`preliminary after ${a} → full after ${b}`,
-   stage_dl:"download",ps_start:"Preparing",ps_mowa:"Speech",ps_kadry:"Frames",ps_obraz:"Vision",ps_obraz_szybki:"Quick picture",ps_streszczenie:"Summary",ps_tlumaczenie:"Translation",pn_start:"Downloading and preparing the video",pn_mowa:"Recognising speech",pn_kadry:"Picking frames",pn_obraz:"Describing frames",pn_streszczenie:"Writing the summary",pn_tlumaczenie:"Translating the transcript",pn_gotowe:"Saving the result",pn_frames:(a,b)=>`${a} of ${b} frames`,p_step:(n,z)=>`step ${n} of ${z}`,p_left:x=>`estimated: ~${x} left`,p_soon:"almost done",p_calc:"working out the time left…",p_hint:"Based on this analysis’s pace and on earlier analyses on this computer.",p_wait:"Waiting in the queue",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
+   stage_dl:"download",app_label:"What do you want to do",app_an:"Analyse a video",app_conv:"Convert to MP4 / MP3",conv_mp4:"MP4 — video",conv_mp3:"MP3 — audio",conv_fmt:"Format",conv_go:"Convert",conv_drop:"Drop a video or a song",conv_drop_sub:"or click to pick a file — or paste a link below",conv_links_ph:"Paste a link to a video or song (YouTube, Instagram, TikTok…) — one per line",conv_hint_mp4:"Video as MP4 (H.264 + AAC) — plays in any player.",conv_hint_mp3:"Audio only as MP3 (about 190 kb/s), with title and artist.",conv_folder:p=>`Saved to: ${p}`,conv_open:"Open folder",conv_show:"Show in folder",conv_note:"Only download what you have the right to — for your own use.",conv_added:n=>n===1?"Added to the conversion queue":`Added to the queue: ${n}`,conv_done:f=>`Done: ${f}`,ps_pobieranie:"Download",ps_konwersja:"Conversion",pn_pobieranie:"Downloading from the link",pn_konwersja:"Converting",upd_bar:(n,c)=>`A new Vidsumly version is available: ${n} (you have ${c}).`,upd_now:"Update now",upd_notes:"What’s new",upd_later:"Later",s_auto_upd:"Check for updates at start-up",s_conv_dir:"MP4 / MP3 conversion folder",s_conv_dir_hint:"Empty = results folder\\Konwersje.",ps_start:"Preparing",ps_mowa:"Speech",ps_kadry:"Frames",ps_obraz:"Vision",ps_obraz_szybki:"Quick picture",ps_streszczenie:"Summary",ps_tlumaczenie:"Translation",pn_start:"Downloading and preparing the video",pn_mowa:"Recognising speech",pn_kadry:"Picking frames",pn_obraz:"Describing frames",pn_streszczenie:"Writing the summary",pn_tlumaczenie:"Translating the transcript",pn_gotowe:"Saving the result",pn_frames:(a,b)=>`${a} of ${b} frames`,p_step:(n,z)=>`step ${n} of ${z}`,p_left:x=>`estimated: ~${x} left`,p_soon:"almost done",p_calc:"working out the time left…",p_hint:"Based on this analysis’s pace and on earlier analyses on this computer.",p_wait:"Waiting in the queue",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
    live_no_sum:"“Transcript only” has no summary — just the text of the speech (and the translation) in the next column.",live_wait_sum:"The summary appears here at the end of the analysis. Meanwhile, read the transcript — nothing will move it under you.",
    live_steps_ready:"The steps are ready in the tab next to this. The full summary is still being written…",
    live_video:"The video will be playable once the analysis is done",live_tr_note:"preliminary — will be refined",
@@ -772,8 +784,8 @@ function renderChips(){
     if (location.hash.startsWith("#/ustawienia")) renderDiag();
   }
 }
-const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki"];
-const SBOOL = ["ocr","tlumacz_wynik"];
+const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki","folder_konwersji","sprawdzaj_aktualizacje"];
+const SBOOL = ["ocr","tlumacz_wynik","sprawdzaj_aktualizacje"];
 /* ---------- Ustawienia (0.11.0): tylko opcje, które program naprawdę obsługuje ---------- */
 let setSec = "ui"; try { setSec = localStorage.getItem("vs_setsec") || "ui"; } catch {}
 const SET_ICO = {ui:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', an:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4-2.5z"/>',
@@ -799,10 +811,11 @@ function renderSettings(){
       ${f(t("s_text_model"), `<input id="s_model_tekstowy" spellcheck="false">`)}
       ${f(t("s_vision"), `<input id="s_model_obrazu" spellcheck="false">`)}</div><p class="hint">${t("set_ai_hint")}</p>`],
     ["files", t("set_files"), `<div class="grid">${f(t("s_out"), `<input id="s_wyniki" spellcheck="false">`, true)}
+      ${f(t("s_conv_dir"), `<input id="s_folder_konwersji" spellcheck="false" placeholder="${esc(lastStatus?.folder_konwersji || "")}">`, true, t("s_conv_dir_hint"))}
       ${f(t("s_cookies"), sel("ciasteczka_z", [["", t("none")], ["edge", "Edge"], ["chrome", "Chrome"], ["firefox", "Firefox"]]))}</div>
       <div class="row"><button class="btn" id="openOut">${t("open_out")}</button></div>`],
     ["diag", t("set_diag"), `<div id="diag" class="diag">…</div>`],
-    ["upd", t("upd"), `<p class="hint" id="updInfo">${updInfo()}</p>
+    ["upd", t("upd"), `<div class="grid">${f(t("s_auto_upd"), sel("sprawdzaj_aktualizacje", [["true", t("on")], ["false", t("off")]]))}</div><p class="hint" id="updInfo">${updInfo()}</p>
       <div class="row"><button class="btn primary" id="updCheck">${t("upd_check")}</button></div>
       <div id="updOut" class="muted" style="font-size:13.5px;margin-top:8px"></div>
       <details class="adv"><summary>${t("upd_key")}</summary><div class="grid"><label class="f wide"><input id="updKey" type="password" autocomplete="off" placeholder="${esc(t("upd_key_ph"))}" aria-label="${esc(t("upd_key"))}"></label></div>
@@ -947,13 +960,16 @@ function qRow(j, idx, n){
     acts.push(`<button class="iconbtn" data-q="usun" data-id="${j.id}" title="${esc(t("q_remove"))}" aria-label="${esc(t("q_remove"))}">${ic("x")}</button>`);
   }
   if (st === "blad" || st === "przerwane") acts.push(`<button class="btn sm" data-q="ponow" data-id="${j.id}">${ic("retry")}${t("q_retry")}</button>`);
-  if (st === "trwa") acts.push(`<a class="btn sm" href="#/wynik/${j.id}">${t("live_open")}</a>`);
-  if (st === "gotowe") acts.push(`<a class="btn sm" href="#/wynik/${j.id}">${t("open")}</a>`);
+  if (j.konwersja) { if (st === "gotowe") acts.push(`<button class="btn sm" data-q="pokaz" data-id="${j.id}">${t("conv_show")}</button>`); }
+  else {
+    if (st === "trwa") acts.push(`<a class="btn sm" href="#/wynik/${j.id}">${t("live_open")}</a>`);
+    if (st === "gotowe") acts.push(`<a class="btn sm" href="#/wynik/${j.id}">${t("open")}</a>`);
+  }
   const logOpen = openParts.has(j.id+":log");
-  const body = st === "trwa" ? prog + partsHtml(j) + (logOpen ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>` : "")
+  const body = st === "trwa" ? prog + (j.konwersja ? "" : partsHtml(j)) + (logOpen ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>` : "")
     : (st === "blad" || st === "przerwane") ? `<div class="qerr">${esc(j.error || "")}</div>` : (pend && j.log.length ? `<div class="qnote">${esc(j.log[0])}</div>` : "");
   return `<li class="qi ${st}${st==="trwa" ? " now" : ""}">${qThumb(j)}
-    <div class="qmain"><div class="qtop"><span class="name" title="${esc(j.label)}">${esc(j.card?.tytul || j.label)}</span></div>
+    <div class="qmain"><div class="qtop">${j.konwersja ? `<span class="fmtb">${esc(j.konwersja.format.toUpperCase())}</span>` : ""}<span class="name" title="${esc(j.label)}">${esc(j.konwersja?.plik || j.card?.tytul || j.label)}</span></div>
       ${st === "trwa" && prog ? "" : `<div class="qmeta"><span class="st ${st}">${t(st)}</span>${pend ? `<span>${t("q_pos", idx+1)}</span>` : ""}${stage ? `<span>${stage}</span>` : ""}${timer}</div>`}${body}</div>
     <div class="qacts">${acts.join("")}</div></li>`;
 }
@@ -963,7 +979,7 @@ function renderQueue(){
   const run = jobs.filter(j => j.status === "trwa");
   const pend = qstate.oczekuje.map(id => byId[id]).filter(Boolean);
   const bad = jobs.filter(j => j.status === "blad" || j.status === "przerwane");
-  const fin = jobs.filter(j => j.status === "gotowe" && j.started).slice(0, 4);   // ukończone w tej sesji
+  const fin = jobs.filter(j => j.status === "gotowe" && j.elapsed != null).slice(0, 4);   // ukończone w tej sesji (0.14.0: było j.started — pole, którego serwer nie wysyła)
   const up = Object.values(uploads).map(u => `<li class="qi"><span class="qth">${ic("film")}</span><div class="qmain"><div class="qtop"><span class="name">${esc(u.name)}</span></div>
     <div class="qmeta"><span class="st w_kolejce">${t("uploading")}</span><span>${u.pct}%</span></div><div class="bar"><i style="width:${u.pct}%"></i></div></div><div class="qacts"></div></li>`).join("");
   const total = run.length + pend.length + bad.length + fin.length + Object.keys(uploads).length;
@@ -983,6 +999,7 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("[data-q]"); if (!b || !b.closest("#queue")) return;
   const act = b.dataset.q;
   if (act === "toggle") { qOpen = !qOpen; try { localStorage.setItem("vs_qopen", qOpen ? "1" : "0"); } catch {} return renderQueue(); }
+  if (act === "pokaz") { api(`/api/zadania/${b.dataset.id}/pokaz`, {method:"POST"}).catch(err => toast(err.message)); return; }
   b.disabled = true;
   try {
     qstate = await api("/api/kolejka", {method:"POST", body:JSON.stringify({akcja:act, id:b.dataset.id, pozycja:Number(b.dataset.pos || 0)})});
@@ -1046,13 +1063,19 @@ function card(j){
 }
 function renderHome(){
   if (!$("#drop")) {
-    $("#app").innerHTML = `<section class="hero"><h1>${t("hero1")} ${t("hero2")}</h1><p>${t("hero_sub")}</p></section>
+    $("#app").innerHTML = `<div id="updbar"></div><section class="hero"><h1>${t("hero1")} ${t("hero2")}</h1><p>${t("hero_sub")}</p></section>
       <div id="setup"></div>
+      <div class="appmode"><span class="seg" id="appmode" role="group" aria-label="${esc(t("app_label"))}">
+        <button data-app="analiza">${t("app_an")}</button><button data-app="konwersja">${t("app_conv")}</button></span></div>
       <section class="panel start">
-        <div id="drop" tabindex="0" role="button"><svg class="ic big" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b>${t("drop")}</b><small class="muted">${t("drop_sub")}</small>
+        <div id="drop" tabindex="0" role="button"><svg class="ic big" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b id="dropT">${t("drop")}</b><small class="muted" id="dropS">${t("drop_sub")}</small>
           <input type="file" id="pick" accept="video/*,audio/*,.mp4,.mov,.mkv,.webm,.mp3,.m4a,.wav,.ogg,.opus,.flac,.aac" multiple hidden></div>
         <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}" aria-label="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
-        <div class="pvrow"><span class="seg small" id="amode" role="group" aria-label="${esc(t("mode_label"))}">
+        <div class="pvrow" id="cfmtrow" hidden><span class="seg small" id="cfmt" role="group" aria-label="${esc(t("conv_fmt"))}">
+          <button data-fmt="mp4">${t("conv_mp4")}</button><button data-fmt="mp3">${t("conv_mp3")}</button></span>
+          <span class="muted pvhint" id="cfmthint"></span></div>
+        <div class="convfoot" id="convfoot" hidden><span class="muted" id="convdir"></span><button class="linkbtn" id="convopen">${t("conv_open")}</button><span class="muted">· ${t("conv_note")}</span></div>
+        <div class="pvrow" id="amoderow"><span class="seg small" id="amode" role="group" aria-label="${esc(t("mode_label"))}">
           <button data-mode="pelna">${t("mode_full")}</button><button data-mode="szybki">${t("mode_fast")}</button><button data-mode="mowa">${t("mode_speech")}</button><button data-mode="transkrypcja">${t("mode_tr")}</button></span>
           <span class="muted pvhint" id="amodehint"></span></div>
         <div class="pvrow" id="pvrow"><span class="seg small" id="pvmode" role="group" aria-label="${esc(t("s_preview"))}">
@@ -1065,6 +1088,30 @@ function renderHome(){
   }
   renderQueue();
   loadSetup();
+  loadUpdBar();
+}
+/* 0.14.0: powiadomienie o nowej wersji na stronie głównej (sprawdzane przy starcie, pamiętane 6 h w programie) */
+let updAuto = null, updAutoAsked = false;
+async function loadUpdBar(){
+  if (!updAutoAsked) { updAutoAsked = true; try { updAuto = await api("/api/aktualizacja?auto=1"); } catch { updAuto = null; } }
+  renderUpdBar();
+}
+function renderUpdBar(){
+  const el = $("#updbar"), u = updAuto; if (!el) return;
+  let skip = ""; try { skip = localStorage.getItem("vs_upd_skip") || ""; } catch {}
+  if (!u || !u.jest_nowsza || !u.rodzaj || skip === u.najnowsza) { el.innerHTML = ""; return; }
+  el.innerHTML = `<section class="updbar" role="status"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>
+    <span>${esc(t("upd_bar", u.najnowsza, u.aktualna))} <span class="muted">${t(u.rodzaj === "kod" ? "upd_kod" : "upd_pelna")}${u.rozmiar_mb ? ` (${u.rozmiar_mb} MB)` : ""}</span></span>
+    <span class="updacts">${u.strona ? `<a class="linkbtn" href="${esc(u.strona)}" target="_blank" rel="noopener">${t("upd_notes")}</a>` : ""}
+    <button class="btn sm" id="updLater">${t("upd_later")}</button><button class="btn sm primary" id="updNow">${t("upd_now")}</button></span>
+    <span class="updmsg muted" id="updMsg" aria-live="polite"></span></section>`;
+  $("#updLater").onclick = () => { try { localStorage.setItem("vs_upd_skip", u.najnowsza); } catch {} renderUpdBar(); };
+  $("#updNow").onclick = async () => {
+    const m = $("#updMsg"); $("#updNow").disabled = true; m.textContent = "…";
+    try { const a = await api("/api/aktualizacja", {method:"POST", body:"{}"});
+      if (a.rodzaj === "kod") { m.textContent = t("upd_done"); setTimeout(waitAndReload, 3000); } else m.textContent = t("upd_setup"); }
+    catch(e){ m.textContent = e.message; $("#updNow").disabled = false; }
+  };
 }
 /* 0.12.0: pierwsze uruchomienie bez PowerShella — Ollama i modele przyciskami (vidsum/ollama_setup.py) */
 let setupState = null, setupTimer = null, setupHidden = false;
@@ -1117,8 +1164,29 @@ function renderPv(){
     const hw = lastStatus.tryb_proponowany === "mowa" && a !== "mowa" && a !== "transkrypcja" ? " " + t("mode_hw", lastStatus.tryb_powod || "") : "";
     $("#amodehint").textContent = t("mode_hint_" + a) + hw;
   }
-  if ($("#pvrow")) $("#pvrow").hidden = a !== "pelna";      // wstępne streszczenie ma znaczenie tylko w pełnej analizie
+  if ($("#pvrow")) $("#pvrow").hidden = a !== "pelna" || appMode() === "konwersja";   // wstępne streszczenie: tylko pełna analiza
+  renderAppMode();
 }
+/* 0.14.0: tryb aplikacji — analiza filmu albo konwersja do MP4 / MP3 (vidsum/convert.py) */
+function appMode(){ return settings?.tryb_aplikacji === "konwersja" ? "konwersja" : "analiza"; }
+function cFmt(){ return settings?.format_konwersji === "mp3" ? "mp3" : "mp4"; }
+function renderAppMode(){
+  if (!$("#appmode")) return;
+  const c = appMode() === "konwersja", f = cFmt();
+  document.querySelectorAll("#appmode button").forEach(b => b.classList.toggle("on", b.dataset.app === appMode()));
+  document.querySelectorAll("#cfmt button").forEach(b => b.classList.toggle("on", b.dataset.fmt === f));
+  $("#cfmtrow").hidden = !c; $("#convfoot").hidden = !c; $("#amoderow").hidden = c;
+  if ($("#setup")) $("#setup").hidden = c;              // Ollama i modele nie są potrzebne do konwersji
+  const sf = document.querySelector(".startfoot"); if (sf) sf.hidden = c;
+  if (c) $("#pvrow").hidden = true;
+  $("#cfmthint").textContent = t("conv_hint_" + f);
+  $("#convdir").textContent = t("conv_folder", lastStatus?.folder_konwersji || "…");
+  $("#dropT").textContent = t(c ? "conv_drop" : "drop"); $("#dropS").textContent = t(c ? "conv_drop_sub" : "drop_sub");
+  $("#links").placeholder = t(c ? "conv_links_ph" : "links_ph"); $("#links").setAttribute("aria-label", $("#links").placeholder);
+  $("#go").textContent = t(c ? "conv_go" : "analyze");
+  document.querySelector(".panel.start")?.classList.toggle("conv", c);
+}
+function saveSetting(k, v){ settings = {...(settings || {}), [k]: v}; api("/api/ustawienia", {method:"POST", body:JSON.stringify({[k]: v})}).catch(() => {}); }
 function bindHome(){
   const drop = $("#drop");
   renderPv();
@@ -1128,6 +1196,9 @@ function bindHome(){
   $("#amode").onclick = e => { const b = e.target.closest("button"); if (!b) return;
     settings = {...(settings || {}), tryb: b.dataset.mode}; renderPv();
     api("/api/ustawienia", {method:"POST", body:JSON.stringify({tryb: b.dataset.mode})}).catch(() => {}); };
+  $("#appmode").onclick = e => { const b = e.target.closest("button"); if (!b) return; saveSetting("tryb_aplikacji", b.dataset.app); renderPv(); };
+  $("#cfmt").onclick = e => { const b = e.target.closest("button"); if (!b) return; saveSetting("format_konwersji", b.dataset.fmt); renderAppMode(); };
+  $("#convopen").onclick = () => api("/api/otworz-konwersje", {method:"POST"}).catch(e => toast(e.message));
   drop.onclick = () => $("#pick").click();
   drop.onkeydown = e => { if (e.key==="Enter"||e.key===" ") $("#pick").click(); };
   $("#pick").onchange = e => { [...e.target.files].forEach(upload); e.target.value = ""; };
@@ -1136,6 +1207,11 @@ function bindHome(){
   drop.addEventListener("drop", e => [...e.dataTransfer.files].forEach(upload));
   $("#go").onclick = async () => {
     const lines = $("#links").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    if (appMode() === "konwersja") {                 // konwersja: zostajesz na stronie głównej, postęp w kolejce
+      let n = 0;
+      for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, konwersja: cFmt()})}); if (j.duplikat) toast(t("q_dup")); else n++; } catch(e){ toast(e.message); } }
+      $("#links").value = ""; if (n) toast(t("conv_added", n)); qOpen = true; poll(); return;
+    }
     const busy = jobs.some(j => j.status === "trwa" || j.status === "w_kolejce");
     let first = null;
     for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, tryb_podgladu: pvMode(), tryb: aMode()})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
@@ -1151,21 +1227,21 @@ async function waitAndReload(){          // po aktualizacji: czekaj, aż nowa we
 function upload(file){
   const key = Math.random().toString(36).slice(2); uploads[key] = {name:file.name, pct:0}; renderHome();
   const x = new XMLHttpRequest(); x.open("POST", "/api/wyslij");
-  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name)); x.setRequestHeader("X-Preview", pvMode()); x.setRequestHeader("X-Mode", aMode());
+  x.setRequestHeader("X-Token", T); x.setRequestHeader("X-Filename", encodeURIComponent(file.name)); x.setRequestHeader("X-Preview", pvMode()); x.setRequestHeader("X-Mode", aMode()); const conv = appMode() === "konwersja"; if (conv) x.setRequestHeader("X-Convert", cFmt());
   x.upload.onprogress = e => { if (e.lengthComputable){ uploads[key].pct = Math.round(100*e.loaded/e.total); renderHome(); } };
   x.onloadend = async () => {
     delete uploads[key];
     let j = null; try { j = JSON.parse(x.responseText); } catch {}
     if (j && j.error) toast(j.error);
     const others = jobs.some(x => x.id !== j?.id && (x.status === "trwa" || x.status === "w_kolejce"));
-    if (j && j.id && !others && !Object.keys(uploads).length && (location.hash === "#/" || location.hash === "")) {
+    if (j && j.id && !conv && !others && !Object.keys(uploads).length && (location.hash === "#/" || location.hash === "")) {
       try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + j.id;
     } else poll();
   };
   x.send(file);
 }
 function libVisible(){
-  return jobs.filter(j => j.status === "gotowe").filter(j => {
+  return jobs.filter(j => j.status === "gotowe" && !j.konwersja).filter(j => {
     const c = j.card || {}, hay = `${c.tytul||""} ${c.akcent||""} ${c.teza||""} ${j.label}`.toLowerCase();
     return (!lib.q || hay.includes(lib.q.toLowerCase())) && (!lib.typ || c.typ === lib.typ); });
 }
@@ -1183,7 +1259,7 @@ function renderLib(){
     $("#libclear").onclick = () => { lib.sel = !lib.sel; lib.pick = false; lib.del = new Set(); lib.sure = ""; renderLib(); };
   }
   document.querySelectorAll("#libt button").forEach(b => b.classList.toggle("on", b.dataset.typ === lib.typ));
-  $("#libclear").classList.toggle("on", lib.sel); $("#libclear").hidden = !jobs.some(j => j.status === "gotowe");
+  $("#libclear").classList.toggle("on", lib.sel); $("#libclear").hidden = !jobs.some(j => j.status === "gotowe" && !j.konwersja);
   lib.del = new Set([...lib.del].filter(id => done.some(j => j.id === id)));
   const delN = lib.del.size, note = lib.q || lib.typ ? ` ${t("lib_filter_note")}` : "";
   $("#libsel").innerHTML = !lib.sel ? "" : `<div class="selbar" role="region" aria-label="${esc(t("lib_clear"))}">${lib.pick
