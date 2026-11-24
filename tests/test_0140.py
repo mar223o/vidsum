@@ -77,16 +77,13 @@ def test_audio_only_file_to_mp4_is_refused(tmp_path):
 def test_failed_encoder_tries_next(tmp_path, monkeypatch):
     """Koder obecny w ffmpeg, ale niedziałający na tym komputerze → następny sposób."""
     calls = []
-    real = cv.ffmpeg
 
-    def fake(src, dst, args, duration, on_frac=None):
+    def fake(src, dst, args, duration, on_frac=None):        # bez prawdziwego ffmpeg: liczy się sama kolejność
         enc = args[args.index("-c:v") + 1]
         calls.append(enc)
         if enc == "libx264":
             raise cv.ConvertError("ffmpeg: udawany błąd kodera")
-        args = [a for a in args if a not in ("-cq", "21", "-b:v", "0")]   # na tym komputerze nie ma NVENC —
-        args[args.index("-c:v") + 1] = "libx264"                          # „drugi koder” liczy libx264
-        return real(src, dst, args, duration, on_frac)
+        dst.write_bytes(b"mp4")
     monkeypatch.setattr(cv, "ffmpeg", fake)
     monkeypatch.setattr(cv, "streams", lambda p: {"video": "vp9", "audio": "aac", "duration": 30.0, "tags": {}})
     monkeypatch.setattr(cv, "encoders", lambda: {"h264_nvenc", "libx264", "libmp3lame"})
