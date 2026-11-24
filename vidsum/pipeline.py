@@ -34,7 +34,7 @@ class Options:
     whisper_device: str = "auto"
     whisper_root: str | None = None
     transcript_file: Path | None = None        # gotowe napisy zamiast Whispera
-    vision: str = "ollama"                     # "ollama" | "brak"
+    vision: str = "ollama"                     # "ollama" | "claude" (0.14.0, Claude Code) | "brak"
     vision_model: str = "qwen3-vl:4b-instruct"
     summary: str = "auto"                      # "auto" = lokalny model (jak "ollama") | "claude" (dodatek) | "brak"
     text_model: str = DEFAULT_TEXT_MODEL       # lokalny model tekstowy: streszczenie, czat, tłumaczenia
@@ -105,6 +105,44 @@ def check_on_gpu(engine, what: str, log, notes: list[str]) -> None:
         notes.append(msg)
 
 
+def _vision_engine(opt: "Options"):
+    """0.14.0: opis kadrów lokalnie (Ollama) albo przez Claude Code (subskrypcja Pro/Max)."""
+    if opt.vision == "claude":
+        from .llm import ClaudeVision
+        return ClaudeVision(ClaudeCode(allow_api_key=opt.allow_api_key))
+    return _vision_ollama(opt)
+
+
+def _vision_name(opt: "Options") -> str:
+    return "Claude (Claude Code)" if opt.vision == "claude" else opt.vision_model
+
+
+def _describe_claude(engine, frames, out: Path, light: bool, log, on_done) -> list[str]:
+    """Kadry paczkami po kilka w jednym zapytaniu do Claude Code; paczka z błędem — jedna ponowna próba.
+    Zwraca czasy kadrów, których nie udało się opisać."""
+    failed: list[str] = []
+    done = 0
+    for i in range(0, len(frames), engine.BATCH):
+        part = frames[i:i + engine.BATCH]
+        res = None
+        for _ in (1, 2):
+            try:
+                res = engine.describe_batch([(out / f.file, ts(f.t)) for f in part], light)
+                break
+            except LLMError as e:
+                log(f"        ! Claude Code: {str(e)[:120]}")
+        for j, f in enumerate(part):
+            f.vision = res[j] if res else None
+            done += 1
+            if f.vision is None:
+                failed.append(ts(f.t))
+                log(f"        {done}/{len(frames)} kadr {ts(f.t)} ! błąd")
+            else:
+                log(f"        {done}/{len(frames)} kadr {ts(f.t)}: {f.vision.get('scena', '')[:90]}")
+        on_done()
+    return failed
+
+
 def _vision_ollama(opt: "Options") -> Ollama:
     """Model obrazu; gdy to ten sam model co tekstowy — z kontekstem tekstu (bez przeładowań między kadrami a tekstem)."""
     from .llm import TEXT_CTX, VISION_CTX
@@ -135,7 +173,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         opt = _replace0(opt, summary="brak", preview=False)
         log("  tryb: Sama transkrypcja")
         mode = "mowa"
-    if opt.vision != "ollama" and mode == "szybki":
+    if opt.vision not in ("ollama", "claude") and mode == "szybki":
         mode = "mowa"                               # „szybki obraz” bez modelu obrazu to po prostu sama mowa
     full_opt = opt                                  # ustawienia użytkownika (model obrazu) — dla drugiej fazy „szybkiego”
     light = mode == "szybki"
@@ -587,8 +625,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     t = time.time()
     vision_engine = None
     refine_thread = None
-    if opt.vision == "ollama":
-        vision_engine = _vision_ollama(opt)
+    if opt.vision in ("ollama", "claude"):
+        vision_engine = _vision_engine(opt)
         vision_engine.check()
         if preload_thread and preload_thread.is_alive():
             log("        model obrazu jeszcze się wczytuje…")
@@ -607,7 +645,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                 check_on_gpu(vision_engine, "model obrazu", log, pre_notes)
             except LLMError:
                 pass
-        log(f"  [3/4] opis kadrów ({opt.vision_model})…")
+        log(f"  [3/4] opis kadrów ({_vision_name(opt)})…")
         failed: list[str] = []
         done = [0]
         busy = [0.0]
@@ -642,8 +680,13 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
         _emit(opt, "kadry", [{"t": f.t, "file": f.file, "scena": ""} for f in frames])   # miniatury od razu
         refine_thread = start_refine()             # poprawka mowy (Whisper, GPU) RÓWNOLEGLE z opisem kadrów
         t_v = time.time()
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            list(pool.map(describe, frames))
+        if opt.vision == "claude":                 # Claude Code: paczki kadrów (jedno uruchomienie na paczkę)
+            failed += _describe_claude(vision_engine, frames, out, bool(opt.ocr), log, lambda: _emit(
+                opt, "kadry", [{"t": x.t, "file": x.file, "scena": (x.vision or {}).get("scena", "")} for x in frames]))
+            busy[0] = time.time() - t_v
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                list(pool.map(describe, frames))
         pv["done"] = True                              # po opisie kadrów pełne streszczenie i tak zaraz będzie
         wall = time.time() - t_v
         if frames and wall > 0:
@@ -667,6 +710,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
     timings["obraz_s"] = round(time.time() - t, 1)
     if opt.vision == "ollama":
         zasoby["modele"]["opis_kadrow"] = ollama_models(opt.ollama_host)
+    elif opt.vision == "claude":
+        zasoby["modele"]["opis_kadrow"] = "claude-code"
 
     if speech_thread and speech_thread.is_alive():
         log("        czekam na transkrypcję…")
@@ -770,7 +815,7 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             # zwolnij model obrazu: model tekstowy ma inny kontekst, a dwa naraz nie mieszczą się w 8 GB
             vision_engine.unload()
         try:
-            if summary_mode == "claude":
+            if summary_mode == "claude" or full_opt.vision == "claude":   # silnik Claude: też tłumaczenia
                 text_engine, text_name = ClaudeCode(allow_api_key=opt.allow_api_key), "claude-code"
             else:
                 text_engine = Ollama(opt.summary_model or opt.text_model, opt.ollama_host)
@@ -904,10 +949,10 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
             cues = find_cues(segs_d, ads) if segs_d else []
             starts = [float(c["start"]) for c in (summary_data or {}).get("rozdzialy", [])]
             picks2 = light_picks(info.duration, cues, starts, plan.max_frames)
-            vision_engine = _vision_ollama(full_opt)
+            vision_engine = _vision_engine(full_opt)
             vision_engine.check()
             log(f"  [3/4] szybki obraz: {len(picks2)} kadrów ({sum(1 for x in picks2 if 'wskazany_w_mowie' in x['reasons'])} wskazanych mową, "
-                f"{sum(1 for x in picks2 if 'poczatek_rozdzialu' in x['reasons'])} na początki rozdziałów, reszta równo) — {full_opt.vision_model}…")
+                f"{sum(1 for x in picks2 if 'poczatek_rozdzialu' in x['reasons'])} na początki rozdziałów, reszta równo) — {_vision_name(full_opt)}…")
             pre = threading.Thread(target=lambda: vision_engine.preload(), daemon=True)
             pre.start()
             old = {round(f.t, 2): f for f in frames}                    # miniatury z fazy 1 — te same chwile zostają
@@ -969,14 +1014,18 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                         failed2.append(ts(f.t))
                     log(f"        {done2[0]}/{len(frames)} kadr {ts(f.t)}: {(f.vision or {}).get('scena', '! błąd')[:90]}")
                     _emit(opt, "kadry", [{"t": x.t, "file": x.file, "scena": (x.vision or {}).get("scena", "")} for x in frames])
-            with ThreadPoolExecutor(max_workers=min(VISION_WORKERS, vision_engine.parallel)) as pool:
-                list(pool.map(describe2, frames))
+            if full_opt.vision == "claude":
+                failed2 += _describe_claude(vision_engine, frames, out, bool(full_opt.ocr), log, lambda: _emit(
+                    opt, "kadry", [{"t": x.t, "file": x.file, "scena": (x.vision or {}).get("scena", "")} for x in frames]))
+            else:
+                with ThreadPoolExecutor(max_workers=min(VISION_WORKERS, vision_engine.parallel)) as pool:
+                    list(pool.map(describe2, frames))
             ocr_t.join()
             ocr_lines = sorted(ocr_fast, key=lambda l: l.start)
             if ocr_lines:
                 _emit(opt, "napisy", [asdict(l) for l in ocr_lines])
             timings["obraz_s"] = round(time.time() - t_v, 1)
-            zasoby["modele"]["opis_kadrow"] = ollama_models(opt.ollama_host)
+            zasoby["modele"]["opis_kadrow"] = "claude-code" if full_opt.vision == "claude" else ollama_models(opt.ollama_host)
             if failed2:
                 gaps.append(f"Nie udało się opisać kadrów: {', '.join(sorted(failed2))} — w tych miejscach obraz = brak danych.")
             gaps.append(f"Tryb „Mowa + szybki obraz”: streszczenie powstało z mowy; opisano {len(frames)} wybranych kadrów, "
@@ -1032,7 +1081,8 @@ def analyze(inp: str, opt: Options, log: Log = print) -> Path:
                    "film": film_ref, "opis": src.description, "rozdzialy_autora": src.chapters,
                    "obraz_bez_pasow": (bars_thread.join(timeout=30) or bars.get("r"))},
         "ustawienia": {"whisper": tr.engine, "jezyk": opt.language or "auto", "tlumaczenia": targets, "tryb": asked_mode,
-                       "obraz": f"ollama:{opt.vision_model}" if vision_engine else "brak",
+                       "obraz": ("claude-code" if (full_opt.vision == "claude") else f"ollama:{full_opt.vision_model}")
+                       if vision_engine else "brak",
                        "streszczenie": summary_engine or "brak", "limit_kadrow": plan.max_frames,
                        "pokrycie_co_s": plan.base_interval, "uwagi_techniczne": tech_notes},
         # oryginał ZAWSZE w języku mowy; tłumaczenia obok, z tymi samymi czasami segmentów

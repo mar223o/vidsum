@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import http.server
 import json
+import os
 import shutil
 import subprocess
 import threading
@@ -315,3 +316,129 @@ def test_ui_conversion_mode(ui, tmp_path):
     pg.reload()
     pg.wait_for_selector("#appmode")
     assert pg.is_visible("#cfmtrow")                                         # tryb zapamiętany
+
+
+# ---------------------------------------------------------------- silnik Claude (Claude Code, subskrypcja)
+
+FAKE_CLAUDE = r'''#!/usr/bin/env python3
+import json, os, sys
+args = sys.argv[1:]
+data = sys.stdin.read()
+log = os.environ.get("FAKE_CLAUDE_LOG")
+if log:
+    with open(log, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"args": args, "stdin": data[:200000]}) + "\n")
+if "stream-json" in args:
+    msg = json.loads(data.splitlines()[0])
+    labels = [c["text"][5:-1] for c in msg["message"]["content"] if c["type"] == "text" and c["text"].startswith("Kadr ")]
+    n_img = sum(1 for c in msg["message"]["content"] if c["type"] == "image")
+    assert n_img == len(labels), (n_img, labels)
+    mode = os.environ.get("FAKE_CLAUDE_MODE", "ok")
+    if mode == "error":
+        res = {"type": "result", "subtype": "success", "is_error": True, "result": "limit subskrypcji"}
+    else:
+        arr = [{"t": l, "scena": f"Claude widzi kadr {l}", "czynnosci": ["krojenie"], "obiekty": ["nóż"], "cialo": "",
+                "pewnosc": "wysoka"} for l in labels]
+        if mode == "shuffled":
+            arr = arr[::-1]
+        res = {"type": "result", "subtype": "success", "is_error": False, "result": "```json\n" + json.dumps(arr, ensure_ascii=False) + "\n```"}
+    print(json.dumps({"type": "system", "subtype": "init"}))
+    print(json.dumps(res, ensure_ascii=False))
+else:
+    print("{}")
+'''
+
+
+@pytest.fixture()
+def fake_claude(tmp_path, monkeypatch):
+    if os.name == "nt":
+        pytest.skip("atrapa claude jako skrypt — tylko Linux/macOS")
+    exe = tmp_path / "bin" / "claude"
+    exe.parent.mkdir()
+    exe.write_text(FAKE_CLAUDE, encoding="utf-8")
+    exe.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{exe.parent}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    log = tmp_path / "claude_calls.jsonl"
+    monkeypatch.setenv("FAKE_CLAUDE_LOG", str(log))
+    return log
+
+
+def _frames(tmp_path, n):
+    from PIL import Image
+    out = []
+    for i in range(n):
+        p = tmp_path / f"k{i}.jpg"
+        Image.new("RGB", (64, 36), (i * 20 % 255, 80, 120)).save(p)
+        out.append((p, f"00:{i:02d}"))
+    return out
+
+
+def test_claude_vision_batch_message_and_parsing(tmp_path, fake_claude, monkeypatch):
+    from vidsum.llm import ClaudeVision
+    v = ClaudeVision()
+    res = v.describe_batch(_frames(tmp_path, 3), light=True)
+    assert [r["scena"] for r in res] == ["Claude widzi kadr 00:00", "Claude widzi kadr 00:01", "Claude widzi kadr 00:02"]
+    assert res[0]["czynnosci"] == ["krojenie"] and res[0]["tekst_na_ekranie"] == []
+    call = json.loads(fake_claude.read_text(encoding="utf-8").splitlines()[-1])
+    for a in ("-p", "--input-format", "stream-json", "--verbose", "--tools", "--no-session-persistence"):
+        assert a in call["args"]
+    msg = json.loads(call["stdin"].splitlines()[0])
+    assert msg["type"] == "user" and msg["message"]["role"] == "user"
+    img = [c for c in msg["message"]["content"] if c["type"] == "image"][0]
+    assert img["source"]["type"] == "base64" and img["source"]["media_type"] == "image/jpeg"
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "shuffled")                  # kolejność odpowiedzi inna — po etykiecie czasu
+    assert [r["scena"][-5:] for r in v.describe_batch(_frames(tmp_path, 3))] == ["00:00", "00:01", "00:02"]
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "error")
+    with pytest.raises(Exception, match="limit subskrypcji"):
+        v.describe_batch(_frames(tmp_path, 2))
+
+
+def test_claude_refuses_paid_api_key(tmp_path, fake_claude, monkeypatch):
+    from vidsum.llm import ClaudeVision, LLMError
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")                 # Claude Code naliczałby płatne API
+    with pytest.raises(LLMError, match="ANTHROPIC_API_KEY"):
+        ClaudeVision().describe_batch(_frames(tmp_path, 1))
+
+
+def test_pipeline_full_mode_with_claude_vision(tmp_path, fake_claude):
+    """Pełna analiza z opisem kadrów przez Claude Code: kadry paczkami po 8, opisy w wyniku, w analizie „claude-code”."""
+    from vidsum.pipeline import Options, analyze
+    subs = tmp_path / "napisy.json"
+    subs.write_text(json.dumps({"language": "pl", "segments": [
+        {"start": 0.5, "end": 6.0, "text": "Najpierw kroimy jedną cebulę w drobną kostkę."}]}), encoding="utf-8")
+    logs = []
+    out = analyze(str(FILM), Options(out_root=tmp_path / "w", transcript_file=subs, vision="claude", summary="brak",
+                                     ocr=False, translate=[], mode="pelna"), log=logs.append)
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    k = r["kadry"]
+    assert k and all((x.get("vision") or {}).get("scena", "").startswith("Claude widzi kadr") for x in k)
+    calls = fake_claude.read_text(encoding="utf-8").splitlines()
+    assert len(calls) == -(-len(k) // 8)                                 # jedno uruchomienie na paczkę 8 kadrów
+    assert any("opis kadrów (Claude (Claude Code))" in m for m in logs)
+    assert r["ustawienia"].get("obraz") == "claude-code" or "claude" in json.dumps(r.get("zasoby", {}))
+
+
+def test_settings_engine_claude_maps_options(tmp_path, monkeypatch):
+    app = _app(tmp_path, monkeypatch)
+    o = app.options(app.settings)
+    assert o.vision == "ollama" and o.summary == "auto" and app.models_needed()
+    app.save_settings({"silnik": "claude"})
+    o = app.options(app.settings)
+    assert o.vision == "claude" and o.summary == "claude" and app.models_needed() == [] and app.uses_claude()
+    app.save_settings({"obraz": "brak", "streszczenie": "brak"})
+    o = app.options(app.settings)
+    assert o.vision == "brak" and o.summary == "brak"                    # wyłączone zostają wyłączone
+
+
+def test_pipeline_fast_mode_with_claude_vision(tmp_path, fake_claude):
+    from vidsum.pipeline import Options, analyze
+    subs = tmp_path / "napisy.json"
+    subs.write_text(json.dumps({"language": "pl", "segments": [
+        {"start": 0.5, "end": 6.0, "text": "Look at this, kroimy jedną cebulę w drobną kostkę."}]}), encoding="utf-8")
+    logs = []
+    out = analyze(str(FILM), Options(out_root=tmp_path / "w", transcript_file=subs, vision="claude", summary="brak",
+                                     ocr=False, translate=[], mode="szybki"), log=logs.append)
+    r = json.loads((out / "analiza.json").read_text(encoding="utf-8"))
+    assert any("szybki obraz" in m and "Claude (Claude Code)" in m for m in logs)
+    assert any((x.get("vision") or {}).get("scena", "").startswith("Claude widzi") for x in r["kadry"])

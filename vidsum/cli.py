@@ -173,7 +173,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--whisper-urzadzenie", default="auto", choices=["auto", "cuda", "cpu"])
     ap.add_argument("--whisper-folder", default=None, help="gdzie trzymać pobrane modele Whisper")
     ap.add_argument("--napisy", default=None, help="gotowa transkrypcja .srt/.json zamiast Whispera")
-    ap.add_argument("--obraz", choices=["ollama", "brak"], default="ollama")
+    ap.add_argument("--obraz", choices=["ollama", "claude", "brak"], default="ollama",
+                    help="opis kadrów: ollama (lokalnie), claude (Claude Code — subskrypcja Pro/Max), brak")
     ap.add_argument("--bez-ocr", action="store_true", help="bez odczytu napisów z ekranu")
     ap.add_argument("--model-obrazu", default="qwen3-vl:4b-instruct")
     ap.add_argument("--streszczenie", choices=["auto", "ollama", "claude", "brak"], default="auto",

@@ -91,6 +91,11 @@ python -m pytest -q
 **Skill** (`skill/SKILL.md`) — ta sama procedura, gdy wrzucasz film prosto do czatu z Claude: kadry w arkuszach 3×3
 z czasem (Claude sam je ogląda), Whisper, wynik w układzie Vidsumly. Skrypty są wbudowane w SKILL.md.
 
+**Silnik „Claude” (0.14.0)** — Ustawienia → Modele AI → „Kto analizuje”: Claude, dla osób z subskrypcją Claude (Pro, Max…).
+Opis kadrów (zależnie od trybu), streszczenie, czat i tłumaczenia liczy Claude przez Claude Code zalogowany kontem z
+subskrypcją — bez klucza API; zużycie liczy się w limitach subskrypcji. Kadry i transkrypcja trafiają do Anthropic;
+rozpoznawanie mowy zostaje na komputerze. Wiersz poleceń: `--obraz claude --streszczenie claude`.
+
 **Serwer MCP** — Claude Desktop / Claude Code uruchamia Vidsumly na Twoim komputerze
 („przeanalizuj C:\Users\Jan\Videos\przepis.mp4”). Narzędzia: `analizuj_film`, `lista_analiz`, `pobierz_analize`.
 

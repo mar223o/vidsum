@@ -319,3 +319,94 @@ class ClaudeCode:
         proc = run([self.exe, "-p", "Wykonaj zadanie opisane na wejściu. Odpowiedz tylko wynikiem.",
                     "--output-format", "text"], input_text=prompt, timeout=self.timeout)
         return proc.stdout_text.strip()  # type: ignore[attr-defined]
+
+    def complete_images(self, prompt: str, images: list[tuple[str, Path]]) -> str:
+        """0.14.0: zapytanie z obrazami (kadry) — `claude -p` z wejściem stream-json (wiadomość użytkownika z blokami
+        obrazów, jak w Messages API), bez narzędzi i bez zapisu sesji. Zużycie liczy się w limitach subskrypcji."""
+        self.check()
+        content: list[dict] = [{"type": "text", "text": prompt}]
+        for label, path in images:
+            content.append({"type": "text", "text": f"Kadr {label}:"})
+            content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
+                                                         "data": base64.b64encode(Path(path).read_bytes()).decode("ascii")}})
+        msg = json.dumps({"type": "user", "message": {"role": "user", "content": content}}, ensure_ascii=False)
+        proc = run([self.exe, "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
+                    "--tools", "", "--no-session-persistence"], input_text=msg + "\n", timeout=self.timeout, check=False)
+        result = None
+        for line in proc.stdout_text.splitlines():  # type: ignore[attr-defined]
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(ev, dict) and ev.get("type") == "result":
+                result = ev
+        if not result:
+            tail = (proc.stderr_text or proc.stdout_text).strip().splitlines()[-3:]  # type: ignore[attr-defined]
+            raise LLMError("Claude Code nie zwrócił wyniku: " + " | ".join(tail))
+        if result.get("is_error"):
+            raise LLMError("Claude Code: " + str(result.get("result") or result.get("subtype"))[:300])
+        return str(result.get("result") or "").strip()
+
+
+CLAUDE_FRAMES_PROMPT = """Poniżej są kadry z jednego filmu, każdy poprzedzony etykietą z czasem. Opisz KAŻDY kadr osobno —
+WYŁĄCZNIE to, co na nim widać (nie zgaduj treści filmu). Pisz po polsku.
+Odpowiedz samym JSON-em (bez komentarza): lista obiektów w tej samej kolejności co kadry, każdy z kluczami:
+"t": etykieta czasu kadru (dokładnie jak podana),
+"scena": krótki opis (1 zdanie, do 15 słów),
+"czynnosci": lista czynności widocznych w kadrze, szczególnie rąk (najwyżej {nc}),
+"obiekty": lista widocznych składników, narzędzi, sprzętu (najwyżej {no}),
+{extra}"cialo": ustawienie ciała / pozycja / zakres ruchu, jeśli widać osobę ćwiczącą (inaczej pusty string),
+"pewnosc": "wysoka" | "srednia" | "niska".
+Zasady: nazwij przedmiot konkretnie tylko, gdy jest wyraźnie widoczny; gdy nie masz pewności — nazwa ogólna i "pewnosc":
+"niska". Czego nie da się rozpoznać — pusta lista zamiast zgadywania."""
+
+
+class ClaudeVision:
+    """0.14.0: opis kadrów przez Claude Code (subskrypcja Pro/Max) — paczkami po kilka kadrów w jednym zapytaniu
+    (jedno uruchomienie Claude Code na paczkę zamiast na kadr). Interfejs jak Ollama w pipeline: check/preload/unload,
+    describe_frame (jeden kadr) i describe_batch."""
+    BATCH = 8
+    parallel = 1
+
+    def __init__(self, engine: ClaudeCode | None = None):
+        self.engine = engine or ClaudeCode()
+        self.model = "claude-code"
+
+    def check(self) -> None:
+        self.engine.check()
+
+    def preload(self, *a, **kw) -> None:
+        pass
+
+    def unload(self) -> None:
+        pass
+
+    def describe_batch(self, frames: list[tuple[Path, str]], light: bool = False) -> list[dict | None]:
+        extra = "" if light else ('"tekst_na_ekranie": TYLKO napisy dodane do filmu przez autora, przepisane dokładnie,\n'
+                                  '"napisy_na_przedmiotach": napisy wydrukowane na sprzęcie, opakowaniach, etykietach,\n')
+        prompt = CLAUDE_FRAMES_PROMPT.format(nc=3 if light else 4, no=5 if light else 6, extra=extra)
+        txt = self.engine.complete_images(prompt, [(t, p) for p, t in frames])
+        m = re.search(r"\[.*\]", txt, re.S)
+        try:
+            arr = json.loads(m.group(0) if m else txt)
+        except (ValueError, AttributeError):
+            raise LLMError("Claude Code: odpowiedź o kadrach nie jest listą JSON")
+        by_t = {str(x.get("t")): x for x in arr if isinstance(x, dict)}
+        out: list[dict | None] = []
+        for i, (_, t) in enumerate(frames):
+            d = by_t.get(t) or (arr[i] if i < len(arr) and isinstance(arr[i], dict) and "t" not in arr[i] else None)
+            if d is None:
+                out.append(None)
+                continue
+            d = {k: v for k, v in d.items() if k != "t"}
+            if light:
+                d.setdefault("tekst_na_ekranie", [])
+                d.setdefault("napisy_na_przedmiotach", [])
+            out.append(_clean_vision(d))
+        return out
+
+    def describe_frame(self, image: Path, t_label: str, light: bool = False) -> dict:
+        r = self.describe_batch([(image, t_label)], light)[0]
+        if r is None:
+            raise LLMError("Claude Code nie opisał kadru")
+        return r

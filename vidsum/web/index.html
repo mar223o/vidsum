@@ -181,7 +181,8 @@ pre.log.full{max-height:340px}
 .empty{color:var(--muted);font-size:14px;padding:18px 0}
 /* 0.14.0: tryb aplikacji, konwersja, pasek aktualizacji */
 .appmode{display:flex;justify-content:center;margin:0 0 14px}
-.pvrow[hidden],.convfoot[hidden],#setup[hidden],.startfoot[hidden]{display:none}
+.pvrow[hidden],.convfoot[hidden],#setup[hidden],.startfoot[hidden],.locai[hidden]{display:none}
+.grid.wide{grid-column:1/-1}
 .appmode .seg button{padding:8px 18px;font-size:14px}
 .convfoot{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:12.5px;margin-top:10px}
 .convfoot .linkbtn{font-size:12.5px}
@@ -626,7 +627,7 @@ const I18N = {
    pv:"Szybki podgląd",pv_tip:"Wstępne streszczenie z samej mowy zaraz po transkrypcji, potem pełne (z obrazem i krokami). Cała analiza trwa przez to o kilkanaście sekund dłużej.",
    pv_badge:"wstępne",pv_note:"Wstępne — z samej mowy. Pełne streszczenie (z obrazem i krokami) zastąpi je za chwilę.",
    pv_done:(a,b)=>`wstępne po ${a} → pełne po ${b}`,
-   stage_dl:"pobieranie",app_label:"Co chcesz zrobić",app_an:"Analiza filmu",app_conv:"Konwersja MP4 / MP3",conv_mp4:"MP4 — film",conv_mp3:"MP3 — dźwięk",conv_fmt:"Format",conv_go:"Konwertuj",conv_drop:"Upuść film albo piosenkę",conv_drop_sub:"albo kliknij, żeby wybrać plik — albo wklej link niżej",conv_links_ph:"Wklej link do filmu albo piosenki (YouTube, Instagram, TikTok…) — jeden w linii",conv_hint_mp4:"Film w MP4 (H.264 + AAC) — otworzy go każdy odtwarzacz.",conv_hint_mp3:"Sam dźwięk w MP3 (ok. 190 kb/s), z tytułem i autorem.",conv_folder:p=>`Zapis do: ${p}`,conv_open:"Otwórz folder",conv_show:"Pokaż w folderze",conv_note:"Pobieraj tylko to, do czego masz prawo — na własny użytek.",conv_added:n=>n===1?"Dodano do kolejki konwersji":`Dodano do kolejki: ${n}`,conv_done:f=>`Gotowe: ${f}`,ps_pobieranie:"Pobieranie",ps_konwersja:"Konwersja",pn_pobieranie:"Pobieram z linku",pn_konwersja:"Konwertuję",upd_bar:(n,c)=>`Dostępna nowa wersja Vidsumly: ${n} (masz ${c}).`,upd_now:"Zaktualizuj teraz",upd_notes:"Co nowego",upd_later:"Później",s_auto_upd:"Sprawdzaj aktualizacje przy uruchomieniu",s_conv_dir:"Folder konwersji MP4 / MP3",s_conv_dir_hint:"Puste = folder wyników\\Konwersje.",ps_start:"Przygotowanie",ps_mowa:"Mowa",ps_kadry:"Kadry",ps_obraz:"Opis obrazu",ps_obraz_szybki:"Szybki obraz",ps_streszczenie:"Streszczenie",ps_tlumaczenie:"Tłumaczenie",pn_start:"Pobieram i przygotowuję film",pn_mowa:"Rozpoznaję mowę",pn_kadry:"Wybieram kadry",pn_obraz:"Opisuję kadry",pn_streszczenie:"Piszę streszczenie",pn_tlumaczenie:"Tłumaczę transkrypcję",pn_gotowe:"Zapisuję wynik",pn_frames:(a,b)=>`${a} z ${b} kadrów`,p_step:(n,z)=>`etap ${n} z ${z}`,p_left:x=>`szacowany czas: ~${x}`,p_soon:"jeszcze chwila",p_calc:"liczę, ile zostało…",p_hint:"Liczone z tempa tej analizy i z poprzednich analiz na tym komputerze.",p_wait:"Czeka w kolejce",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
+   stage_dl:"pobieranie",app_label:"Co chcesz zrobić",app_an:"Analiza filmu",app_conv:"Konwersja MP4 / MP3",conv_mp4:"MP4 — film",conv_mp3:"MP3 — dźwięk",conv_fmt:"Format",conv_go:"Konwertuj",conv_drop:"Upuść film albo piosenkę",conv_drop_sub:"albo kliknij, żeby wybrać plik — albo wklej link niżej",conv_links_ph:"Wklej link do filmu albo piosenki (YouTube, Instagram, TikTok…) — jeden w linii",conv_hint_mp4:"Film w MP4 (H.264 + AAC) — otworzy go każdy odtwarzacz.",conv_hint_mp3:"Sam dźwięk w MP3 (ok. 190 kb/s), z tytułem i autorem.",conv_folder:p=>`Zapis do: ${p}`,conv_open:"Otwórz folder",conv_show:"Pokaż w folderze",conv_note:"Pobieraj tylko to, do czego masz prawo — na własny użytek.",conv_added:n=>n===1?"Dodano do kolejki konwersji":`Dodano do kolejki: ${n}`,conv_done:f=>`Gotowe: ${f}`,ps_pobieranie:"Pobieranie",ps_konwersja:"Konwersja",pn_pobieranie:"Pobieram z linku",pn_konwersja:"Konwertuję",upd_bar:(n,c)=>`Dostępna nowa wersja Vidsumly: ${n} (masz ${c}).`,upd_now:"Zaktualizuj teraz",upd_notes:"Co nowego",upd_later:"Później",s_auto_upd:"Sprawdzaj aktualizacje przy uruchomieniu",s_engine:"Kto analizuje",eng_local:"Ten komputer (Ollama) — za darmo, nic nie wychodzi z komputera",eng_claude:"Claude — dla osób z subskrypcją Claude (Pro, Max…)",eng_hint_local:"Opis kadrów, streszczenie, czat i tłumaczenia liczą modele lokalne. Rozpoznawanie mowy zawsze jest lokalne.",eng_hint_claude:"Opis kadrów (zależnie od trybu), streszczenie, czat i tłumaczenia liczy Claude przez Claude Code zalogowany Twoim kontem z subskrypcją — bez klucza API i bez dopłat; zużycie liczy się w limitach subskrypcji. Kadry i transkrypcja trafiają do Anthropic. Rozpoznawanie mowy zostaje na komputerze. Wymaga zainstalowanego Claude Code (status w Diagnostyce).",s_conv_dir:"Folder konwersji MP4 / MP3",s_conv_dir_hint:"Puste = folder wyników\\Konwersje.",ps_start:"Przygotowanie",ps_mowa:"Mowa",ps_kadry:"Kadry",ps_obraz:"Opis obrazu",ps_obraz_szybki:"Szybki obraz",ps_streszczenie:"Streszczenie",ps_tlumaczenie:"Tłumaczenie",pn_start:"Pobieram i przygotowuję film",pn_mowa:"Rozpoznaję mowę",pn_kadry:"Wybieram kadry",pn_obraz:"Opisuję kadry",pn_streszczenie:"Piszę streszczenie",pn_tlumaczenie:"Tłumaczę transkrypcję",pn_gotowe:"Zapisuję wynik",pn_frames:(a,b)=>`${a} z ${b} kadrów`,p_step:(n,z)=>`etap ${n} z ${z}`,p_left:x=>`szacowany czas: ~${x}`,p_soon:"jeszcze chwila",p_calc:"liczę, ile zostało…",p_hint:"Liczone z tempa tej analizy i z poprzednich analiz na tym komputerze.",p_wait:"Czeka w kolejce",reading:"czytania",remember:"Do zapamiętania",tr_orig:"Oryginał",live_open:"Podgląd na żywo",
    live_no_sum:"W trybie „Sama transkrypcja” nie ma streszczenia — sam tekst mowy (i tłumaczenie) w kolumnie obok.",live_wait_sum:"Streszczenie pojawi się tutaj na końcu analizy. W tym czasie możesz czytać transkrypcję — nic Ci jej nie przesunie.",
    live_steps_ready:"Kroki są już gotowe w zakładce obok. Opis całości jeszcze powstaje…",
    live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
@@ -694,7 +695,7 @@ const I18N = {
    pv:"Quick preview",pv_tip:"A preliminary summary from speech alone right after the transcript, then the full one (with picture and steps). Makes the whole analysis some 10–20 seconds longer.",
    pv_badge:"preliminary",pv_note:"Preliminary — from speech only. The full summary (with picture and steps) will replace it shortly.",
    pv_done:(a,b)=>`preliminary after ${a} → full after ${b}`,
-   stage_dl:"download",app_label:"What do you want to do",app_an:"Analyse a video",app_conv:"Convert to MP4 / MP3",conv_mp4:"MP4 — video",conv_mp3:"MP3 — audio",conv_fmt:"Format",conv_go:"Convert",conv_drop:"Drop a video or a song",conv_drop_sub:"or click to pick a file — or paste a link below",conv_links_ph:"Paste a link to a video or song (YouTube, Instagram, TikTok…) — one per line",conv_hint_mp4:"Video as MP4 (H.264 + AAC) — plays in any player.",conv_hint_mp3:"Audio only as MP3 (about 190 kb/s), with title and artist.",conv_folder:p=>`Saved to: ${p}`,conv_open:"Open folder",conv_show:"Show in folder",conv_note:"Only download what you have the right to — for your own use.",conv_added:n=>n===1?"Added to the conversion queue":`Added to the queue: ${n}`,conv_done:f=>`Done: ${f}`,ps_pobieranie:"Download",ps_konwersja:"Conversion",pn_pobieranie:"Downloading from the link",pn_konwersja:"Converting",upd_bar:(n,c)=>`A new Vidsumly version is available: ${n} (you have ${c}).`,upd_now:"Update now",upd_notes:"What’s new",upd_later:"Later",s_auto_upd:"Check for updates at start-up",s_conv_dir:"MP4 / MP3 conversion folder",s_conv_dir_hint:"Empty = results folder\\Konwersje.",ps_start:"Preparing",ps_mowa:"Speech",ps_kadry:"Frames",ps_obraz:"Vision",ps_obraz_szybki:"Quick picture",ps_streszczenie:"Summary",ps_tlumaczenie:"Translation",pn_start:"Downloading and preparing the video",pn_mowa:"Recognising speech",pn_kadry:"Picking frames",pn_obraz:"Describing frames",pn_streszczenie:"Writing the summary",pn_tlumaczenie:"Translating the transcript",pn_gotowe:"Saving the result",pn_frames:(a,b)=>`${a} of ${b} frames`,p_step:(n,z)=>`step ${n} of ${z}`,p_left:x=>`estimated: ~${x} left`,p_soon:"almost done",p_calc:"working out the time left…",p_hint:"Based on this analysis’s pace and on earlier analyses on this computer.",p_wait:"Waiting in the queue",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
+   stage_dl:"download",app_label:"What do you want to do",app_an:"Analyse a video",app_conv:"Convert to MP4 / MP3",conv_mp4:"MP4 — video",conv_mp3:"MP3 — audio",conv_fmt:"Format",conv_go:"Convert",conv_drop:"Drop a video or a song",conv_drop_sub:"or click to pick a file — or paste a link below",conv_links_ph:"Paste a link to a video or song (YouTube, Instagram, TikTok…) — one per line",conv_hint_mp4:"Video as MP4 (H.264 + AAC) — plays in any player.",conv_hint_mp3:"Audio only as MP3 (about 190 kb/s), with title and artist.",conv_folder:p=>`Saved to: ${p}`,conv_open:"Open folder",conv_show:"Show in folder",conv_note:"Only download what you have the right to — for your own use.",conv_added:n=>n===1?"Added to the conversion queue":`Added to the queue: ${n}`,conv_done:f=>`Done: ${f}`,ps_pobieranie:"Download",ps_konwersja:"Conversion",pn_pobieranie:"Downloading from the link",pn_konwersja:"Converting",upd_bar:(n,c)=>`A new Vidsumly version is available: ${n} (you have ${c}).`,upd_now:"Update now",upd_notes:"What’s new",upd_later:"Later",s_auto_upd:"Check for updates at start-up",s_engine:"Who analyses",eng_local:"This computer (Ollama) — free, nothing leaves the computer",eng_claude:"Claude — for people with a Claude subscription (Pro, Max…)",eng_hint_local:"Frame descriptions, summary, chat and translations run on local models. Speech recognition is always local.",eng_hint_claude:"Frame descriptions (depending on the mode), summary, chat and translations are done by Claude through Claude Code signed in with your subscription account — no API key and no extra cost; usage counts towards your subscription limits. Frames and the transcript are sent to Anthropic. Speech recognition stays on the computer. Needs Claude Code installed (status under Diagnostics).",s_conv_dir:"MP4 / MP3 conversion folder",s_conv_dir_hint:"Empty = results folder\\Konwersje.",ps_start:"Preparing",ps_mowa:"Speech",ps_kadry:"Frames",ps_obraz:"Vision",ps_obraz_szybki:"Quick picture",ps_streszczenie:"Summary",ps_tlumaczenie:"Translation",pn_start:"Downloading and preparing the video",pn_mowa:"Recognising speech",pn_kadry:"Picking frames",pn_obraz:"Describing frames",pn_streszczenie:"Writing the summary",pn_tlumaczenie:"Translating the transcript",pn_gotowe:"Saving the result",pn_frames:(a,b)=>`${a} of ${b} frames`,p_step:(n,z)=>`step ${n} of ${z}`,p_left:x=>`estimated: ~${x} left`,p_soon:"almost done",p_calc:"working out the time left…",p_hint:"Based on this analysis’s pace and on earlier analyses on this computer.",p_wait:"Waiting in the queue",reading:"read",remember:"Remember",tr_orig:"Original",live_open:"Live preview",
    live_no_sum:"“Transcript only” has no summary — just the text of the speech (and the translation) in the next column.",live_wait_sum:"The summary appears here at the end of the analysis. Meanwhile, read the transcript — nothing will move it under you.",
    live_steps_ready:"The steps are ready in the tab next to this. The full summary is still being written…",
    live_video:"The video will be playable once the analysis is done",live_tr_note:"preliminary — will be refined",
@@ -784,7 +785,7 @@ function renderChips(){
     if (location.hash.startsWith("#/ustawienia")) renderDiag();
   }
 }
-const SKEYS = ["jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki","folder_konwersji","sprawdzaj_aktualizacje"];
+const SKEYS = ["silnik","jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki","folder_konwersji","sprawdzaj_aktualizacje"];
 const SBOOL = ["ocr","tlumacz_wynik","sprawdzaj_aktualizacje"];
 /* ---------- Ustawienia (0.11.0): tylko opcje, które program naprawdę obsługuje ---------- */
 let setSec = "ui"; try { setSec = localStorage.getItem("vs_setsec") || "ui"; } catch {}
@@ -806,10 +807,12 @@ function renderSettings(){
       ${f(t("s_vis_on"), sel("obraz", [["ollama", t("on")], ["brak", t("off")]]))}
       ${f(t("s_frames"), `<input id="s_max_kadrow" type="number" min="3" max="400" placeholder="${esc(t("auto_detect"))}">`)}</div>
       <p class="hint">${t("set_next")}</p>`],
-    ["ai", t("set_ai"), `<div class="grid">${f(t("s_summary"), sel("streszczenie", [["auto", t("sum_auto")], ["ollama", t("sum_local")], ["claude", "Claude (Pro)"], ["brak", t("off")]]))}
-      ${f(t("s_auto_tr"), sel("tlumacz_wynik", [["true", t("on")], ["false", t("off")]]))}
+    ["ai", t("set_ai"), `<div class="grid">${f(t("s_engine"), sel("silnik", [["lokalny", t("eng_local")], ["claude", t("eng_claude")]]), true,
+        `<span id="enghint">${t(settings.silnik === "claude" ? "eng_hint_claude" : "eng_hint_local")}</span>`)}
+      <div class="locai grid wide">${f(t("s_summary"), sel("streszczenie", [["auto", t("sum_auto")], ["ollama", t("sum_local")], ["claude", "Claude (Pro)"], ["brak", t("off")]]))}
       ${f(t("s_text_model"), `<input id="s_model_tekstowy" spellcheck="false">`)}
-      ${f(t("s_vision"), `<input id="s_model_obrazu" spellcheck="false">`)}</div><p class="hint">${t("set_ai_hint")}</p>`],
+      ${f(t("s_vision"), `<input id="s_model_obrazu" spellcheck="false">`)}</div>
+      ${f(t("s_auto_tr"), sel("tlumacz_wynik", [["true", t("on")], ["false", t("off")]]))}</div><p class="hint locai">${t("set_ai_hint")}</p>`],
     ["files", t("set_files"), `<div class="grid">${f(t("s_out"), `<input id="s_wyniki" spellcheck="false">`, true)}
       ${f(t("s_conv_dir"), `<input id="s_folder_konwersji" spellcheck="false" placeholder="${esc(lastStatus?.folder_konwersji || "")}">`, true, t("s_conv_dir_hint"))}
       ${f(t("s_cookies"), sel("ciasteczka_z", [["", t("none")], ["edge", "Edge"], ["chrome", "Chrome"], ["firefox", "Firefox"]]))}</div>
@@ -829,6 +832,7 @@ function renderSettings(){
     <div class="setmain">${secs.map(([id, title, body]) => `<section class="panel sets" data-sec="${id}" ${id === setSec ? "" : "hidden"}><h2>${esc(title)}</h2>${body}</section>`).join("")}</div></div>`;
   for (const k of SKEYS){ const el = $("#s_"+k); if (el) el.value = String(settings[k] ?? ""); }
   $("#set_lang").value = L; $("#set_theme").value = theme;
+  syncEngine();
   document.querySelectorAll(".setnav [data-sec]").forEach(b => b.onclick = () => {
     setSec = b.dataset.sec; try { localStorage.setItem("vs_setsec", setSec); } catch {}
     document.querySelectorAll(".setnav [data-sec]").forEach(x => x.classList.toggle("on", x === b));
@@ -841,7 +845,8 @@ function renderSettings(){
   for (const k of SKEYS){ const el = $("#s_"+k); if (!el) continue;
     el.addEventListener("change", async () => {
       const v = el.value, val = k==="max_kadrow" ? (v? Number(v): null) : SBOOL.includes(k) ? v==="true" : v;
-      try { settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify({[k]: val})}); toast(t("saved")); el.classList.add("savedok"); setTimeout(() => el.classList.remove("savedok"), 900); loadStatus(); }
+      try { settings = await api("/api/ustawienia", {method:"POST", body:JSON.stringify({[k]: val})}); toast(t("saved"));
+        if (k === "silnik" && $("#enghint")) { $("#enghint").textContent = t(val === "claude" ? "eng_hint_claude" : "eng_hint_local"); syncEngine(); } el.classList.add("savedok"); setTimeout(() => el.classList.remove("savedok"), 900); loadStatus(); }
       catch(e){ toast(e.message); }
     });
   }
@@ -852,6 +857,9 @@ function renderSettings(){
     document.body.innerHTML = `<main style="padding:60px;text-align:center;font-size:18px">${esc(t("quit_done"))}</main>`;
   };
   bindUpdates(); renderDiag();
+}
+function syncEngine(){            // 0.14.0: przy silniku Claude ustawienia modeli lokalnych nie mają znaczenia — ukryte
+  document.querySelectorAll(".locai").forEach(e => e.hidden = settings?.silnik === "claude");
 }
 function renderDiag(){
   const s = lastStatus || {}, el = $("#diag"); if (!el) return;
@@ -1176,7 +1184,7 @@ function renderAppMode(){
   document.querySelectorAll("#appmode button").forEach(b => b.classList.toggle("on", b.dataset.app === appMode()));
   document.querySelectorAll("#cfmt button").forEach(b => b.classList.toggle("on", b.dataset.fmt === f));
   $("#cfmtrow").hidden = !c; $("#convfoot").hidden = !c; $("#amoderow").hidden = c;
-  if ($("#setup")) $("#setup").hidden = c;              // Ollama i modele nie są potrzebne do konwersji
+  if ($("#setup")) $("#setup").hidden = c || settings?.silnik === "claude";   // Ollama niepotrzebna: konwersja albo Claude
   const sf = document.querySelector(".startfoot"); if (sf) sf.hidden = c;
   if (c) $("#pvrow").hidden = true;
   $("#cfmthint").textContent = t("conv_hint_" + f);

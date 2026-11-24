@@ -474,7 +474,8 @@ class App:
              "podglad": False, "tlumacz_wynik": True, "tryb_podgladu": "zawsze", "tryb": "pelna",
              # 0.14.0: tryb aplikacji (analiza / konwersja), format konwersji, folder konwersji („” = <wyniki>\Konwersje),
              # sprawdzanie aktualizacji przy starcie
-             "tryb_aplikacji": "analiza", "format_konwersji": "mp4", "folder_konwersji": "", "sprawdzaj_aktualizacje": True}
+             "tryb_aplikacji": "analiza", "format_konwersji": "mp4", "folder_konwersji": "", "sprawdzaj_aktualizacje": True,
+             "silnik": "lokalny"}
         try:
             saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
             if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":
@@ -491,10 +492,16 @@ class App:
         self.settings_file.write_text(json.dumps(self.settings, ensure_ascii=False, indent=2), encoding="utf-8")
         return self.settings
 
+    def uses_claude(self) -> bool:
+        """0.14.0: silnik „Claude” (dla osób z subskrypcją Pro/Max — przez Claude Code) albo samo streszczenie Claude'em."""
+        return self.settings.get("silnik") == "claude" or self.settings.get("streszczenie") == "claude"
+
     def models_needed(self) -> list[str]:
         """Modele Ollamy potrzebne przy obecnych ustawieniach (obraz + tekst; bez wyłączonych)."""
         s = self.settings
         out = []
+        if s.get("silnik") == "claude":                # wszystko liczy Claude — Ollama niepotrzebna
+            return out
         if s.get("obraz", "ollama") == "ollama":
             out.append(s.get("model_obrazu") or "qwen3-vl:4b-instruct")
         if s.get("streszczenie", "auto") in ("auto", "ollama"):
@@ -522,12 +529,18 @@ class App:
             tl = parse_list(s.get("tlumaczenia", "pl,en"))
         except ValueError:
             tl = ["pl", "en"]
+        claude = s.get("silnik") == "claude"           # 0.14.0: opis kadrów i streszczenie przez Claude Code
+        vision = s.get("obraz", "ollama")
+        summ = s.get("streszczenie") or "auto"
+        if claude:
+            vision = "claude" if vision != "brak" else "brak"
+            summ = "claude" if summ != "brak" else "brak"
         return Options(out_root=Path(s.get("wyniki") or self.results),
                        language=None if s.get("jezyk") in (None, "", "auto") else s["jezyk"],
                        whisper_model=s.get("whisper") or "large-v3-turbo", ocr=bool(s.get("ocr", True)),
                        whisper_root=str(app_dir() / "modele"),
-                       vision=s.get("obraz", "ollama"), vision_model=s.get("model_obrazu") or "qwen3-vl:4b-instruct",
-                       summary=s.get("streszczenie") or "auto", max_frames=int(mk) if mk else None,
+                       vision=vision, vision_model=s.get("model_obrazu") or "qwen3-vl:4b-instruct",
+                       summary=summ, max_frames=int(mk) if mk else None,
                        text_model=s.get("model_tekstowy") or DEFAULT_TEXT_MODEL, translate=tl,
                        cuda_download=bool(s.get("gpu_pobieranie", True)),
                        cookies_from_browser=s.get("ciasteczka_z") or None,
@@ -543,8 +556,11 @@ class App:
         st = st if st is not None else {}
         st.update(stan="trwa", postep="start")
         try:
-            eng = Ollama(self.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
-            eng.ensure(lambda m: None)
+            if self.uses_claude():
+                eng = ClaudeCode()
+            else:
+                eng = Ollama(self.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
+                eng.ensure(lambda m: None)
             r = json.loads(p.read_text(encoding="utf-8"))
             old = ((r.get("tlumaczenie_calosci") or {}).get(lang) or {}).get("pamiec") or {}
             res = translate_analysis(eng, r, lang, progress=lambda m: st.update(postep=m), cache=old)
@@ -789,7 +805,7 @@ def make_handler(app: App):
                 if direct:
                     raise _Direct(direct)
                 # samodzielnie: lokalny model tekstowy; Claude tylko gdy użytkownik wybrał go w ustawieniach
-                if app.settings.get("streszczenie") == "claude":
+                if app.uses_claude():
                     eng, silnik = ClaudeCode(), "claude-code"
                 else:
                     eng = Ollama(app.settings.get("model_tekstowy") or DEFAULT_TEXT_MODEL)
