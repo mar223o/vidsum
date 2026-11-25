@@ -147,7 +147,8 @@ class Job:
                 if self.status == "trwa" else None,
                 "konwersja": {**self.conv, "plik": self.out.name if self.out else None} if self.conv else None,
                 "stage": self.stage, "etap_po": self.stage_extra, "czesciowe": list(self.partial) if self.status == "trwa" else [],
-                "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card()}
+                "elapsed": round(end - self.started, 1) if self.started else None, "card": self.card(),
+                "tytul_filmu": (self.partial.get("meta") or {}).get("tytul")}     # 0.15.0: tytuł w kolejce zamiast linku
 
 
 class Worker:
@@ -875,8 +876,8 @@ def make_handler(app: App):
             qs = urllib.parse.parse_qs(u.query)
             if u.path in ("/", "/index.html"):
                 return self._file(web / "index.html")
-            if u.path in ("/favicon.ico", "/icon.svg"):       # ikona programu (bez tokenu — to tylko obrazek)
-                return self._file(web / ("vidsum.ico" if u.path.endswith(".ico") else "icon.svg"))
+            if u.path in ("/favicon.ico", "/icon.svg", "/znak.svg"):   # ikona i znak wodny tła (bez tokenu — to tylko obrazki)
+                return self._file(web / {"/favicon.ico": "vidsum.ico", "/icon.svg": "icon.svg", "/znak.svg": "znak.svg"}[u.path])
             if not self._authed(qs):
                 return
             if u.path == "/api/status":

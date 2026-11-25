@@ -272,13 +272,15 @@ def test_clear_library_endpoint_needs_confirmation(tmp_path, monkeypatch):
 def test_palette_from_user_in_both_themes():
     html = HTML.read_text(encoding="utf-8")
     root = html[html.index(":root{"):html.index('@media (prefers-color-scheme: light)')]
-    for c in ("#38BDF8", "#C4B5FD", "#F5EFE6", "#000000"):
+    # 0.15.0: krem + błękit, ciemne tło „łupek”, jeden akcent (lawenda została tylko w logo)
+    for c in ("--bg:#0f1316", "#38BDF8", "#F5EFE6"):
         assert c in root, c
+    assert "#C4B5FD" not in root and "linear-gradient(110deg" not in html
     light = html[html.index(':root[data-theme="light"]{'):html.index("@media (prefers-color-scheme: light)")]
     assert "--bg:#F5EFE6" in light and "--ink:#0A0A0A" in light
     assert "rgba(61,123,255" not in html and "#3d7bff" not in html          # stary lazur zniknął
-    for k in ("ps_start", "pn_obraz", "p_left", "lib_clear", "lib_sure", "live_no_sum"):
-        assert html.count(f"{k}:") == 2, k                                    # PL i EN
+    for k in ("ps_start", "pn_obraz", "p_left", "lib_clear", "lib_sure", "live_no_sum", "cmd_ph", "conv_go_fmt", "rec_h"):
+        assert len(re.findall(rf"[{{,\s]{k}:", html)) == 2, k                # PL i EN
     assert "zostało ok." not in re.sub(r"eta_left:[^,]+,", "", html)
 
 
@@ -357,7 +359,7 @@ def test_ui_live_progress_per_mode(ui):
     pg.reload()
     pg.wait_for_selector("#queue .prog")
     assert pg.locator("#queue .prog").count() == 2
-    row = pg.locator("#queue .qi", has_text="example.com/transkrypcja").inner_text().lower()
+    row = pg.locator("#queue .qi", has_text="Film transkrypcja").inner_text().lower()   # 0.15.0: tytuł filmu zamiast linku
     assert "rozpoznaję mowę" in row and "kadr" not in row and "etap 2/4" not in row
 
 

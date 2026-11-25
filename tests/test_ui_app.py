@@ -78,6 +78,8 @@ def test_home_queue_settings_and_language(appsrv, width):
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
         page.screenshot(path=str(shots / f"start_{width}.png"), full_page=True)
         # 0.11.5: tryb wstępnego streszczenia wybiera się przy linku (nie w Ustawieniach) i zapamiętuje
+        assert not page.is_visible("#pvmode")                     # 0.15.0: tryby w okienku „Opcje”
+        page.click("#optbtn")
         page.click('#pvmode [data-pv="zawsze"]')
         page.wait_for_function("document.querySelector('#pvmode [data-pv=\"zawsze\"]').classList.contains('on')")
         page.wait_for_function("document.querySelector('#pvhint').innerText.includes('1:42')")
@@ -127,8 +129,10 @@ def test_home_queue_settings_and_language(appsrv, width):
         whole = page.inner_text("body")
         assert "Queue" in whole and not PL_ONLY.search(whole), PL_ONLY.findall(whole)
         page.screenshot(path=str(shots / f"start_en_{width}.png"), full_page=True)
-        # i z powrotem po polsku przyciskiem w pasku
-        page.click('.lang button[data-l="pl"]')
+        # i z powrotem po polsku (0.15.0: przełącznik PL/EN tylko w Ustawieniach)
+        page.click('nav a[data-nav="set"]')
+        page.click('.setnav [data-sec="ui"]')
+        page.select_option("#set_lang", "pl")
         page.wait_for_function("document.documentElement.lang === 'pl'")
         assert not EN_ONLY.search(page.inner_text("body")), EN_ONLY.findall(page.inner_text("body"))
         b.close()

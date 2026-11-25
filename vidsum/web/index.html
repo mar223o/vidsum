@@ -7,64 +7,60 @@
 <meta name="application-name" content="Vidsumly"><!-- nazwa techniczna: Vidsumly -->
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <style>
-/* Vidsumly 0.13.2 — głównie czerń (ciemny) albo krem (jasny); akcent: błękit #38BDF8, drugi: lawenda #C4B5FD,
-   tekst kremowy #F5EFE6 na czerni. Paleta od użytkownika (14.11.2026). Jedna rzecz zapada w pamięć: poświata z samego
-   filmu za odtwarzaczem i nagłówkiem wyniku; pasek postępu i przyciski główne w gradiencie błękit → lawenda. */
+/* Vidsumly 0.15.0 „Komenda” — paleta krem + błękit wybrana przez użytkownika (24.11.2026): ciemne tło „łupek” #0f1316
+   z błękitnymi kropkami w rogach i małym znakiem wodnym, kremowy tekst #F5EFE6, jeden akcent: błękit #38BDF8 (aktywne / trwa).
+   Jasny motyw: krem #F5EFE6 i czerń #0A0A0A. Bez gradientów i ozdobnych poświat. */
 :root{
-  --bg:#000000; --bg2:#0a0a0a; --panel:#0f0f10; --card:#151516; --raised:#1c1c1e;
-  --ink:#F5EFE6; --ink2:#d9d2c6; --muted:#9a948a; --faint:#615c55;
-  --line:rgba(245,239,230,.08); --line2:rgba(245,239,230,.15); --hl:rgba(245,239,230,.045);
-  --accent:#38BDF8; --accent-2:#C4B5FD; --accent-ink:#000; --accent-soft:rgba(56,189,248,.14); --glow:rgba(56,189,248,.38);
-  --btn-bg:linear-gradient(110deg,#38BDF8 0%,#C4B5FD 100%); --btn-ink:#000;
-  --ok:#5fd4a0; --bad:#ff8a8a; --warn:#f5c46b;
-  --speech:#7dd3fc; --vision:#C4B5FD; --est:#f5c46b; --none:#8a857d;
-  --grad:linear-gradient(110deg,#38BDF8 0%,#C4B5FD 100%);
-  --grad-soft:linear-gradient(110deg,rgba(56,189,248,.14),rgba(196,181,253,.10));
-  --amb1:rgba(56,189,248,.10); --amb2:rgba(196,181,253,.08);
-  --shadow:0 1px 0 var(--hl) inset,0 1px 2px rgba(0,0,0,.5),0 12px 32px -12px rgba(0,0,0,.7);
-  --shadow-lg:0 1px 0 var(--hl) inset,0 2px 6px rgba(0,0,0,.4),0 30px 80px -24px rgba(0,0,0,.8);
+  --bg:#0f1316; --bg2:#12171a; --panel:#161b1f; --card:#1a2025; --raised:#232b31;
+  --ink:#F5EFE6; --ink2:#d9d2c6; --muted:#a3acb2; --faint:#8d969c;
+  --line:rgba(245,239,230,.08); --line2:rgba(245,239,230,.16); --hl:rgba(245,239,230,.045);
+  --accent:#38BDF8; --accent-ink:#0f1316; --accent-soft:rgba(56,189,248,.14);
+  --btn-bg:#F5EFE6; --btn-ink:#0f1316; --bad:#F5EFE6;
+  --shadow:0 1px 0 var(--hl) inset,0 1px 2px rgba(0,0,0,.35),0 12px 32px -14px rgba(0,0,0,.55);
+  --shadow-lg:0 1px 0 var(--hl) inset,0 2px 6px rgba(0,0,0,.3),0 30px 80px -24px rgba(0,0,0,.65);
   --display:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
   --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
   --mono:"Cascadia Mono",ui-monospace,Consolas,monospace;
   --serif:var(--display);
-  --r-lg:22px; --r:16px; --r-sm:12px; color-scheme:dark;
+  --r-lg:18px; --r:14px; --r-sm:10px; color-scheme:dark;
+}
+/* 0.15.0: jeden akcent (błękit) — kolor tylko dla „aktywne / trwa”; reszta w skali kremu i grafitu.
+   Dawne kolory stanów (zielony, żółty, lawendowy, gradienty) wskazują teraz na te same tony. */
+:root,:root[data-theme]{
+  --accent-2:color-mix(in srgb,var(--accent) 55%,var(--bg)); --glow:transparent;
+  --ok:var(--ink2); --warn:var(--ink2); --speech:var(--muted); --vision:var(--muted); --est:var(--muted); --none:var(--muted);
+  --grad:linear-gradient(var(--accent),var(--accent)); --grad-soft:linear-gradient(var(--hl),var(--hl));
 }
 :root[data-theme="light"]{
-  --bg:#F5EFE6; --bg2:#EEE6D9; --panel:#FBF8F3; --card:#F6F0E6; --raised:#FFFFFF;
-  --ink:#0A0A0A; --ink2:#2b2824; --muted:#6b645a; --faint:#a59d91;
-  --line:rgba(10,10,10,.09); --line2:rgba(10,10,10,.16); --hl:rgba(10,10,10,.035);
-  --accent:#0369A1; --accent-2:#6D5BD0; --accent-ink:#F5EFE6; --accent-soft:rgba(3,105,161,.10); --glow:rgba(56,189,248,.30);
-  --btn-bg:#0A0A0A; --btn-ink:#F5EFE6;
-  --ok:#15803d; --bad:#c2253f; --warn:#a16207;
-  --speech:#0369A1; --vision:#6D5BD0; --est:#a16207; --none:#6b6560;
-  --grad:linear-gradient(110deg,#38BDF8 0%,#C4B5FD 100%);
-  --grad-soft:linear-gradient(110deg,rgba(56,189,248,.16),rgba(196,181,253,.16));
-  --amb1:rgba(56,189,248,.12); --amb2:rgba(196,181,253,.14);
+  --bg:#F5EFE6; --bg2:#EEE6D9; --panel:#FBF8F3; --card:#F7F1E8; --raised:#FFFFFF;
+  --ink:#0A0A0A; --ink2:#2b2824; --muted:#5c554b; --faint:#6b645a;
+  --line:rgba(10,10,10,.09); --line2:rgba(10,10,10,.17); --hl:rgba(10,10,10,.035);
+  --accent:#0369A1; --accent-ink:#F5EFE6; --accent-soft:rgba(3,105,161,.10);
+  --btn-bg:#0A0A0A; --btn-ink:#F5EFE6; --bad:#0A0A0A;
   --shadow:0 1px 2px rgba(10,10,10,.05),0 10px 30px -14px rgba(10,10,10,.16);
   --shadow-lg:0 2px 6px rgba(10,10,10,.05),0 30px 70px -28px rgba(10,10,10,.24); color-scheme:light;
 }
 @media (prefers-color-scheme: light){
   :root[data-theme="system"]{
-    --bg:#F5EFE6; --bg2:#EEE6D9; --panel:#FBF8F3; --card:#F6F0E6; --raised:#FFFFFF;
-    --ink:#0A0A0A; --ink2:#2b2824; --muted:#6b645a; --faint:#a59d91;
-    --line:rgba(10,10,10,.09); --line2:rgba(10,10,10,.16); --hl:rgba(10,10,10,.035);
-    --accent:#0369A1; --accent-2:#6D5BD0; --accent-ink:#F5EFE6; --accent-soft:rgba(3,105,161,.10); --glow:rgba(56,189,248,.30);
-    --btn-bg:#0A0A0A; --btn-ink:#F5EFE6;
-    --ok:#15803d; --bad:#c2253f; --warn:#a16207;
-    --speech:#0369A1; --vision:#6D5BD0; --est:#a16207; --none:#6b6560;
-    --grad:linear-gradient(110deg,#38BDF8 0%,#C4B5FD 100%);
-    --grad-soft:linear-gradient(110deg,rgba(56,189,248,.16),rgba(196,181,253,.16));
-    --amb1:rgba(56,189,248,.12); --amb2:rgba(196,181,253,.14);
-    --shadow:0 1px 2px rgba(10,10,10,.05),0 10px 30px -14px rgba(10,10,10,.16);
-    --shadow-lg:0 2px 6px rgba(10,10,10,.05),0 30px 70px -28px rgba(10,10,10,.24); color-scheme:light; }
+    --bg:#F5EFE6; --bg2:#EEE6D9; --panel:#FBF8F3; --card:#F7F1E8; --raised:#FFFFFF;
+  --ink:#0A0A0A; --ink2:#2b2824; --muted:#5c554b; --faint:#6b645a;
+  --line:rgba(10,10,10,.09); --line2:rgba(10,10,10,.17); --hl:rgba(10,10,10,.035);
+  --accent:#0369A1; --accent-ink:#F5EFE6; --accent-soft:rgba(3,105,161,.10);
+  --btn-bg:#0A0A0A; --btn-ink:#F5EFE6; --bad:#0A0A0A;
+  --shadow:0 1px 2px rgba(10,10,10,.05),0 10px 30px -14px rgba(10,10,10,.16);
+  --shadow-lg:0 2px 6px rgba(10,10,10,.05),0 30px 70px -28px rgba(10,10,10,.24); color-scheme:light; }
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;color:var(--ink);font:15px/1.6 var(--sans);font-feature-settings:"ss01";-webkit-font-smoothing:antialiased;
-  background:var(--bg);
-  background-image:radial-gradient(1200px 520px at 50% -200px,var(--amb1),transparent 70%),
-                   radial-gradient(700px 420px at 100% 0,var(--amb2),transparent 70%);
-  background-attachment:fixed;min-height:100vh}
+  background:var(--bg);min-height:100vh}
+/* 0.15.0: ciemne tło „łupek” z błękitnymi kropkami w dwóch rogach i małym znakiem wodnym (logo) — tylko w ciemnym motywie */
+body::before,body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none}
+:root:not([data-theme="light"]) body::before{background:radial-gradient(rgba(56,189,248,.38) 1.1px,transparent 1.6px) 0 0/30px 30px;
+  -webkit-mask-image:radial-gradient(70% 70% at 15% 0%,#000 10%,transparent 75%),radial-gradient(60% 60% at 100% 100%,#000 5%,transparent 70%);
+  mask-image:radial-gradient(70% 70% at 15% 0%,#000 10%,transparent 75%),radial-gradient(60% 60% at 100% 100%,#000 5%,transparent 70%)}
+:root:not([data-theme="light"]) body::after{background:url("/znak.svg") right 36px bottom 28px/200px 200px no-repeat;opacity:.06}
+@media (prefers-color-scheme: light){ :root[data-theme="system"] body::before,:root[data-theme="system"] body::after{display:none} }
 button{font:inherit;color:inherit}
 a{color:var(--accent)}
 ::selection{background:color-mix(in srgb,var(--accent) 35%,transparent)}
@@ -217,7 +213,7 @@ main{overflow-x:clip}
 .r-head{max-width:900px;margin:0 auto 30px}
 .r-head .eyebrow{font-size:13.5px;color:var(--ink2)}
 .r-head h1{font:700 clamp(34px,5.4vw,62px)/1.02 var(--display);margin:8px 0 12px;letter-spacing:-.04em}
-.r-head h1 i{display:block;font-style:normal;color:var(--muted)}
+.r-head h1 i{display:block;font-style:normal;color:var(--ink)}
 .thesis{font:450 19px/1.5 var(--sans);color:var(--ink2);margin:10px 0 12px;max-width:62ch;padding:0}
 .meta{font:500 12.5px var(--sans);color:var(--muted);display:flex;gap:6px 14px;flex-wrap:wrap}
 .meta span:empty{display:none}
@@ -548,16 +544,87 @@ a.chip{text-decoration:none}a.chip:hover{color:var(--ink);border-color:var(--lin
 details.adv{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
 details.adv summary{cursor:pointer;color:var(--muted);font-size:13.5px}
 @media (max-width:760px){ .setwrap{grid-template-columns:minmax(0,1fr)} .setnav{position:static;grid-template-columns:repeat(2,minmax(0,1fr))} .setnav h1,.setnav .autosave{grid-column:1/-1} }
+
+/* ================= 0.15.0 „Komenda” ================= */
+/* nagłówek: płaska nawigacja, jeden wskaźnik stanu, ikony po prawej */
+header{gap:8px;padding:8px 20px}
+.logo{font-size:16px;gap:9px;margin-right:10px}.logo img{box-shadow:none;border-radius:8px}
+nav{background:none;border:0;padding:0;gap:2px}
+nav a{display:inline-flex;align-items:center;gap:7px;border-radius:8px;padding:6px 11px}
+nav a.on{background:var(--raised);box-shadow:none}nav a.on .ic{color:var(--accent)}
+.hsp{flex:1}
+.chips{flex:0 1 auto}
+.chip{background:none;border:0;font-size:12.5px;padding:5px 9px;border-radius:8px;text-decoration:none;color:var(--muted)}
+.chip:hover{background:var(--hl);color:var(--ink)}
+.chip.ok::before{background:var(--muted);box-shadow:none}
+.chip.bad{color:var(--ink);font-weight:600}.chip.bad::before{background:transparent;border:1.5px solid var(--ink);width:5px;height:5px}
+.dot.ok{background:var(--muted)}.dot.bad{background:transparent;border:1.5px solid var(--ink)}
+/* jeden akcent: przyciski główne jednolite, zaznaczenia w segmentach błękitnym obrysem */
+.btn{border-radius:10px}
+.btn.primary{box-shadow:none}
+.btn:hover{border-color:var(--line2);background:var(--hl)}
+.seg{border-radius:10px;background:none}
+.seg button[hidden]{display:none}
+.seg button{border-radius:7px}
+.seg button.on{background:var(--accent-soft);color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent)}
+.pill{background:none;border:1px solid var(--line2);color:var(--ink2);font-weight:500}
+.panel{background:var(--panel);backdrop-filter:none;box-shadow:var(--shadow)}
+.hero h1{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--ink);font-size:clamp(24px,2.6vw,30px);letter-spacing:-.02em;margin-bottom:6px}
+.hero p{font-size:15px;margin-bottom:18px}
+/* strona główna */
+main:has(> .cmd){max-width:760px;padding-top:9vh}
+.cmd{display:grid;gap:10px;justify-items:center;margin-bottom:28px}
+.cmd #kind{justify-self:center}
+.cmd #kind button{padding:6px 16px;font-size:13.5px}
+#drop.cmdbox{text-align:left;cursor:default;transform:none;overflow:visible}
+#drop.cmdbox::after{display:none}
+#drop.cmdbox,.cmdbox{position:relative;display:flex;align-items:flex-start;gap:6px;width:100%;padding:8px 8px 8px 8px;border-radius:16px;
+  background:var(--panel);border:1px solid var(--line2);box-shadow:var(--shadow);transition:border-color .15s}
+.cmdbox:focus-within,.cmdbox.over{border-color:var(--accent)}
+.cmdbox.over{background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.cmdbox #pickbtn{width:38px;height:38px;flex:none}
+.cmdbox textarea{flex:1;min-width:0;resize:none;border:0;background:none;outline:0;color:var(--ink);font:16px/1.5 var(--sans);padding:8px 4px;height:40px;max-height:160px;overflow-y:auto}
+.cmdbox textarea::placeholder{color:var(--muted)}
+.cmdbox .btn{height:38px;padding:0 14px;display:inline-flex;align-items:center;gap:7px}
+.cmdbox #go{padding:0 18px;font-size:14px}
+.optwrap{position:relative}
+.optwrap[hidden],.optpop[hidden]{display:none}
+.optpop{position:absolute;right:0;top:calc(100% + 8px);z-index:30;width:min(440px,86vw);display:grid;gap:14px;padding:16px;border-radius:14px;
+  background:var(--raised);border:1px solid var(--line2);box-shadow:var(--shadow-lg)}
+.optpop .pvrow{display:grid;gap:6px;margin:0}.optpop .pvrow[hidden]{display:none}
+.optpop .olab{font:600 12.5px var(--sans);color:var(--ink2);display:block}
+.optpop .pvhint{font-size:12.5px;line-height:1.45}
+.cmdhint{font-size:13px;text-align:center}
+.cmd .convfoot{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;font-size:12.5px}
+.cmd .convfoot[hidden]{display:none}
+.cmd .convfoot .cnote{flex-basis:100%;text-align:center}
+@media (max-width:760px){ :root body::after{display:none} }
+/* kolejka i „Ostatnie” */
+#queue .queue{margin-bottom:14px}
+.recent{padding:4px 8px}
+.recent .qtoggle .chev{transition:transform .2s;transform:rotate(-90deg)}
+.recent.open .qtoggle .chev{transform:none}
+.rlist{list-style:none;margin:4px 0 0;padding:0}
+.ri{display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:10px;text-decoration:none;color:var(--ink);border-bottom:1px solid var(--line)}
+.rlist li:last-child .ri{border-bottom:0}
+.ri:hover{background:var(--hl)}
+.rmain{flex:1;min-width:0;display:grid}
+.rt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rn,.rd{font-size:12.5px;color:var(--muted);white-space:nowrap;text-align:right}
+.rn{width:48px}.rd{width:64px}
+.rmore{display:block;padding:8px;color:var(--muted)}
+@media (max-width:640px){ .optwrap{position:static} .optpop{left:0;right:0;width:auto} .cmdbox{flex-wrap:wrap} .cmdbox textarea{flex-basis:calc(100% - 50px)} .cmdbox #go{flex:1} .ri .pill,.rd{display:none} header{padding:8px 12px} nav a span{display:none} }
 </style>
 </head>
 <body>
 <header>
   <a class="logo" href="#/"><img src="/icon.svg" alt="" width="28" height="28"><span>Vidsumly</span></a>
   <nav><a href="#/" data-nav="home"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-i="nav_home"></span></a><a href="#/biblioteka" data-nav="lib"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="7" rx="1.5"/><rect x="13.5" y="4" width="7" height="7" rx="1.5"/><rect x="3.5" y="14" width="7" height="7" rx="1.5"/><rect x="13.5" y="14" width="7" height="7" rx="1.5"/></svg><span data-i="nav_lib"></span></a><a href="#/ustawienia" data-nav="set"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg><span data-i="nav_set"></span></a></nav>
+  <span class="hsp"></span>
   <div class="chips" id="chips"></div>
-  <div class="seg lang"><button data-l="pl">PL</button><button data-l="en">EN</button></div>
-  <button class="btn ico" id="theme" title="" aria-label="theme"></button>
-  <button class="btn" id="inbrowser" data-i="open_browser" hidden></button>
+  <button class="iconbtn" id="theme" title="" aria-label="theme"></button>
+  <button class="iconbtn" id="inbrowser" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg></button>
 </header>
 <main id="app"></main>
 <div class="toast" id="toast"></div>
@@ -565,7 +632,7 @@ details.adv summary{cursor:pointer;color:var(--muted);font-size:13.5px}
 <script>
 const T = new URLSearchParams(location.search).get("t") || "";
 const I18N = {
- pl:{nav_home:"Analizuj",nav_lib:"Biblioteka",nav_set:"Ustawienia",ok:"działa",not_ok:"nie działa",chip_ff_ok:"wycinanie kadrów i dźwięku działa",chip_ff_bad:"brak ffmpeg/ffprobe — analiza filmów nie ruszy",theme:"Motyw",
+ pl:{nav_home:"Nowa analiza",k_an:"Analiza",cmd_ph:"Wklej link albo przeciągnij plik",cmd_hint:"YouTube, TikTok, Instagram albo plik wideo / audio. Kilka naraz trafia do kolejki.",cmd_pick:"Wybierz plik z komputera",opts:"Opcje analizy",conv_go_fmt:f=>`Pobierz ${f.toUpperCase()}`,conv_cmd_note:f=>`Sam plik ${f==="mp3"?"audio MP3":"wideo MP4"}, bez analizy. Trafi do folderu Konwersje.`,conv_cmd_ph:"Wklej link do filmu albo piosenki",rec_h:"Ostatnie",recent_all:"Cała biblioteka",st_ready:"Gotowy",st_problem:"Coś nie działa",nav_lib:"Biblioteka",nav_set:"Ustawienia",ok:"działa",not_ok:"nie działa",chip_ff_ok:"wycinanie kadrów i dźwięku działa",chip_ff_bad:"brak ffmpeg/ffprobe — analiza filmów nie ruszy",theme:"Motyw",
    stage_of:n=>`Etap ${n}/4`,q_up:"Wyżej w kolejce",q_down:"Niżej w kolejce",q_remove:"Usuń z kolejki",q_retry:"Ponów",q_pos:n=>`${n}. w kolejce`,
    q_empty:"Kolejka jest pusta. Dodane filmy pojawią się tutaj; gotowe analizy są w Bibliotece.",q_n_run:n=>`${n} w toku`,q_n_wait:n=>`${n} czeka`,q_n_bad:n=>`${n} z błędem`,
    q_done_all:"wszystko gotowe",q_title:"Kolejka",q_resume:"Wznów",q_pause:"Wstrzymaj",q_restored:"Kolejka wróciła po ponownym uruchomieniu i jest wstrzymana. Wznów, żeby przeanalizować oczekujące filmy.",
@@ -633,7 +700,7 @@ const I18N = {
    live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
    live_wait_tr:"Transkrypcja pojawi się tutaj, gdy tylko mowa zostanie rozpoznana.",live_wait_fr:"Kadry pojawią się po ich wycięciu z filmu.",
    offline:"Brak połączenia z programem Vidsumly. Uruchom Vidsumly ponownie (otworzy tę samą stronę)."},
- en:{nav_home:"Analyze",nav_lib:"Library",nav_set:"Settings",ok:"working",not_ok:"not working",chip_ff_ok:"frame and audio extraction works",chip_ff_bad:"ffmpeg/ffprobe missing — video analysis can't start",theme:"Theme",
+ en:{nav_home:"New analysis",k_an:"Analysis",cmd_ph:"Paste a link or drop a file",cmd_hint:"YouTube, TikTok, Instagram or a video / audio file. Several at once go to the queue.",cmd_pick:"Choose a file from the computer",opts:"Analysis options",conv_go_fmt:f=>`Download ${f.toUpperCase()}`,conv_cmd_note:f=>`Just the ${f==="mp3"?"MP3 audio":"MP4 video"} file, no analysis. Saved to the Konwersje folder.`,conv_cmd_ph:"Paste a link to a video or song",rec_h:"Recent",recent_all:"Whole library",st_ready:"Ready",st_problem:"Something is not working",nav_lib:"Library",nav_set:"Settings",ok:"working",not_ok:"not working",chip_ff_ok:"frame and audio extraction works",chip_ff_bad:"ffmpeg/ffprobe missing — video analysis can't start",theme:"Theme",
    stage_of:n=>`Step ${n}/4`,q_up:"Move up",q_down:"Move down",q_remove:"Remove from queue",q_retry:"Retry",q_pos:n=>`#${n} in queue`,
    q_empty:"The queue is empty. Videos you add appear here; finished analyses are in the Library.",q_n_run:n=>`${n} running`,q_n_wait:n=>`${n} waiting`,q_n_bad:n=>`${n} failed`,
    q_done_all:"all done",q_title:"Queue",q_resume:"Resume",q_pause:"Pause",q_restored:"The queue came back after a restart and is paused. Resume to analyse the waiting videos.",
@@ -780,8 +847,11 @@ async function loadStatus(){
 function renderChips(){
   const s = lastStatus; if (!s || !s.wersja) return;
   { const ui = $("#updInfo"); if (ui) ui.innerHTML = updInfo();
-    $("#chips").innerHTML = [["chip_ff",s.ffmpeg,s.ffmpeg ? t("chip_ff_ok") : t("chip_ff_bad")],["chip_ol",s.ollama,s.ollama_info],["chip_cl",s.claude,s.claude_info]]
-      .map(([k,ok,info]) => `<a class="chip ${ok?"ok":"bad"}" href="#/ustawienia" title="${esc(info)}"><span class="sr">${t(ok ? "ok" : "not_ok")}:</span>${t(k)}</a>`).join("");
+    // 0.15.0: jeden wskaźnik zamiast trzech chipów — „Gotowy” albo nazwa tego, co nie działa (wymagane przez wybrany silnik)
+    const parts = [["chip_ff",s.ffmpeg,s.ffmpeg ? t("chip_ff_ok") : t("chip_ff_bad")],["chip_ol",s.ollama,s.ollama_info],["chip_cl",s.claude,s.claude_info]];
+    const need = parts.filter(([k]) => k === "chip_ff" || k === (settings?.silnik === "claude" ? "chip_cl" : "chip_ol"));
+    const bad = need.filter(([, ok]) => !ok), tip = parts.map(([k, ok, info]) => `${t(k)}: ${t(ok ? "ok" : "not_ok")}${info ? " — " + info : ""}`).join("\n");
+    $("#chips").innerHTML = `<a class="chip ${bad.length ? "bad" : "ok"}" href="#/ustawienia" title="${esc(tip)}" aria-label="${esc(tip)}">${bad.length ? `${t("st_problem")}: ${bad.map(([k]) => t(k)).join(", ")}` : t("st_ready")}</a>`;
     if (location.hash.startsWith("#/ustawienia")) renderDiag();
   }
 }
@@ -977,7 +1047,7 @@ function qRow(j, idx, n){
   const body = st === "trwa" ? prog + (j.konwersja ? "" : partsHtml(j)) + (logOpen ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>` : "")
     : (st === "blad" || st === "przerwane") ? `<div class="qerr">${esc(j.error || "")}</div>` : (pend && j.log.length ? `<div class="qnote">${esc(j.log[0])}</div>` : "");
   return `<li class="qi ${st}${st==="trwa" ? " now" : ""}">${qThumb(j)}
-    <div class="qmain"><div class="qtop">${j.konwersja ? `<span class="fmtb">${esc(j.konwersja.format.toUpperCase())}</span>` : ""}<span class="name" title="${esc(j.label)}">${esc(j.konwersja?.plik || j.card?.tytul || j.label)}</span></div>
+    <div class="qmain"><div class="qtop">${j.konwersja ? `<span class="fmtb">${esc(j.konwersja.format.toUpperCase())}</span>` : ""}<span class="name" title="${esc(j.label)}">${esc(j.konwersja?.plik || j.card?.tytul || j.tytul_filmu || j.label)}</span></div>
       ${st === "trwa" && prog ? "" : `<div class="qmeta"><span class="st ${st}">${t(st)}</span>${pend ? `<span>${t("q_pos", idx+1)}</span>` : ""}${stage ? `<span>${stage}</span>` : ""}${timer}</div>`}${body}</div>
     <div class="qacts">${acts.join("")}</div></li>`;
 }
@@ -987,11 +1057,11 @@ function renderQueue(){
   const run = jobs.filter(j => j.status === "trwa");
   const pend = qstate.oczekuje.map(id => byId[id]).filter(Boolean);
   const bad = jobs.filter(j => j.status === "blad" || j.status === "przerwane");
-  const fin = jobs.filter(j => j.status === "gotowe" && j.elapsed != null).slice(0, 4);   // ukończone w tej sesji (0.14.0: było j.started — pole, którego serwer nie wysyła)
+  const fin = jobs.filter(j => j.status === "gotowe" && j.elapsed != null && j.konwersja).slice(0, 4);   // 0.15.0: gotowe analizy są w „Ostatnich”   // ukończone w tej sesji (0.14.0: było j.started — pole, którego serwer nie wysyła)
   const up = Object.values(uploads).map(u => `<li class="qi"><span class="qth">${ic("film")}</span><div class="qmain"><div class="qtop"><span class="name">${esc(u.name)}</span></div>
     <div class="qmeta"><span class="st w_kolejce">${t("uploading")}</span><span>${u.pct}%</span></div><div class="bar"><i style="width:${u.pct}%"></i></div></div><div class="qacts"></div></li>`).join("");
   const total = run.length + pend.length + bad.length + fin.length + Object.keys(uploads).length;
-  if (!total) { el.innerHTML = `<p class="empty qempty">${t("q_empty")}</p>`; return; }
+  if (!total) { el.innerHTML = ""; return; }
   const sum = [run.length && t("q_n_run", run.length), pend.length && t("q_n_wait", pend.length), bad.length && t("q_n_bad", bad.length)].filter(Boolean).join(" · ") || t("q_done_all");
   const canPause = pend.length || qstate.wstrzymana;
   const prevScroll = [...document.querySelectorAll("pre.log.full")].map(e => e.scrollHeight - e.scrollTop - e.clientHeight < 30);
@@ -1000,7 +1070,7 @@ function renderQueue(){
       ${canPause ? `<button class="btn sm" data-q="${qstate.wstrzymana ? "wznow" : "pauza"}">${ic(qstate.wstrzymana ? "play" : "pause")}${t(qstate.wstrzymana ? "q_resume" : "q_pause")}</button>` : ""}</div>
     ${qstate.wstrzymana ? `<div class="qnotice">${t(qstate.odtworzone ? "q_restored" : "q_paused")}</div>` : ""}
     ${qOpen ? `<ul class="qlist">${up}${run.map(j => qRow(j)).join("")}${pend.map((j, i) => qRow(j, i, pend.length)).join("")}${bad.map(j => qRow(j)).join("")}${fin.map(j => qRow(j)).join("")}</ul>
-      ${fin.length ? `<div class="qfoot"><a href="#/biblioteka">${t("q_all_lib")}</a></div>` : ""}` : ""}</section>`;
+      ` : ""}</section>`;
   document.querySelectorAll("pre.log.full").forEach((e, i) => { if (prevScroll[i] !== false) e.scrollTop = e.scrollHeight; });
 }
 document.addEventListener("click", async e => {
@@ -1054,7 +1124,7 @@ applyTheme(theme);
 $("#theme").addEventListener("click", () => { setTheme(THEMES[(THEMES.indexOf(theme) + 1) % 3]); if ($("#set_theme")) $("#set_theme").value = theme; });
 /* w oknie programu (pywebview): przycisk „Otwórz w przeglądarce” */
 function inApp(){ return !!window.pywebview; }
-function showBrowserBtn(){ $("#inbrowser").hidden = !inApp(); }
+function showBrowserBtn(){ const b = $("#inbrowser"); b.hidden = !inApp(); b.title = t("open_browser"); b.setAttribute("aria-label", t("open_browser")); }
 window.addEventListener("pywebviewready", showBrowserBtn); setTimeout(showBrowserBtn, 800);
 $("#inbrowser").addEventListener("click", async () => {
   try { await api("/api/przegladarka", {method:"POST", body:JSON.stringify({hash: location.hash})}); } catch(e){ toast(e.message); }
@@ -1067,36 +1137,56 @@ function card(j){
     <div class="bd">${c.typ ? `<span class="pill">${t("typ_"+c.typ)}</span>` : ""}
       <h3>${esc(c.tytul || j.label)}${c.akcent ? ` <i>${esc(c.akcent)}</i>` : ""}</h3>
       ${c.teza ? `<p>${esc(c.teza)}</p>` : ""}
-      <div class="meta">${c.autor ? `<span>${esc(c.autor)}</span>` : ""}${c.czas_analizy ? `<span>⏱ ${fmt(c.czas_analizy)}</span>` : ""}</div></div></div>`;
+      <div class="meta">${c.autor ? `<span>${esc(c.autor)}</span>` : ""}${madeAt(j) ? `<span>${shortDate(madeAt(j))}</span>` : ""}</div></div></div>`;
 }
 function renderHome(){
   if (!$("#drop")) {
-    $("#app").innerHTML = `<div id="updbar"></div><section class="hero"><h1>${t("hero1")} ${t("hero2")}</h1><p>${t("hero_sub")}</p></section>
-      <div id="setup"></div>
-      <div class="appmode"><span class="seg" id="appmode" role="group" aria-label="${esc(t("app_label"))}">
-        <button data-app="analiza">${t("app_an")}</button><button data-app="konwersja">${t("app_conv")}</button></span></div>
-      <section class="panel start">
-        <div id="drop" tabindex="0" role="button"><svg class="ic big" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b id="dropT">${t("drop")}</b><small class="muted" id="dropS">${t("drop_sub")}</small>
+    /* 0.15.0 „Komenda”: jedno pole na środku; Analiza / MP4 / MP3 nad nim; tryby analizy w okienku „Opcje”;
+       pod spodem kolejka (gdy coś w niej jest) i zwijane „Ostatnie”. */
+    $("#app").innerHTML = `<div id="updbar"></div><div id="setup"></div>
+      <section class="cmd" aria-label="${esc(t("nav_home"))}">
+        <span class="seg" id="kind" role="group" aria-label="${esc(t("app_label"))}">
+          <button data-kind="analiza">${t("k_an")}</button><button data-kind="mp4">MP4</button><button data-kind="mp3">MP3</button></span>
+        <div id="drop" class="cmdbox">
+          <button class="iconbtn" id="pickbtn" title="${esc(t("cmd_pick"))}" aria-label="${esc(t("cmd_pick"))}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button>
+          <textarea id="links" rows="1" placeholder="${esc(t("cmd_ph"))}" aria-label="${esc(t("cmd_ph"))}"></textarea>
+          <div class="optwrap" id="optwrap"><button class="btn" id="optbtn" aria-haspopup="dialog" aria-expanded="false" title="${esc(t("opts"))}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span id="optlbl"></span></button>
+            <div class="optpop" id="optpop" role="dialog" aria-label="${esc(t("opts"))}" hidden>
+              <div class="pvrow" id="amoderow"><span class="olab">${t("mode_label")}</span><span class="seg small" id="amode" role="group" aria-label="${esc(t("mode_label"))}">
+                <button data-mode="pelna">${t("mode_full")}</button><button data-mode="szybki">${t("mode_fast")}</button><button data-mode="mowa">${t("mode_speech")}</button><button data-mode="transkrypcja">${t("mode_tr")}</button></span>
+                <span class="muted pvhint" id="amodehint"></span></div>
+              <div class="pvrow" id="pvrow"><span class="olab">${t("s_preview")}</span><span class="seg small" id="pvmode" role="group" aria-label="${esc(t("s_preview"))}">
+                <button data-pv="najszybciej">${t("pv_fast")}</button><button data-pv="zawsze">${t("pv_always")}</button></span>
+                <span class="muted pvhint" id="pvhint"></span></div>
+              <a class="small" href="#/ustawienia">${t("start_settings")}</a></div></div>
+          <button class="btn primary" id="go">${t("analyze")}</button>
           <input type="file" id="pick" accept="video/*,audio/*,.mp4,.mov,.mkv,.webm,.mp3,.m4a,.wav,.ogg,.opus,.flac,.aac" multiple hidden></div>
-        <div class="row"><textarea id="links" rows="1" placeholder="${esc(t("links_ph"))}" aria-label="${esc(t("links_ph"))}"></textarea><button class="btn primary" id="go">${t("analyze")}</button></div>
-        <div class="pvrow" id="cfmtrow" hidden><span class="seg small" id="cfmt" role="group" aria-label="${esc(t("conv_fmt"))}">
-          <button data-fmt="mp4">${t("conv_mp4")}</button><button data-fmt="mp3">${t("conv_mp3")}</button></span>
-          <span class="muted pvhint" id="cfmthint"></span></div>
-        <div class="convfoot" id="convfoot" hidden><span class="muted" id="convdir"></span><button class="linkbtn" id="convopen">${t("conv_open")}</button><span class="muted">· ${t("conv_note")}</span></div>
-        <div class="pvrow" id="amoderow"><span class="seg small" id="amode" role="group" aria-label="${esc(t("mode_label"))}">
-          <button data-mode="pelna">${t("mode_full")}</button><button data-mode="szybki">${t("mode_fast")}</button><button data-mode="mowa">${t("mode_speech")}</button><button data-mode="transkrypcja">${t("mode_tr")}</button></span>
-          <span class="muted pvhint" id="amodehint"></span></div>
-        <div class="pvrow" id="pvrow"><span class="seg small" id="pvmode" role="group" aria-label="${esc(t("s_preview"))}">
-          <button data-pv="najszybciej">${t("pv_fast")}</button><button data-pv="zawsze">${t("pv_always")}</button></span>
-          <span class="muted pvhint" id="pvhint"></span></div>
-        <div class="startfoot"><span class="muted">${t("start_hint")}</span><a href="#/ustawienia">${t("start_settings")}</a></div>
+        <div class="cmdhint muted" id="cmdhint"></div>
+        <div class="convfoot" id="convfoot" hidden><span class="muted" id="convdir"></span><button class="linkbtn" id="convopen">${t("conv_open")}</button><span class="muted cnote">${t("conv_note")}</span></div>
       </section>
-      <div id="queue"></div>`;
+      <div id="queue"></div><div id="ostatnie"></div>`;
     bindHome();
   }
   renderQueue();
+  renderRecent();
   loadSetup();
   loadUpdBar();
+}
+function madeAt(j){ const u = Date.parse((j.card || {}).utworzono || ""); return isNaN(u) ? (j.created || 0) * 1000 : u; }
+function shortDate(ms){ if (!ms) return ""; const d = new Date(ms), n = new Date();
+  return d.toDateString() === n.toDateString() ? d.toLocaleTimeString(L, {hour:"2-digit", minute:"2-digit"}) : d.toLocaleDateString(L, {day:"numeric", month:"short"}); }
+/* 0.15.0: „Ostatnie” — gotowe analizy (bez konwersji), zwinięte domyślnie; całość w Bibliotece */
+let recentOpen = false; try { recentOpen = localStorage.getItem("vs_recent") === "1"; } catch {}
+function renderRecent(){
+  const el = $("#ostatnie"); if (!el) return;
+  const done = jobs.filter(j => j.status === "gotowe" && !j.konwersja).sort((a, b) => madeAt(b) - madeAt(a));
+  if (!done.length) { el.innerHTML = ""; return; }
+  el.innerHTML = `<section class="recent${recentOpen ? " open" : ""}"><button class="qtoggle" id="recentt" aria-expanded="${recentOpen}">${ic("chev", "ic chev")}<b>${t("rec_h")}</b><span class="muted">${done.length}</span></button>
+    ${recentOpen ? `<ul class="rlist">${done.slice(0, 8).map(j => { const c = j.card || {};
+      return `<li><a class="ri" href="#/wynik/${j.id}"><span class="rmain"><span class="rt">${esc(c.tytul || j.label)}</span>${c.teza ? `<span class="rs">${esc(c.teza)}</span>` : ""}</span>
+        ${c.typ ? `<span class="pill">${t("typ_" + c.typ)}</span>` : ""}<span class="rn num">${c.dlugosc ? fmt(c.dlugosc) : ""}</span><span class="rd">${shortDate(madeAt(j))}</span></a></li>`; }).join("")}</ul>
+      ${done.length > 8 ? `<a class="small rmore" href="#/biblioteka">${t("recent_all")}</a>` : ""}` : ""}</section>`;
+  $("#recentt").onclick = () => { recentOpen = !recentOpen; try { localStorage.setItem("vs_recent", recentOpen ? "1" : "0"); } catch {} renderRecent(); };
 }
 /* 0.14.0: powiadomienie o nowej wersji na stronie głównej (sprawdzane przy starcie, pamiętane 6 h w programie) */
 let updAuto = null, updAutoAsked = false;
@@ -1172,28 +1262,27 @@ function renderPv(){
     const hw = lastStatus.tryb_proponowany === "mowa" && a !== "mowa" && a !== "transkrypcja" ? " " + t("mode_hw", lastStatus.tryb_powod || "") : "";
     $("#amodehint").textContent = t("mode_hint_" + a) + hw;
   }
-  if ($("#pvrow")) $("#pvrow").hidden = a !== "pelna" || appMode() === "konwersja";   // wstępne streszczenie: tylko pełna analiza
+  if ($("#pvrow")) $("#pvrow").hidden = a !== "pelna";   // wstępne streszczenie: tylko pełna analiza
   renderAppMode();
 }
 /* 0.14.0: tryb aplikacji — analiza filmu albo konwersja do MP4 / MP3 (vidsum/convert.py) */
 function appMode(){ return settings?.tryb_aplikacji === "konwersja" ? "konwersja" : "analiza"; }
 function cFmt(){ return settings?.format_konwersji === "mp3" ? "mp3" : "mp4"; }
 function renderAppMode(){
-  if (!$("#appmode")) return;
-  const c = appMode() === "konwersja", f = cFmt();
-  document.querySelectorAll("#appmode button").forEach(b => b.classList.toggle("on", b.dataset.app === appMode()));
-  document.querySelectorAll("#cfmt button").forEach(b => b.classList.toggle("on", b.dataset.fmt === f));
-  $("#cfmtrow").hidden = !c; $("#convfoot").hidden = !c; $("#amoderow").hidden = c;
+  if (!$("#kind")) return;
+  const c = appMode() === "konwersja", f = cFmt(), k = c ? f : "analiza";
+  document.querySelectorAll("#kind button").forEach(b => { b.classList.toggle("on", b.dataset.kind === k); b.setAttribute("aria-pressed", b.dataset.kind === k); });
+  $("#optwrap").hidden = c; $("#convfoot").hidden = !c; if (c) closeOpts();
   if ($("#setup")) $("#setup").hidden = c || settings?.silnik === "claude";   // Ollama niepotrzebna: konwersja albo Claude
-  const sf = document.querySelector(".startfoot"); if (sf) sf.hidden = c;
-  if (c) $("#pvrow").hidden = true;
-  $("#cfmthint").textContent = t("conv_hint_" + f);
+  $("#optlbl").textContent = t({pelna:"mode_full", szybki:"mode_fast", mowa:"mode_speech", transkrypcja:"mode_tr"}[aMode()]);
+  $("#cmdhint").textContent = c ? t("conv_cmd_note", f) : t("cmd_hint");
   $("#convdir").textContent = t("conv_folder", lastStatus?.folder_konwersji || "…");
-  $("#dropT").textContent = t(c ? "conv_drop" : "drop"); $("#dropS").textContent = t(c ? "conv_drop_sub" : "drop_sub");
-  $("#links").placeholder = t(c ? "conv_links_ph" : "links_ph"); $("#links").setAttribute("aria-label", $("#links").placeholder);
-  $("#go").textContent = t(c ? "conv_go" : "analyze");
-  document.querySelector(".panel.start")?.classList.toggle("conv", c);
+  $("#links").placeholder = t(c ? "conv_cmd_ph" : "cmd_ph"); $("#links").setAttribute("aria-label", $("#links").placeholder);
+  $("#go").textContent = c ? t("conv_go_fmt", f) : t("analyze");
 }
+function closeOpts(){ const p = $("#optpop"); if (p && !p.hidden) { p.hidden = true; $("#optbtn").setAttribute("aria-expanded", "false"); } }
+document.addEventListener("click", e => { if ($("#optwrap") && !e.target.closest("#optwrap")) closeOpts(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeOpts(); });
 function saveSetting(k, v){ settings = {...(settings || {}), [k]: v}; api("/api/ustawienia", {method:"POST", body:JSON.stringify({[k]: v})}).catch(() => {}); }
 function bindHome(){
   const drop = $("#drop");
@@ -1204,11 +1293,14 @@ function bindHome(){
   $("#amode").onclick = e => { const b = e.target.closest("button"); if (!b) return;
     settings = {...(settings || {}), tryb: b.dataset.mode}; renderPv();
     api("/api/ustawienia", {method:"POST", body:JSON.stringify({tryb: b.dataset.mode})}).catch(() => {}); };
-  $("#appmode").onclick = e => { const b = e.target.closest("button"); if (!b) return; saveSetting("tryb_aplikacji", b.dataset.app); renderPv(); };
-  $("#cfmt").onclick = e => { const b = e.target.closest("button"); if (!b) return; saveSetting("format_konwersji", b.dataset.fmt); renderAppMode(); };
+  $("#kind").onclick = e => { const b = e.target.closest("button"); if (!b) return; const k = b.dataset.kind;
+    saveSetting("tryb_aplikacji", k === "analiza" ? "analiza" : "konwersja"); if (k !== "analiza") saveSetting("format_konwersji", k); renderPv(); };
+  $("#optbtn").onclick = () => { const p = $("#optpop"); p.hidden = !p.hidden; $("#optbtn").setAttribute("aria-expanded", String(!p.hidden)); };
+  const grow = () => { const x = $("#links"); x.style.height = "auto"; x.style.height = Math.min(x.scrollHeight, 160) + "px"; };
+  $("#links").addEventListener("input", grow);
+  $("#links").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#go").click(); } });
   $("#convopen").onclick = () => api("/api/otworz-konwersje", {method:"POST"}).catch(e => toast(e.message));
-  drop.onclick = () => $("#pick").click();
-  drop.onkeydown = e => { if (e.key==="Enter"||e.key===" ") $("#pick").click(); };
+  $("#pickbtn").onclick = () => $("#pick").click();
   $("#pick").onchange = e => { [...e.target.files].forEach(upload); e.target.value = ""; };
   ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
   ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
@@ -1266,6 +1358,10 @@ function renderLib(){
     $("#libt").onclick = e => { const b = e.target.closest("button"); if (b){ lib.typ = b.dataset.typ; lib.sure = false; renderLib(); } };
     $("#libclear").onclick = () => { lib.sel = !lib.sel; lib.pick = false; lib.del = new Set(); lib.sure = ""; renderLib(); };
   }
+  { const all = jobs.filter(j => j.status === "gotowe" && !j.konwersja), cnt = {};   // 0.15.0: puste kategorie znikają
+    all.forEach(j => { const k = (j.card || {}).typ; if (k) cnt[k] = (cnt[k] || 0) + 1; });
+    document.querySelectorAll("#libt button").forEach(b => { const k = b.dataset.typ;
+      b.hidden = !!k && !cnt[k] && lib.typ !== k; b.textContent = k ? `${t("typ_" + k)} ${cnt[k] || 0}` : t("all"); }); }
   document.querySelectorAll("#libt button").forEach(b => b.classList.toggle("on", b.dataset.typ === lib.typ));
   $("#libclear").classList.toggle("on", lib.sel); $("#libclear").hidden = !jobs.some(j => j.status === "gotowe" && !j.konwersja);
   lib.del = new Set([...lib.del].filter(id => done.some(j => j.id === id)));

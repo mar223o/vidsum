@@ -14,13 +14,15 @@ def test_ico_has_all_sizes_and_small_variant():
     sizes = {s[0] for s in ico.sizes()}
     assert {16, 20, 24, 32, 40, 48, 64, 96, 128, 256} <= sizes
     big = ico.getimage((256, 256)).convert("RGBA")
-    # 0.13.3: czarne tło, cienka kremowa taśma, kremowy „play” (jak ramka), lawendowa iskra (prośba użytkownika)
-    assert big.getpixel((80, 130)) == (0xF5, 0xEF, 0xE6, 255)      # play w kolorze ramki
-    assert big.getpixel((38, 130)) == (0xF5, 0xEF, 0xE6, 255)      # bok ramki: 8 px (34–42)…
-    assert big.getpixel((46, 130)) == (0, 0, 0, 255)                # …dalej już okno kadru
+    # 0.15.0 „Kontur”: czarne tło, cienki kremowy kontur kadru, perforacja w środku, kremowy „play”, lawendowa gwiazdka
+    assert big.getpixel((80, 130)) == (0xF5, 0xEF, 0xE6, 255)      # play
+    assert big.getpixel((33, 130)) == (0xF5, 0xEF, 0xE6, 255)      # kontur kadru: 9 px (29,5–38,5)…
+    assert big.getpixel((46, 130)) == (0, 0, 0, 255)                # …w środku czarno (kontur, nie pełna ramka)
+    assert big.getpixel((56, 72)) == (0xF5, 0xEF, 0xE6, 255)       # perforacja wewnątrz kadru
     assert big.getpixel((20, 230)) == (0, 0, 0, 255)                # tło
-    assert big.getpixel((204, 56)) == (0xC4, 0xB5, 0xFD, 255)       # iskra #C4B5FD
-    assert big.getpixel((100, 60)) == (0xF5, 0xEF, 0xE6, 255)       # taśma #F5EFE6
+    assert big.getpixel((204, 56)) == (0xC4, 0xB5, 0xFD, 255)       # gwiazdka #C4B5FD
+    assert big.getpixel((100, 56)) == (0xF5, 0xEF, 0xE6, 255)       # górny kontur
+    assert big.getpixel((226, 106)) == (0, 0, 0, 255)               # 0.15.0: jedna gwiazdka (druga, mała, zniknęła)
     # 16 px: wersja uproszczona (bez perforacji i linii) — inna niż zmniejszona duża
     small = ico.getimage((16, 16)).convert("RGBA")
     scaled = big.resize((16, 16), Image.LANCZOS)
@@ -32,6 +34,9 @@ def test_svg_matches_ico_palette():
     for c in ("#C4B5FD", "#F5EFE6"):
         assert c in svg
     assert "#38BDF8" not in svg                                     # 0.13.3: play już nie błękitny
+    assert 'fill="none" stroke="#F5EFE6"' in svg                   # 0.15.0: kadr jako kontur
+    znak = (ROOT / "vidsum/web/znak.svg").read_text(encoding="utf-8")   # znak wodny tła = ten sam kształt
+    assert 'fill="none" stroke="#F5EFE6"' in znak and "#C4B5FD" not in znak
 
 
 def test_stable_icon_copies_and_refreshes(tmp_path):

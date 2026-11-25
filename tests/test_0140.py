@@ -297,13 +297,15 @@ def test_ui_update_banner_and_later(ui):
 def test_ui_conversion_mode(ui, tmp_path):
     base, app, pg = ui
     pg.goto(base + "/?t=tok#/")
-    pg.wait_for_selector("#appmode")
-    assert pg.is_visible("#amoderow") and not pg.is_visible("#cfmtrow")
-    pg.click("#appmode [data-app=konwersja]")
-    assert pg.is_visible("#cfmtrow") and not pg.is_visible("#amoderow") and not pg.is_visible("#pvrow")
-    assert pg.inner_text("#go") == "Konwertuj" and "Konwersje" in pg.inner_text("#convdir")
-    pg.click("#cfmt [data-fmt=mp3]")
-    assert "MP3" in pg.inner_text("#cfmthint")
+    pg.wait_for_selector("#kind")
+    # 0.15.0: jeden przełącznik Analiza / MP4 / MP3 nad polem; tryby analizy w okienku „Opcje”
+    assert pg.is_visible("#optbtn") and not pg.is_visible("#convfoot")
+    assert pg.locator("#kind button").all_inner_texts() == ["Analiza", "MP4", "MP3"]
+    pg.click("#kind [data-kind=mp4]")
+    assert not pg.is_visible("#optbtn") and pg.is_visible("#convfoot")
+    assert pg.inner_text("#go") == "Pobierz MP4" and "Konwersje" in pg.inner_text("#convdir")
+    pg.click("#kind [data-kind=mp3]")
+    assert pg.inner_text("#go") == "Pobierz MP3" and "MP3" in pg.inner_text("#cmdhint")
     pg.wait_for_timeout(300)
     assert app.settings["tryb_aplikacji"] == "konwersja" and app.settings["format_konwersji"] == "mp3"
     pg.set_input_files("#pick", str(FILM))
@@ -317,8 +319,10 @@ def test_ui_conversion_mode(ui, tmp_path):
     pg.wait_for_selector(".empty")                                           # konwersja nie trafia do Biblioteki
     pg.goto(base + "/?t=tok#/")
     pg.reload()
-    pg.wait_for_selector("#appmode")
-    assert pg.is_visible("#cfmtrow")                                         # tryb zapamiętany
+    pg.wait_for_selector("#kind")
+    assert pg.locator("#kind [data-kind=mp3]").get_attribute("class") == "on"   # tryb zapamiętany
+    pg.click("#kind [data-kind=analiza]")
+    assert pg.inner_text("#go") == "Analizuj" and pg.is_visible("#optbtn")
 
 
 # ---------------------------------------------------------------- silnik Claude (Claude Code, subskrypcja)

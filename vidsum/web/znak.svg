@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Znak wodny w tle ciemnego motywu (0.15.0): kształt logo, jeden kolor; przezroczystość ustawia CSS. -->
+  <rect x="34" y="56" width="164" height="148" rx="18" fill="none" stroke="#F5EFE6" stroke-width="6"/>
+  <g fill="#F5EFE6">
+    <rect x="50" y="64" width="14" height="8" rx="2"/><rect x="80" y="64" width="14" height="8" rx="2"/><rect x="110" y="64" width="14" height="8" rx="2"/><rect x="140" y="64" width="14" height="8" rx="2"/><rect x="170" y="64" width="14" height="8" rx="2"/>
+    <rect x="50" y="188" width="14" height="8" rx="2"/><rect x="80" y="188" width="14" height="8" rx="2"/><rect x="110" y="188" width="14" height="8" rx="2"/><rect x="140" y="188" width="14" height="8" rx="2"/><rect x="170" y="188" width="14" height="8" rx="2"/>
+    <path d="M64 110Q64 102 71 106L99 124Q105 130 99 136L71 154Q64 158 64 150Z"/>
+    <rect x="116" y="113" width="54" height="9" rx="4.5"/><rect x="116" y="127" width="40" height="9" rx="4.5"/><rect x="116" y="141" width="48" height="9" rx="4.5"/>
+    <path d="M204 16Q212.8 47.2 244 56Q212.8 64.8 204 96Q195.2 64.8 164 56Q195.2 47.2 204 16Z"/>
+  </g>
+</svg>

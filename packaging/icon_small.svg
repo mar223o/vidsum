@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <!-- Vidsumly 0.13.3: kadr taśmy filmowej (cienka kremowa ramka z perforacją), w nim kremowy „play” i linie
-       streszczenia, lawendowa iskra w rogu. Paleta użytkownika: czerń, krem #F5EFE6, lawenda #C4B5FD. -->
+  <!-- Vidsumly 0.15.0 „Kontur”, wersja 16–24 px: gruby kontur kadru, play i lawendowa gwiazdka (bez perforacji i linii,
+       które w tej wielkości zlewają się w szarą plamę). -->
   <rect width="256" height="256" rx="48" fill="#000"/>
-  <rect x="24" y="52" width="178" height="164" rx="26" fill="#F5EFE6"/>
-  <rect x="40" y="70" width="146" height="128" rx="12" fill="#000"/>
-  <path d="M80 104 Q80 94 89 99 L135 127 Q143 134 135 141 L89 169 Q80 174 80 164 Z" fill="#F5EFE6"/>
-  <path d="M206 4 Q216.12 39.88 252 50 Q216.12 60.12 206 96 Q195.88 60.12 160 50 Q195.88 39.88 206 4 Z" fill="#C4B5FD" stroke="#000" stroke-width="14" paint-order="stroke"/>
+  <rect x="30" y="58" width="168" height="152" rx="24" fill="none" stroke="#F5EFE6" stroke-width="22"/>
+  <path d="M84 102Q84 92 93 97L139 125Q147 132 139 139L93 167Q84 172 84 162Z" fill="#F5EFE6"/>
+  <path d="M206 4Q216.12 39.88 252 50Q216.12 60.12 206 96Q195.88 60.12 160 50Q195.88 39.88 206 4Z" fill="#C4B5FD" stroke="#000" stroke-width="14" paint-order="stroke"/>
 </svg>
