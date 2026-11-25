@@ -476,7 +476,7 @@ class App:
              # 0.14.0: tryb aplikacji (analiza / konwersja), format konwersji, folder konwersji („” = <wyniki>\Konwersje),
              # sprawdzanie aktualizacji przy starcie
              "tryb_aplikacji": "analiza", "format_konwersji": "mp4", "folder_konwersji": "", "sprawdzaj_aktualizacje": True,
-             "silnik": "lokalny"}
+             "silnik": "lokalny", "dzwieki": True}       # 0.15.1: mini dźwięki w interfejsie
         try:
             saved = json.loads(self.settings_file.read_text(encoding="utf-8"))
             if saved.get("wersja_ustawien", 0) < 2 and saved.get("whisper") == "small":

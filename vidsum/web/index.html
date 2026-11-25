@@ -615,6 +615,40 @@ main:has(> .cmd){max-width:760px;padding-top:9vh}
 .rn{width:48px}.rd{width:64px}
 .rmore{display:block;padding:8px;color:var(--muted)}
 @media (max-width:640px){ .optwrap{position:static} .optpop{left:0;right:0;width:auto} .cmdbox{flex-wrap:wrap} .cmdbox textarea{flex-basis:calc(100% - 50px)} .cmdbox #go{flex:1} .ri .pill,.rd{display:none} header{padding:8px 12px} nav a span{display:none} }
+
+/* ================= 0.15.1: animacje (wg zasad z filmów Kole Jaina: mało, krótko, tylko by pokazać zmianę) ================= */
+@keyframes vsIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes vsPop{from{opacity:0;transform:translateY(-4px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes vsFlash{0%{box-shadow:inset 0 0 0 1px var(--accent),0 0 0 0 var(--accent-soft)}60%{box-shadow:inset 0 0 0 1px var(--accent),0 0 0 6px transparent}100%{box-shadow:none}}
+#app.enter{animation:vsIn .18s ease-out}
+.optpop:not([hidden]){animation:vsPop .14s ease-out;transform-origin:top right}
+.qi.appear-row{animation:vsIn .22s ease-out}
+.qi.flash{animation:vsFlash 1.1s ease-out}
+.rlist.stagger li{animation:vsIn .22s ease-out both}
+.rlist.stagger li:nth-child(2){animation-delay:.03s}.rlist.stagger li:nth-child(3){animation-delay:.06s}.rlist.stagger li:nth-child(4){animation-delay:.09s}
+.rlist.stagger li:nth-child(5){animation-delay:.12s}.rlist.stagger li:nth-child(n+6){animation-delay:.15s}
+.seg button{transition:background-color .15s,box-shadow .15s,color .15s}
+.btn,.iconbtn{transition:background-color .15s,border-color .15s,transform .08s}
+.btn:active,.iconbtn:active,.seg button:active{transform:scale(.97)}
+.pgbar i,.pbar i{transition:width .6s ease}
+.recent .qtoggle .chev{transition:transform .18s ease}
+.toast{transition:opacity .18s,transform .18s}
+@media (prefers-reduced-motion:reduce){#app.enter,.optpop:not([hidden]),.qi.appear-row,.qi.flash,.rlist.stagger li{animation:none!important}.btn:active,.iconbtn:active,.seg button:active{transform:none}}
+
+:root:not([data-theme="light"]) body:has(#alive)::after{display:none}   /* na stronie głównej jest żywe logo — bez drugiego znaku wodnego */
+/* 0.15.1: „żywe logo” — wypełnia pustą stronę główną; spokojnie oddycha, podczas analizy szybciej */
+.alive{display:grid;place-items:center;margin:26px 0 10px;color:var(--ink)}
+.alive svg{width:200px;height:200px;opacity:.85}
+.alive .play{transform-origin:85px 130px;animation:aPlay 3.6s ease-in-out infinite}
+.alive .ln{transform-box:fill-box;transform-origin:left center;animation:aLine 3.6s ease-in-out infinite}
+.alive .ln:nth-of-type(2){animation-delay:.25s}.alive .ln:nth-of-type(3){animation-delay:.5s}
+.alive .star{transform-origin:204px 56px;animation:aStar 3.6s ease-in-out infinite}
+.alive.busy .play,.alive.busy .ln,.alive.busy .star{animation-duration:1.6s}
+@keyframes aPlay{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes aLine{0%,15%{transform:scaleX(0)}45%,85%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+@keyframes aStar{0%,100%{transform:scale(.85) rotate(0)}50%{transform:scale(1.1) rotate(20deg)}}
+@media (prefers-reduced-motion:reduce){.alive .play,.alive .ln,.alive .star{animation:none!important}}
+@media (max-width:640px){.alive svg{width:140px;height:140px}}
 </style>
 </head>
 <body>
@@ -632,7 +666,7 @@ main:has(> .cmd){max-width:760px;padding-top:9vh}
 <script>
 const T = new URLSearchParams(location.search).get("t") || "";
 const I18N = {
- pl:{nav_home:"Nowa analiza",k_an:"Analiza",cmd_ph:"Wklej link albo przeciągnij plik",cmd_hint:"YouTube, TikTok, Instagram albo plik wideo / audio. Kilka naraz trafia do kolejki.",cmd_pick:"Wybierz plik z komputera",opts:"Opcje analizy",conv_go_fmt:f=>`Pobierz ${f.toUpperCase()}`,conv_cmd_note:f=>`Sam plik ${f==="mp3"?"audio MP3":"wideo MP4"}, bez analizy. Trafi do folderu Konwersje.`,conv_cmd_ph:"Wklej link do filmu albo piosenki",rec_h:"Ostatnie",recent_all:"Cała biblioteka",st_ready:"Gotowy",st_problem:"Coś nie działa",nav_lib:"Biblioteka",nav_set:"Ustawienia",ok:"działa",not_ok:"nie działa",chip_ff_ok:"wycinanie kadrów i dźwięku działa",chip_ff_bad:"brak ffmpeg/ffprobe — analiza filmów nie ruszy",theme:"Motyw",
+ pl:{nav_home:"Nowa analiza",k_an:"Analiza",cmd_ph:"Wklej link albo przeciągnij plik",cmd_hint:"YouTube, TikTok, Instagram albo plik wideo / audio. Kilka naraz trafia do kolejki.",cmd_pick:"Wybierz plik z komputera",opts:"Opcje analizy",conv_go_fmt:f=>`Pobierz ${f.toUpperCase()}`,conv_cmd_note:f=>`Sam plik ${f==="mp3"?"audio MP3":"wideo MP4"}, bez analizy. Trafi do folderu Konwersje.`,conv_cmd_ph:"Wklej link do filmu albo piosenki",s_sounds:"Dźwięki",s_sounds_hint:"Krótkie dźwięki: koniec analizy, błąd, dodanie do kolejki, kliknięcia.",ph_an:["Wklej link z YouTube…","Wklej link z TikToka albo Instagrama…","Przeciągnij tu plik wideo albo audio…","Wklej kilka linków — trafią do kolejki…"],ph_conv:["Wklej link do filmu albo piosenki…","Przeciągnij plik — zamienię go na MP4 albo MP3…","Kilka linków naraz? Każdy w nowej linii…"],rec_h:"Ostatnie",recent_all:"Cała biblioteka",st_ready:"Gotowy",st_problem:"Coś nie działa",nav_lib:"Biblioteka",nav_set:"Ustawienia",ok:"działa",not_ok:"nie działa",chip_ff_ok:"wycinanie kadrów i dźwięku działa",chip_ff_bad:"brak ffmpeg/ffprobe — analiza filmów nie ruszy",theme:"Motyw",
    stage_of:n=>`Etap ${n}/4`,q_up:"Wyżej w kolejce",q_down:"Niżej w kolejce",q_remove:"Usuń z kolejki",q_retry:"Ponów",q_pos:n=>`${n}. w kolejce`,
    q_empty:"Kolejka jest pusta. Dodane filmy pojawią się tutaj; gotowe analizy są w Bibliotece.",q_n_run:n=>`${n} w toku`,q_n_wait:n=>`${n} czeka`,q_n_bad:n=>`${n} z błędem`,
    q_done_all:"wszystko gotowe",q_title:"Kolejka",q_resume:"Wznów",q_pause:"Wstrzymaj",q_restored:"Kolejka wróciła po ponownym uruchomieniu i jest wstrzymana. Wznów, żeby przeanalizować oczekujące filmy.",
@@ -700,7 +734,7 @@ const I18N = {
    live_video:"Film będzie można odtworzyć po zakończeniu analizy",live_tr_note:"wstępna — zostanie dopracowana",
    live_wait_tr:"Transkrypcja pojawi się tutaj, gdy tylko mowa zostanie rozpoznana.",live_wait_fr:"Kadry pojawią się po ich wycięciu z filmu.",
    offline:"Brak połączenia z programem Vidsumly. Uruchom Vidsumly ponownie (otworzy tę samą stronę)."},
- en:{nav_home:"New analysis",k_an:"Analysis",cmd_ph:"Paste a link or drop a file",cmd_hint:"YouTube, TikTok, Instagram or a video / audio file. Several at once go to the queue.",cmd_pick:"Choose a file from the computer",opts:"Analysis options",conv_go_fmt:f=>`Download ${f.toUpperCase()}`,conv_cmd_note:f=>`Just the ${f==="mp3"?"MP3 audio":"MP4 video"} file, no analysis. Saved to the Konwersje folder.`,conv_cmd_ph:"Paste a link to a video or song",rec_h:"Recent",recent_all:"Whole library",st_ready:"Ready",st_problem:"Something is not working",nav_lib:"Library",nav_set:"Settings",ok:"working",not_ok:"not working",chip_ff_ok:"frame and audio extraction works",chip_ff_bad:"ffmpeg/ffprobe missing — video analysis can't start",theme:"Theme",
+ en:{nav_home:"New analysis",k_an:"Analysis",cmd_ph:"Paste a link or drop a file",cmd_hint:"YouTube, TikTok, Instagram or a video / audio file. Several at once go to the queue.",cmd_pick:"Choose a file from the computer",opts:"Analysis options",conv_go_fmt:f=>`Download ${f.toUpperCase()}`,conv_cmd_note:f=>`Just the ${f==="mp3"?"MP3 audio":"MP4 video"} file, no analysis. Saved to the Konwersje folder.`,conv_cmd_ph:"Paste a link to a video or song",s_sounds:"Sounds",s_sounds_hint:"Short sounds: analysis done, error, added to queue, clicks.",ph_an:["Paste a YouTube link…","Paste a TikTok or Instagram link…","Drop a video or audio file here…","Paste several links — they go to the queue…"],ph_conv:["Paste a link to a video or song…","Drop a file — I will turn it into MP4 or MP3…","Several links? One per line…"],rec_h:"Recent",recent_all:"Whole library",st_ready:"Ready",st_problem:"Something is not working",nav_lib:"Library",nav_set:"Settings",ok:"working",not_ok:"not working",chip_ff_ok:"frame and audio extraction works",chip_ff_bad:"ffmpeg/ffprobe missing — video analysis can't start",theme:"Theme",
    stage_of:n=>`Step ${n}/4`,q_up:"Move up",q_down:"Move down",q_remove:"Remove from queue",q_retry:"Retry",q_pos:n=>`#${n} in queue`,
    q_empty:"The queue is empty. Videos you add appear here; finished analyses are in the Library.",q_n_run:n=>`${n} running`,q_n_wait:n=>`${n} waiting`,q_n_bad:n=>`${n} failed`,
    q_done_all:"all done",q_title:"Queue",q_resume:"Resume",q_pause:"Pause",q_restored:"The queue came back after a restart and is paused. Resume to analyse the waiting videos.",
@@ -807,6 +841,42 @@ function trErr(m){
   return ERR_EN[head] ? ERR_EN[head] + m.slice(i) : m;
 }
 const fileUrl = (id, rel) => `/api/zadania/${id}/plik/${encodeURI(rel)}?t=${T}`;
+/* 0.15.1: mini dźwięki — generowane w przeglądarce (Web Audio), bez plików; wyłącznik w Ustawieniach → Interfejs.
+   done = koniec analizy, error = błąd, add = dodanie do kolejki, tap = kliknięcie przełącznika / zakładki. */
+const SFX = (() => {
+  let ctx = null;
+  const ctxGet = () => { if (!ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { ctx = new C(); } catch { return null; } }
+    if (ctx.state === "suspended") ctx.resume().catch(() => {}); return ctx; };
+  function tone(c, f, t0, dur, o = {}){
+    const osc = c.createOscillator(), g = c.createGain();
+    osc.type = o.type || "sine"; osc.frequency.setValueAtTime(f, t0); if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(o.gain || .1, t0 + .008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g).connect(c.destination); osc.start(t0); osc.stop(t0 + dur + .03);
+  }
+  const P = {
+    done:  (c, n) => { tone(c, 784, n, .16, {gain:.09}); tone(c, 1175, n + .11, .3, {gain:.08}); },                 // G5 → D6, w górę
+    error: (c, n) => { tone(c, 392, n, .14, {type:"triangle", gain:.11}); tone(c, 294, n + .12, .26, {type:"triangle", gain:.11}); },   // w dół
+    add:   (c, n) => tone(c, 660, n, .08, {gain:.07, to:990}),
+    tap:   (c, n) => tone(c, 1800, n, .025, {gain:.03})
+  };
+  return {
+    on: () => settings?.dzwieki !== false,
+    warm(){ if (this.on()) ctxGet(); },
+    play(k){ if (!this.on() || !P[k]) return; (window.__sfx = window.__sfx || []).push(k);
+      const c = ctxGet(); if (!c) return; try { P[k](c, c.currentTime + .01); } catch {} }
+  };
+})();
+document.addEventListener("pointerdown", () => SFX.warm(), {once:true});   // przeglądarka pozwala na dźwięk dopiero po geście
+document.addEventListener("click", e => {
+  if (e.target.closest(".seg button, nav a, [role=tab], .qtoggle, .setnav [data-sec], #optbtn, #libt button")) SFX.play("tap");
+});
+let prevSt = null;                       // statusy zadań z poprzedniego odpytania — dźwięk tylko przy zmianie
+function sfxJobs(list){
+  const now = new Map(list.map(j => [j.id, j.status]));
+  if (prevSt) for (const [id, st] of now) { const was = prevSt.get(id);
+    if (was && was !== st) { if (st === "gotowe") SFX.play("done"); else if (st === "blad") SFX.play("error"); } }
+  prevSt = now;
+}
 function toast(m){ const el=$("#toast"); el.textContent=m; el.classList.add("on"); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove("on"),Math.max(2400,m.length*55)); }
 function fmt(s){ s=Math.max(0,Math.round(s||0)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   return (h? h+":"+String(m).padStart(2,"0") : String(m).padStart(2,"0"))+":"+String(x).padStart(2,"0"); }
@@ -855,8 +925,8 @@ function renderChips(){
     if (location.hash.startsWith("#/ustawienia")) renderDiag();
   }
 }
-const SKEYS = ["silnik","jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki","folder_konwersji","sprawdzaj_aktualizacje"];
-const SBOOL = ["ocr","tlumacz_wynik","sprawdzaj_aktualizacje"];
+const SKEYS = ["dzwieki","silnik","jezyk","whisper","ocr","obraz","model_obrazu","streszczenie","model_tekstowy","tlumacz_wynik","max_kadrow","ciasteczka_z","wyniki","folder_konwersji","sprawdzaj_aktualizacje"];
+const SBOOL = ["ocr","tlumacz_wynik","sprawdzaj_aktualizacje","dzwieki"];
 /* ---------- Ustawienia (0.11.0): tylko opcje, które program naprawdę obsługuje ---------- */
 let setSec = "ui"; try { setSec = localStorage.getItem("vs_setsec") || "ui"; } catch {}
 const SET_ICO = {ui:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', an:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4-2.5z"/>',
@@ -869,7 +939,8 @@ function renderSettings(){
   const sel = (k, opts) => `<select id="s_${k}">${opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select>`;
   const secs = [
     ["ui", t("set_ui"), `<div class="grid">${f(t("set_ui_lang"), `<select id="set_lang"><option value="pl">Polski</option><option value="en">English</option></select>`)}
-      ${f(t("theme"), `<select id="set_theme"><option value="dark">${t("theme_dark")}</option><option value="light">${t("theme_light")}</option><option value="system">${t("theme_system")}</option></select>`)}</div>
+      ${f(t("theme"), `<select id="set_theme"><option value="dark">${t("theme_dark")}</option><option value="light">${t("theme_light")}</option><option value="system">${t("theme_system")}</option></select>`)}
+      ${f(t("s_sounds"), sel("dzwieki", [["true", t("on")], ["false", t("off")]]), false, t("s_sounds_hint"))}</div>
       <p class="hint">${t("set_ui_hint")}</p>`],
     ["an", t("set_an"), `<div class="grid">${f(t("s_lang"), sel("jezyk", [["auto", t("auto_detect")], ["pl", "polski"], ["en", "English"]]))}
       ${f(t("s_whisper"), sel("whisper", [["large-v3-turbo", "large-v3-turbo"], ["small", "small"], ["medium", "medium"], ["large-v3", "large-v3"]]))}
@@ -969,6 +1040,7 @@ function bindUpdates(){
 /* ---------- widoki ---------- */
 function route(){
   const h = location.hash || "#/";
+  { const a = $("#app"); a.classList.remove("enter"); void a.offsetWidth; a.classList.add("enter"); }   // 0.15.1: krótkie wejście ekranu
   const sec = h.startsWith("#/biblioteka") ? "lib" : h.startsWith("#/ustawienia") ? "set" : h.startsWith("#/wynik") ? "" : "home";
   document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on", a.dataset.nav === sec));
   const m = h.match(/^#\/wynik\/(\w+)/);
@@ -1046,11 +1118,14 @@ function qRow(j, idx, n){
   const logOpen = openParts.has(j.id+":log");
   const body = st === "trwa" ? prog + (j.konwersja ? "" : partsHtml(j)) + (logOpen ? `<pre class="log full" data-autoscroll>${esc(j.log.join("\n")||"…")}</pre>` : "")
     : (st === "blad" || st === "przerwane") ? `<div class="qerr">${esc(j.error || "")}</div>` : (pend && j.log.length ? `<div class="qnote">${esc(j.log[0])}</div>` : "");
-  return `<li class="qi ${st}${st==="trwa" ? " now" : ""}">${qThumb(j)}
+  const fresh = !seenRows.has(j.id + st); seenRows.add(j.id + st);
+  return `<li class="qi ${st}${st==="trwa" ? " now" : ""}${fresh && seenRows.ready ? (st === "gotowe" ? " flash" : " appear-row") : ""}">${qThumb(j)}
     <div class="qmain"><div class="qtop">${j.konwersja ? `<span class="fmtb">${esc(j.konwersja.format.toUpperCase())}</span>` : ""}<span class="name" title="${esc(j.label)}">${esc(j.konwersja?.plik || j.card?.tytul || j.tytul_filmu || j.label)}</span></div>
       ${st === "trwa" && prog ? "" : `<div class="qmeta"><span class="st ${st}">${t(st)}</span>${pend ? `<span>${t("q_pos", idx+1)}</span>` : ""}${stage ? `<span>${stage}</span>` : ""}${timer}</div>`}${body}</div>
     <div class="qacts">${acts.join("")}</div></li>`;
 }
+const seenRows = new Set();   // 0.15.1: które wiersze (id + stan) już widziano — animujemy tylko nowe
+setTimeout(() => { seenRows.ready = true; }, 1500);
 function renderQueue(){
   const el = $("#queue"); if (!el) return;
   const byId = Object.fromEntries(jobs.map(j => [j.id, j]));
@@ -1164,11 +1239,20 @@ function renderHome(){
         <div class="cmdhint muted" id="cmdhint"></div>
         <div class="convfoot" id="convfoot" hidden><span class="muted" id="convdir"></span><button class="linkbtn" id="convopen">${t("conv_open")}</button><span class="muted cnote">${t("conv_note")}</span></div>
       </section>
-      <div id="queue"></div><div id="ostatnie"></div>`;
+      <div id="queue"></div><div id="ostatnie"></div>
+      <section class="alive" id="alive" aria-hidden="true"><svg viewBox="0 0 256 256">
+        <rect x="34" y="56" width="164" height="148" rx="18" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-width="5"/>
+        <g fill="currentColor" fill-opacity=".5">${[50,80,110,140,170].map(x => `<rect x="${x}" y="66" width="14" height="8" rx="2"/><rect x="${x}" y="186" width="14" height="8" rx="2"/>`).join("")}</g>
+        <path class="play" d="M64 110Q64 102 71 106L99 124Q105 130 99 136L71 154Q64 158 64 150Z" fill="currentColor" fill-opacity=".75"/>
+        <rect class="ln" x="116" y="113" width="54" height="9" rx="4.5" fill="currentColor" fill-opacity=".6"/>
+        <rect class="ln" x="116" y="127" width="40" height="9" rx="4.5" fill="currentColor" fill-opacity=".45"/>
+        <rect class="ln" x="116" y="141" width="48" height="9" rx="4.5" fill="currentColor" fill-opacity=".3"/>
+        <path class="star" d="M204 16Q212.8 47.2 244 56Q212.8 64.8 204 96Q195.2 64.8 164 56Q195.2 47.2 204 16Z" fill="#C4B5FD"/></svg></section>`;
     bindHome();
   }
   renderQueue();
   renderRecent();
+  $("#alive").classList.toggle("busy", jobs.some(j => j.status === "trwa"));   // podczas analizy logo „pracuje” szybciej
   loadSetup();
   loadUpdBar();
 }
@@ -1182,11 +1266,12 @@ function renderRecent(){
   const done = jobs.filter(j => j.status === "gotowe" && !j.konwersja).sort((a, b) => madeAt(b) - madeAt(a));
   if (!done.length) { el.innerHTML = ""; return; }
   el.innerHTML = `<section class="recent${recentOpen ? " open" : ""}"><button class="qtoggle" id="recentt" aria-expanded="${recentOpen}">${ic("chev", "ic chev")}<b>${t("rec_h")}</b><span class="muted">${done.length}</span></button>
-    ${recentOpen ? `<ul class="rlist">${done.slice(0, 8).map(j => { const c = j.card || {};
+    ${recentOpen ? `<ul class="rlist${renderRecent.anim ? " stagger" : ""}">${done.slice(0, 8).map(j => { const c = j.card || {};
       return `<li><a class="ri" href="#/wynik/${j.id}"><span class="rmain"><span class="rt">${esc(c.tytul || j.label)}</span>${c.teza ? `<span class="rs">${esc(c.teza)}</span>` : ""}</span>
         ${c.typ ? `<span class="pill">${t("typ_" + c.typ)}</span>` : ""}<span class="rn num">${c.dlugosc ? fmt(c.dlugosc) : ""}</span><span class="rd">${shortDate(madeAt(j))}</span></a></li>`; }).join("")}</ul>
       ${done.length > 8 ? `<a class="small rmore" href="#/biblioteka">${t("recent_all")}</a>` : ""}` : ""}</section>`;
-  $("#recentt").onclick = () => { recentOpen = !recentOpen; try { localStorage.setItem("vs_recent", recentOpen ? "1" : "0"); } catch {} renderRecent(); };
+  renderRecent.anim = false;
+  $("#recentt").onclick = () => { recentOpen = !recentOpen; renderRecent.anim = recentOpen; try { localStorage.setItem("vs_recent", recentOpen ? "1" : "0"); } catch {} renderRecent(); };
 }
 /* 0.14.0: powiadomienie o nowej wersji na stronie głównej (sprawdzane przy starcie, pamiętane 6 h w programie) */
 let updAuto = null, updAutoAsked = false;
@@ -1277,8 +1362,25 @@ function renderAppMode(){
   $("#optlbl").textContent = t({pelna:"mode_full", szybki:"mode_fast", mowa:"mode_speech", transkrypcja:"mode_tr"}[aMode()]);
   $("#cmdhint").textContent = c ? t("conv_cmd_note", f) : t("cmd_hint");
   $("#convdir").textContent = t("conv_folder", lastStatus?.folder_konwersji || "…");
-  $("#links").placeholder = t(c ? "conv_cmd_ph" : "cmd_ph"); $("#links").setAttribute("aria-label", $("#links").placeholder);
+  $("#links").setAttribute("aria-label", t(c ? "conv_cmd_ph" : "cmd_ph")); typeHints(t(c ? "ph_conv" : "ph_an"));
   $("#go").textContent = c ? t("conv_go_fmt", f) : t("analyze");
+}
+/* 0.15.1: „żywa” podpowiedź w polu — kolejne zdania wypisują się i znikają; stoi, gdy coś wpisano albo przy ograniczonym ruchu */
+let phTimer = null;
+function typeHints(list){
+  clearTimeout(phTimer);
+  const el = $("#links"); if (!el) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.placeholder = list[0]; return; }
+  let i = 0, n = 0, dir = 1;
+  const step = () => {
+    if (!document.body.contains(el)) return;
+    if (el.value) { el.placeholder = list[0]; phTimer = setTimeout(step, 800); return; }
+    const txt = list[i]; n += dir; el.placeholder = txt.slice(0, n) + (dir > 0 && n < txt.length ? "▍" : "");
+    if (dir > 0 && n >= txt.length) { dir = -1; return phTimer = setTimeout(step, 2200); }
+    if (dir < 0 && n <= 0) { dir = 1; i = (i + 1) % list.length; return phTimer = setTimeout(step, 350); }
+    phTimer = setTimeout(step, dir > 0 ? 38 : 16);
+  };
+  step();
 }
 function closeOpts(){ const p = $("#optpop"); if (p && !p.hidden) { p.hidden = true; $("#optbtn").setAttribute("aria-expanded", "false"); } }
 document.addEventListener("click", e => { if ($("#optwrap") && !e.target.closest("#optwrap")) closeOpts(); });
@@ -1309,12 +1411,14 @@ function bindHome(){
     const lines = $("#links").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
     if (appMode() === "konwersja") {                 // konwersja: zostajesz na stronie głównej, postęp w kolejce
       let n = 0;
-      for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, konwersja: cFmt()})}); if (j.duplikat) toast(t("q_dup")); else n++; } catch(e){ toast(e.message); } }
+      for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, konwersja: cFmt()})}); if (j.duplikat) toast(t("q_dup")); else n++; } catch(e){ toast(e.message); SFX.play("error"); } }
+      if (n) SFX.play("add");
       $("#links").value = ""; if (n) toast(t("conv_added", n)); qOpen = true; poll(); return;
     }
     const busy = jobs.some(j => j.status === "trwa" || j.status === "w_kolejce");
     let first = null;
-    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, tryb_podgladu: pvMode(), tryb: aMode()})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); } }
+    for (const z of lines) { try { const j = await api("/api/link", {method:"POST", body:JSON.stringify({zrodlo:z, tryb_podgladu: pvMode(), tryb: aMode()})}); if (j.duplikat) toast(t("q_dup")); first = first || j; } catch(e){ toast(e.message); SFX.play("error"); } }
+    if (first) SFX.play("add");
     $("#links").value = "";
     // pusta kolejka → od razu wynik na żywo; coś już trwa → film czeka w kolejce, zostajesz tutaj
     if (first && !busy && lines.length === 1) { try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + first.id; }
@@ -1332,7 +1436,7 @@ function upload(file){
   x.onloadend = async () => {
     delete uploads[key];
     let j = null; try { j = JSON.parse(x.responseText); } catch {}
-    if (j && j.error) toast(j.error);
+    if (j && j.error) { toast(j.error); SFX.play("error"); } else if (j && j.id) SFX.play("add");
     const others = jobs.some(x => x.id !== j?.id && (x.status === "trwa" || x.status === "w_kolejce"));
     if (j && j.id && !conv && !others && !Object.keys(uploads).length && (location.hash === "#/" || location.hash === "")) {
       try { jobs = await api("/api/zadania"); } catch {} location.hash = "#/wynik/" + j.id;
@@ -2043,6 +2147,7 @@ $("#app").addEventListener("submit", e => { if (e.target.id === "askf") { e.prev
 /* ---------- start ---------- */
 async function poll(){
   try { jobs = await api("/api/zadania"); } catch { return; }
+  sfxJobs(jobs);
   try { qstate = await api("/api/kolejka"); } catch {}
   for (const id of new Set([...openParts].map(k => k.split(":")[0])))     // otwarte podglądy — świeże dane
     if (jobs.some(j => j.id === id && j.status === "trwa")) { try { partCache[id] = await api(`/api/zadania/${id}/czesciowe`); } catch {} }
@@ -2056,6 +2161,7 @@ setInterval(() => { document.querySelectorAll(".timer[data-start]").forEach(el =
   try { mode = localStorage.getItem("vs_mode") || "video"; } catch {}
   try { settings = await api("/api/ustawienia"); L = settings.jezyk_ui || "pl"; } catch {}
   try { jobs = await api("/api/zadania?skanuj=1"); } catch {}
+  sfxJobs(jobs);
   try { qstate = await api("/api/kolejka"); } catch {}
   applyLang(); loadStatus();
   setInterval(poll, 1500); setInterval(loadStatus, 20000);
