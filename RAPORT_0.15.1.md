@@ -2,7 +2,7 @@
 
 ## Żywe logo i żywa podpowiedź
 - Pod polem linku jest duże logo, które spokojnie „oddycha”: play lekko pulsuje, linie streszczenia wysuwają się i chowają, a gwiazdka mruga. Podczas analizy animacja przyspiesza.
-- Na stronie głównej nie ma już drugiego znaku wodnego w rogu, bo jest żywe logo. Na pozostałych ekranach znak wodny został.
+- Na stronie głównej nie ma już drugiego znaku wodnego w rogu, bo jest żywe logo. Na pozostałych ekranach znak wodny został, ale jest mniejszy (120 px zamiast 200 px).
 - Podpowiedź w polu wypisuje się na żywo, zdanie po zdaniu („Wklej link z YouTube…”, „Przeciągnij tu plik wideo albo audio…” itd.). Przy MP4/MP3 zdania są inne.
 - Gdy coś wpiszesz, podpowiedź się zatrzymuje. Czytnik ekranu dostaje stałą etykietę.
 
